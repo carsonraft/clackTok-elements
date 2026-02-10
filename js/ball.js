@@ -51,34 +51,6 @@ WB.Ball = class {
             this.vy = (this.vy / speed) * WB.Config.BALL_MAX_SPEED;
         }
 
-        // Smooth continuous steering toward opponent (replaces jerky periodic nudge)
-        if (WB.Game && WB.Game.balls) {
-            const opponent = WB.Game.balls.find(b => b !== this && b.isAlive && b.side !== this.side);
-            if (opponent) {
-                const dx = opponent.x - this.x;
-                const dy = opponent.y - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 0) {
-                    // Spread nudge force evenly across every frame
-                    const str = WB.Config.NUDGE_STRENGTH / WB.Config.NUDGE_INTERVAL;
-                    this.vx += (dx / dist) * str * 0.7;
-                    this.vy += (dy / dist) * str * 0.7;
-                    // Light random drift (much gentler than before)
-                    if (this.frameCount % 10 === 0) {
-                        this.vx += (WB.random() - 0.5) * str * 3;
-                        this.vy += (WB.random() - 0.5) * str * 3;
-                    }
-                }
-            }
-        }
-
-        const curSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (curSpeed < 1.5) {
-            const boost = 2 / Math.max(curSpeed, 0.1);
-            this.vx *= boost;
-            this.vy *= boost;
-        }
-
         const wallHit = WB.Physics.bounceOffWalls(this, WB.Config.ARENA);
         if (wallHit) {
             const s = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
