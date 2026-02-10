@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weapon Ball - CryptoClacks</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #2C2C2C;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        canvas {
+            border: 4px solid #444;
+            border-radius: 6px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+            cursor: pointer;
+            max-width: 95vw;
+            max-height: 95vh;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- WebGL rendering -->
+    <script src="js/webgl/gl-context.js"></script>
+    <script src="js/webgl/gl-batch.js"></script>
+    <script src="js/webgl/gl-text.js"></script>
+    <script src="js/webgl/gl-effects.js"></script>
+
+    <!-- Core systems -->
+    <script src="js/rng.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/projectile.js"></script>
+    <script src="js/excitement.js"></script>
+
+    <!-- Weapon system -->
+    <script src="js/weapon.js"></script>
+    <script src="js/weapons/sword.js"></script>
+    <script src="js/weapons/dagger.js"></script>
+    <script src="js/weapons/bow.js"></script>
+    <script src="js/weapons/hammer.js"></script>
+    <script src="js/weapons/spear.js"></script>
+    <script src="js/weapons/scythe.js"></script>
+    <script src="js/weapons/unarmed.js"></script>
+    <script src="js/weapons/lance.js"></script>
+    <script src="js/weapons/axe.js"></script>
+    <script src="js/weapons/shuriken.js"></script>
+    <script src="js/weapons/boomerang.js"></script>
+    <script src="js/weapons/crossbow.js"></script>
+    <script src="js/weapons/magnet.js"></script>
+    <script src="js/weapons/sawblade.js"></script>
+    <script src="js/weapons/duplicator.js"></script>
+    <script src="js/weapons/goku.js"></script>
+    <script src="js/weapons/vegeta.js"></script>
+    <script src="js/weapons/ghost.js"></script>
+    <script src="js/weapons/muscle.js"></script>
+    <script src="js/weapons/buu.js"></script>
+    <script src="js/weapons/clacker.js"></script>
+    <script src="js/weapons/naruto.js"></script>
+    <script src="js/weapons/sasuke.js"></script>
+    <script src="js/weapons/luffy.js"></script>
+    <script src="js/weapons/zoro.js"></script>
+    <script src="js/weapons/ichigo.js"></script>
+    <script src="js/weapons/saitama.js"></script>
+    <script src="js/weapons/frieza.js"></script>
+    <script src="js/weapons/jotaro.js"></script>
+    <script src="js/weapons/piccolo.js"></script>
+    <script src="js/weapons/tanjiro.js"></script>
+    <script src="js/weapons/gunclacker.js"></script>
+    <script src="js/weapons/sailormoon.js"></script>
+    <script src="js/weapons/david.js"></script>
+    <script src="js/weapons/vash.js"></script>
+
+    <!-- Game entities -->
+    <script src="js/ball.js"></script>
+    <script src="js/simulator.js"></script>
+
+    <!-- Rendering and UI -->
+    <script src="js/renderer.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/sim-ui.js"></script>
+
+    <!-- Game loop -->
+    <script src="js/main.js"></script>
+</body>
+</html>
