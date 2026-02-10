@@ -16,7 +16,11 @@ WB.Renderer = {
         const B = WB.GLBatch;
         const T = WB.GLText;
 
-        // Apply screen shake via projection offset
+        // Background (drawn before shake so it covers full canvas)
+        B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, '#FFF8E7');
+
+        // Apply screen shake via projection offset (arena content only)
+        B.flush();
         if (this.shakeFrames > 0) {
             WB.GLEffects.applyShake(this.shakeX, this.shakeY);
             this.shakeX *= -0.7;
@@ -25,12 +29,6 @@ WB.Renderer = {
         } else {
             WB.GLEffects.clearShake();
         }
-
-        // Background
-        B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, '#FFF8E7');
-
-        // Title bar
-        this.drawTitle(game);
 
         // Arena background
         B.fillRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#FFFDF5');
@@ -73,8 +71,10 @@ WB.Renderer = {
         // Draw fancy effects on top of everything
         WB.GLEffects.draw();
 
-        // Stats below arena
+        // ── HUD layer (immune to shake / screen effects) ──
         B.flush();
+        WB.GLEffects.clearShake();
+        this.drawTitle(game);
         this.drawStats(game);
     },
 

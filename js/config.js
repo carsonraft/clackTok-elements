@@ -9,7 +9,7 @@ WB.Config = {
     BALL_MASS: 1.0,
     BALL_MAX_SPEED: 10,
     BALL_FRICTION: 0.9998,
-    WALL_RESTITUTION: 1.0,
+    WALL_RESTITUTION: 1.05,
     BALL_RESTITUTION: 1.0,
     WEAPON_HIT_COOLDOWN: 15,
     SUPER_THRESHOLD: 10,
@@ -47,6 +47,7 @@ WB.Config = {
         magma:       '#FF6622',
         storm:       '#7744CC',
         metal:       '#AABBCC',
+        gravity:     '#220044',
     },
     WEAPON_NAMES: {
         // Generic weapons
@@ -73,5 +74,6 @@ WB.Config = {
         magma:       'Lava Flow',
         storm:       'Thunder Hammer',
         metal:       'Iron Guard',
+        gravity:     'Gravity Well',
     }
 };

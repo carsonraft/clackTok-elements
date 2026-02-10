@@ -180,8 +180,15 @@ WB.Simulator = {
                 const bb = game.balls[j];
                 if (!bb.isAlive) continue;
                 if (WB.Physics.circleCircle(ba.x, ba.y, ba.radius, bb.x, bb.y, bb.radius)) {
+                    const speed = Math.sqrt(
+                        Math.pow(ba.vx - bb.vx, 2) + Math.pow(ba.vy - bb.vy, 2)
+                    );
                     WB.Physics.separateCircles(ba, bb);
                     WB.Physics.resolveCircleCircle(ba, bb);
+                    // Ball collision hit stop (matches rendered battle)
+                    if (speed >= 5) {
+                        WB.GLEffects.triggerHitStop(2 + Math.floor(speed / 5));
+                    }
                     // Body-contact weapons (only cross-side)
                     if (ba.side !== bb.side) {
                         for (const [attacker, target] of [[ba, bb], [bb, ba]]) {
@@ -261,6 +268,8 @@ WB.Simulator = {
                         w2.angle -= (WB.random() - 0.3) * Math.PI * 0.4;
                         w1.cooldown = Math.max(w1.cooldown, 10);
                         w2.cooldown = Math.max(w2.cooldown, 10);
+                        // Parry hit stop (matches rendered battle)
+                        WB.GLEffects.triggerHitStop(4);
                     }
                 }
             }
