@@ -15,6 +15,9 @@ WB.Simulator = {
         WB.Audio = this._noopAudio;
         WB.Renderer = this._noopRenderer;
         WB.GLEffects = this._noopGLEffects;
+        // Reset hit stop and combo state from previous sim
+        this._noopGLEffects._hitStop = 0;
+        this._noopGLEffects._combo = { left: 0, right: 0, leftTimer: 0, rightTimer: 0, leftDisplay: 0, rightDisplay: 0 };
 
         // Create sim game state (weapons access WB.Game.balls etc.)
         const simGame = this._createSimGame(weaponLeft, weaponRight);
@@ -24,10 +27,10 @@ WB.Simulator = {
         const excitement = new WB.Excitement();
         simGame._excitement = excitement;
 
-        // Initial velocities (same as startBattle)
+        // Initial velocities (must match startBattle in main.js)
         for (const ball of simGame.balls) {
-            ball.vx = (WB.random() - 0.5) * 14;
-            ball.vy = (WB.random() - 0.5) * 14;
+            ball.vx = (WB.random() - 0.5) * 16;
+            ball.vy = (WB.random() - 0.5) * 16;
         }
 
         // Run simulation
@@ -150,6 +153,12 @@ WB.Simulator = {
 
     // One frame of battle simulation — mirrors updateBattle() exactly.
     _stepFrame(game, excitement) {
+        // 0. Update effects (always, even during hit stop)
+        WB.GLEffects.update();
+
+        // Hit stop — skip physics (matches rendered battle)
+        if (WB.GLEffects.isHitStopped()) return;
+
         // 1. Update balls
         for (const ball of game.balls) {
             if (ball.isAlive) ball.update();
@@ -182,6 +191,32 @@ WB.Simulator = {
                                 excitement.recordHit();
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // 2b. Body-contact proximity check (contactAura weapons like Ghost)
+        for (let i = 0; i < game.balls.length; i++) {
+            const ba = game.balls[i];
+            if (!ba.isAlive) continue;
+            for (let j = i + 1; j < game.balls.length; j++) {
+                const bb = game.balls[j];
+                if (!bb.isAlive || ba.side === bb.side) continue;
+                const auraA = ba.weapon.contactAura || 0;
+                const auraB = bb.weapon.contactAura || 0;
+                if (auraA === 0 && auraB === 0) continue;
+                if (WB.Physics.circleCircle(ba.x, ba.y, ba.radius, bb.x, bb.y, bb.radius)) continue;
+                const dx = ba.x - bb.x;
+                const dy = ba.y - bb.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const auraDistA = ba.radius + bb.radius + auraA;
+                const auraDistB = ba.radius + bb.radius + auraB;
+                for (const [attacker, target, auraDist] of [[ba, bb, auraDistA], [bb, ba, auraDistB]]) {
+                    const w = attacker.weapon;
+                    if (w.reach === 0 && w.contactAura && dist < auraDist && w.canHit && w.canHit() && target.isAlive) {
+                        w.onHit(target);
+                        excitement.recordHit();
                     }
                 }
             }
@@ -275,14 +310,27 @@ WB.Simulator = {
         _combo: { left: 0, right: 0, leftTimer: 0, rightTimer: 0, leftDisplay: 0, rightDisplay: 0 },
         _superFlash: 0, _arenaPulse: 0, _hitStop: 0, _collisionFlash: 0,
         _chromatic: 0, _barrel: 0, _shockwaves: [], _clashSparks: [],
-        init() {}, resetFrame() {}, update() {}, draw() {},
+        init() {}, resetFrame() {}, draw() {},
         applyShake() {}, clearShake() {},
         spawnImpact() {}, spawnDamageNumber() {}, spawnWallImpact() {},
         triggerSuperFlash() {}, triggerArenaPulse() {},
-        triggerHitStop() {}, triggerCollisionFlash() {},
+        triggerHitStop(frames) { this._hitStop = Math.max(this._hitStop, frames || 0); },
+        triggerCollisionFlash() {},
         triggerChromatic() {}, triggerBarrel() {},
         triggerShockwave() {}, spawnClashSparks() {},
-        incrementCombo() {}, getCombo() { return 0; },
+        incrementCombo(side) {
+            const c = this._combo;
+            if (side === 'left') {
+                c.left++;
+                c.leftTimer = 120;
+                c.leftDisplay = Math.max(c.leftDisplay, c.left);
+            } else {
+                c.right++;
+                c.rightTimer = 120;
+                c.rightDisplay = Math.max(c.rightDisplay, c.right);
+            }
+        },
+        getCombo(side) { return side === 'left' ? this._combo.left : this._combo.right; },
         drawSpeedLines() {}, drawImpacts() {},
         drawDamageNumbers() {}, drawVignette() {},
         drawSuperFlash() {}, drawArenaPulse() {},
@@ -290,6 +338,19 @@ WB.Simulator = {
         drawCollisionFlash() {}, drawChromatic() {},
         drawBarrel() {}, drawShockwaves() {},
         drawClashSparks() {},
-        isHitStopped() { return false; },
+        update() {
+            if (this._hitStop > 0) this._hitStop--;
+            // Decay combo timers (mirrors gl-effects.js update)
+            const c = this._combo;
+            if (c.leftTimer > 0) {
+                c.leftTimer--;
+                if (c.leftTimer <= 0) { c.left = 0; c.leftDisplay = 0; }
+            }
+            if (c.rightTimer > 0) {
+                c.rightTimer--;
+                if (c.rightTimer <= 0) { c.right = 0; c.rightDisplay = 0; }
+            }
+        },
+        isHitStopped() { return this._hitStop > 0; },
     }
 };

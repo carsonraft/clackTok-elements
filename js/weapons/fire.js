@@ -177,7 +177,7 @@ class FireWeapon extends WB.Weapon {
                 const tailAngle = Math.atan2(-this.owner.vy, -this.owner.vx); // opposite of movement
                 for (let i = 0; i < 6; i++) {
                     const tailDist = 20 + i * 15;
-                    const spread = (WB.random() - 0.5) * 0.5;
+                    const spread = (Math.random() - 0.5) * 0.5;
                     const tx = this.owner.x + Math.cos(tailAngle + spread) * tailDist;
                     const ty = this.owner.y + Math.sin(tailAngle + spread) * tailDist;
                     const tailAlpha = 0.3 - i * 0.04;
@@ -250,12 +250,12 @@ class FireWeapon extends WB.Weapon {
         // Ember sparks flying off the flame tip
         if (this.flickerTimer % 4 === 0) {
             B.setAlpha(0.5);
-            const sparkAngle = this.flameAngle + (WB.random() - 0.5) * this.flameConeWidth * 0.8;
-            const sparkDist = this.flameReach * (0.6 + WB.random() * 0.4);
+            const sparkAngle = this.flameAngle + (Math.random() - 0.5) * this.flameConeWidth * 0.8;
+            const sparkDist = this.flameReach * (0.6 + Math.random() * 0.4);
             B.fillCircle(
                 this.owner.x + Math.cos(sparkAngle) * sparkDist,
                 this.owner.y + Math.sin(sparkAngle) * sparkDist,
-                1.5 + WB.random() * 1.5, '#FFAA33'
+                1.5 + Math.random() * 1.5, '#FFAA33'
             );
             B.restoreAlpha();
         }
@@ -267,7 +267,7 @@ class FireWeapon extends WB.Weapon {
             const tailCount = this.superActive ? 8 : 4;
             for (let i = 0; i < tailCount; i++) {
                 const td = r + 5 + i * (this.superActive ? 14 : 10);
-                const jitter = (WB.random() - 0.5) * 0.4;
+                const jitter = (Math.random() - 0.5) * 0.4;
                 const tx = this.owner.x + Math.cos(tailDir + jitter) * td;
                 const ty = this.owner.y + Math.sin(tailDir + jitter) * td;
                 const ta = this.superActive

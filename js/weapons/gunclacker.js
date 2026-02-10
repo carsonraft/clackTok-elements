@@ -52,12 +52,12 @@ class GunclackerWeapon extends WB.Weapon {
             const enemy = WB.Game.balls.find(b => b !== this.owner && b.isAlive && b.side !== this.owner.side);
             if (enemy) {
                 fireAngle = Math.atan2(enemy.y - this.owner.y, enemy.x - this.owner.x);
-                if (angleOffset) fireAngle += (Math.random() - 0.5) * 0.3;
+                if (angleOffset) fireAngle += (WB.random() - 0.5) * 0.3;
             }
         }
 
         // Slight random spread
-        fireAngle += (Math.random() - 0.5) * 0.12;
+        fireAngle += (WB.random() - 0.5) * 0.12;
 
         const speed = 12;
         const dmg = this.currentDamage;
@@ -168,8 +168,8 @@ class GunclackerWeapon extends WB.Weapon {
 
         // Spray 12 bullets in a fan
         for (let i = 0; i < 12; i++) {
-            const spreadAngle = baseAngle + (i - 5.5) * 0.08 + (Math.random() - 0.5) * 0.1;
-            const speed = 10 + Math.random() * 4;
+            const spreadAngle = baseAngle + (i - 5.5) * 0.08 + (WB.random() - 0.5) * 0.1;
+            const speed = 10 + WB.random() * 4;
             WB.Game.projectiles.push(new WB.Projectile({
                 x: this.owner.x + Math.cos(spreadAngle) * (this.owner.radius + 6),
                 y: this.owner.y + Math.sin(spreadAngle) * (this.owner.radius + 6),

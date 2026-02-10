@@ -187,10 +187,10 @@ class SparkWeapon extends WB.Weapon {
             // Random lightning arcs at the field boundary
             if (this.teslaTimer % 3 === 0) {
                 B.setAlpha(0.4);
-                const arcAngle = WB.random() * Math.PI * 2;
+                const arcAngle = Math.random() * Math.PI * 2;
                 const arcX = this.owner.x + Math.cos(arcAngle) * fieldR;
                 const arcY = this.owner.y + Math.sin(arcAngle) * fieldR;
-                const jitter = (WB.random() - 0.5) * 20;
+                const jitter = (Math.random() - 0.5) * 20;
                 B.line(
                     this.owner.x + Math.cos(arcAngle) * (fieldR * 0.5),
                     this.owner.y + Math.sin(arcAngle) * (fieldR * 0.5),
