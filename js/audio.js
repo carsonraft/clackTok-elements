@@ -36,13 +36,15 @@ WB.Audio = {
 
     // Weapon category map for sound selection
     _weaponCategory: {
-        sword: 'blade', dagger: 'blade', scythe: 'blade', axe: 'blade',
-        hammer: 'blunt', unarmed: 'blunt', duplicator: 'blunt',
-        spear: 'pierce', lance: 'pierce', crossbow: 'pierce',
-        bow: 'ranged', shuriken: 'ranged', boomerang: 'ranged',
-        magnet: 'tech', sawblade: 'tech',
-        ghost: 'ethereal', muscle: 'blunt', buu: 'blunt', clacker: 'blunt',
-        gunclacker: 'ranged', sailormoon: 'ranged', david: 'tech', vash: 'ranged',
+        // Generic weapons
+        sword: 'blade', bow: 'ranged', hammer: 'blunt',
+        shuriken: 'ranged', sawblade: 'tech',
+        ghost: 'ethereal', clacker: 'blunt', gunclacker: 'ranged',
+        // Elemental weapons
+        fire: 'ethereal', ice: 'blade', spark: 'tech', stone: 'blunt',
+        wind: 'blade', water: 'ranged', poison: 'pierce', light: 'ethereal',
+        shadow: 'ethereal', nature: 'blade', crystal: 'tech', magma: 'blunt',
+        storm: 'blunt', metal: 'blunt',
     },
 
     // Random pitch variation factor
@@ -227,85 +229,6 @@ WB.Audio = {
             osc.stop(t + 0.12); osc2.stop(t + 0.08);
         },
 
-        // DAGGER: Quick staccato stab — high triangle, very short
-        dagger(t, combo, pv) {
-            const pitch = (1800 + combo * 100) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.4, t + 0.04);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.25, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.06);
-            // Tiny click layer
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.02);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'highpass';
-            filter.frequency.value = 5000;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.12, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.03);
-        },
-
-        // AXE: Heavy chop — low sine thud + mid-freq metallic crunch
-        axe(t, combo, pv) {
-            const pitch = (400 + combo * 40) * pv;
-            // Low impact thud
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.25, t + 0.12);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.3, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.16);
-            // Crunchy noise layer
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.06);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = (900 + combo * 60) * pv;
-            filter.Q.value = 2;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.2, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.08);
-        },
-
-        // SCYTHE: Eerie whistle slash — descending sine with breathy noise
-        scythe(t, combo, pv) {
-            const pitch = (1600 + combo * 60) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.3, t + 0.15);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.15, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.2);
-            // Breathy whoosh layer
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.1);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(2000 * pv, t);
-            filter.frequency.exponentialRampToValueAtTime(600, t + 0.1);
-            filter.Q.value = 1.5;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.12, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.12);
-        },
-
         // HAMMER: Deep heavy slam — very low sine + loud noise burst
         hammer(t, combo, pv) {
             const pitch = (150 + combo * 15) * pv;
@@ -329,73 +252,6 @@ WB.Audio = {
             nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
             noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
             noise.start(t); noise.stop(t + 0.12);
-        },
-
-        // SPEAR: Sharp thrust — mid square pop, quick decay
-        spear(t, combo, pv) {
-            const pitch = (1400 + combo * 90) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.5, t + 0.05);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.18, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.07);
-        },
-
-        // LANCE: Powerful impale — rising square + heavy crunch
-        lance(t, combo, pv) {
-            const pitch = (800 + combo * 80) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(pitch * 0.6, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch, t + 0.03);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.3, t + 0.1);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.25, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.14);
-            // Impact crunch
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.06);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 1200 * pv;
-            filter.Q.value = 3;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.2, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.07);
-        },
-
-        // CROSSBOW: Bolt impact thwack — sharp attack, woody
-        crossbow(t, combo, pv) {
-            const pitch = (2200 + combo * 100) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.2, t + 0.06);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.2, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.08);
-            // Woody thud
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.03);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 1800 * pv;
-            filter.Q.value = 5;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.15, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.04);
         },
 
         // BOW: Twangy string release — fast sine wobble
@@ -430,91 +286,6 @@ WB.Audio = {
             osc.start(t); osc.stop(t + 0.08);
         },
 
-        // BOOMERANG: Whooping curve — sine frequency sweep up then down
-        boomerang(t, combo, pv) {
-            const pitch = (600 + combo * 40) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 2, t + 0.06);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.5, t + 0.12);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.2, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.15);
-        },
-
-        // DUPLICATOR: Squishy slap — low triangle + noise burst, organic feel
-        duplicator(t, combo, pv) {
-            const pitch = (350 + combo * 25) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.4, t + 0.08);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.22, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.12);
-            // Wet slap noise
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.04);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 500 * pv;
-            filter.Q.value = 6;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.18, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.05);
-        },
-
-        // UNARMED: Punchy thud — mid sine + sharp noise pop
-        unarmed(t, combo, pv) {
-            const pitch = (300 + combo * 30) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.3, t + 0.08);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.28, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.12);
-            // Knuckle crack noise
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.03);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 1500 * pv;
-            filter.Q.value = 8;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.15, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.04);
-        },
-
-        // MAGNET: Electric zap — sawtooth buzz + rising tone
-        magnet(t, combo, pv) {
-            const pitch = (600 + combo * 40) * pv;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 2.5, t + 0.06);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = pitch * 1.5;
-            filter.Q.value = 4;
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.18, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-            osc.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.1);
-        },
-
         // SAWBLADE: Grinding buzz — sawtooth + heavy filtered noise
         sawblade(t, combo, pv) {
             const pitch = (800 + combo * 50) * pv;
@@ -545,69 +316,6 @@ WB.Audio = {
             noise.start(t); noise.stop(t + 0.1);
         },
 
-        // GOKU: Ki burst — rising sine + energy pop
-        goku(t, combo, pv) {
-            const pitch = (800 + combo * 50) * pv;
-            // Rising energy tone
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 2, t + 0.06);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 1.2, t + 0.1);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.25, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.14);
-            // Energy pop noise
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.04);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 2000 * pv;
-            filter.Q.value = 4;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.18, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.05);
-        },
-
-        // VEGETA: Ki burst — descending aggressive pulse + low growl
-        vegeta(t, combo, pv) {
-            const pitch = (600 + combo * 40) * pv;
-            // Aggressive descending tone
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(pitch * 1.5, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.6, t + 0.08);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.2, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.12);
-            // Low rumble
-            const osc2 = this.ctx.createOscillator();
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(pitch * 0.5, t);
-            const gain2 = this.ctx.createGain();
-            gain2.gain.setValueAtTime(0.15, t);
-            gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-            osc2.connect(gain2); gain2.connect(this.masterGain);
-            osc2.start(t); osc2.stop(t + 0.1);
-            // Energy crack noise
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.03);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'highpass';
-            filter.frequency.value = 2500 * pv;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.2, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.04);
-        },
-
         // GHOST: Ethereal whoosh — warbling sine with vibrato + breathy phase
         ghost(t, combo, pv) {
             const pitch = (500 + combo * 30) * pv;
@@ -636,185 +344,6 @@ WB.Audio = {
             nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
             noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
             noise.start(t); noise.stop(t + 0.14);
-        },
-
-        // MUSCLE: Heavy body slam — ultra-low thud + meaty noise crunch
-        muscle(t, combo, pv) {
-            const pitch = (100 + combo * 10) * pv;
-            // Ultra-low bass thud
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.15, t + 0.2);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.4, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.28);
-            // Meaty impact crunch
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.1);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 800 * pv;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.3, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.12);
-            // Secondary mid-range body slap
-            const osc2 = this.ctx.createOscillator();
-            osc2.type = 'triangle';
-            osc2.frequency.setValueAtTime(250 * pv, t);
-            osc2.frequency.exponentialRampToValueAtTime(80, t + 0.1);
-            const gain2 = this.ctx.createGain();
-            gain2.gain.setValueAtTime(0.2, t);
-            gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-            osc2.connect(gain2); gain2.connect(this.masterGain);
-            osc2.start(t); osc2.stop(t + 0.14);
-        },
-
-        // BUU: Wet squishy slap — low wobble sine + wet noise burst + bounce pop
-        buu(t, combo, pv) {
-            const pitch = (180 + combo * 15) * pv;
-            // Wobbling low sine (the squish)
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.setValueAtTime(pitch * 1.3, t + 0.03);
-            osc.frequency.setValueAtTime(pitch * 0.7, t + 0.06);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.3, t + 0.15);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.3, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.2);
-            // Wet slap noise
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.06);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = (400 + combo * 30) * pv;
-            filter.Q.value = 3;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.25, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.08);
-            // Bounce pop (high sine)
-            const pop = this.ctx.createOscillator();
-            pop.type = 'sine';
-            pop.frequency.setValueAtTime(800 * pv, t + 0.02);
-            pop.frequency.exponentialRampToValueAtTime(300, t + 0.08);
-            const popGain = this.ctx.createGain();
-            popGain.gain.setValueAtTime(0.15, t + 0.02);
-            popGain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
-            pop.connect(popGain); popGain.connect(this.masterGain);
-            pop.start(t + 0.02); pop.stop(t + 0.1);
-        },
-
-        // SAILOR MOON: Sparkly magical chime — ascending arpeggiated sine + shimmer
-        sailormoon(t, combo, pv) {
-            const pitch = (1200 + combo * 70) * pv;
-            // Sparkle arpeggio (3 quick ascending notes)
-            for (let i = 0; i < 3; i++) {
-                const delay = i * 0.02;
-                const notePitch = pitch * (1 + i * 0.3);
-                const osc = this.ctx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(notePitch, t + delay);
-                osc.frequency.exponentialRampToValueAtTime(notePitch * 0.7, t + delay + 0.06);
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.15, t + delay);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.08);
-                osc.connect(gain); gain.connect(this.masterGain);
-                osc.start(t + delay); osc.stop(t + delay + 0.1);
-            }
-            // High shimmer noise
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.06);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'highpass';
-            filter.frequency.value = 4000 * pv;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.08, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.08);
-        },
-
-        // DAVID: Cyber-punch impact — distorted bass hit + digital glitch
-        david(t, combo, pv) {
-            const pitch = (200 + combo * 20) * pv;
-            // Heavy bass punch
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.15, t + 0.15);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.35, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.2);
-            // Digital glitch (rapid square oscillation)
-            const glitch = this.ctx.createOscillator();
-            glitch.type = 'square';
-            glitch.frequency.setValueAtTime(2200 * pv, t);
-            glitch.frequency.setValueAtTime(800, t + 0.015);
-            glitch.frequency.setValueAtTime(3500, t + 0.025);
-            glitch.frequency.exponentialRampToValueAtTime(500, t + 0.05);
-            const gGain = this.ctx.createGain();
-            gGain.gain.setValueAtTime(0.1, t);
-            gGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-            glitch.connect(gGain); gGain.connect(this.masterGain);
-            glitch.start(t); glitch.stop(t + 0.06);
-            // Impact crunch
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.05);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 1000 * pv;
-            filter.Q.value = 2;
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.22, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.07);
-        },
-
-        // VASH: Revolver shot impact — gunClack-style but with western twang
-        vash(t, combo, pv) {
-            const pitch = (1400 + combo * 80) * pv;
-            // Sharp crack (gunshot transient)
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.012);
-            const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.3, t);
-            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
-            noise.connect(nGain); nGain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.02);
-            // Western twang (sine with vibrato)
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(pitch * 1.2, t);
-            osc.frequency.setValueAtTime(pitch * 0.8, t + 0.03);
-            osc.frequency.setValueAtTime(pitch * 1.1, t + 0.05);
-            osc.frequency.exponentialRampToValueAtTime(pitch * 0.5, t + 0.12);
-            const oGain = this.ctx.createGain();
-            oGain.gain.setValueAtTime(0.15, t);
-            oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-            osc.connect(oGain); oGain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.16);
-            // Low thud
-            const bass = this.ctx.createOscillator();
-            bass.type = 'sine';
-            bass.frequency.setValueAtTime(120 * pv, t);
-            bass.frequency.exponentialRampToValueAtTime(35, t + 0.1);
-            const bGain = this.ctx.createGain();
-            bGain.gain.setValueAtTime(0.22, t);
-            bGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-            bass.connect(bGain); bGain.connect(this.masterGain);
-            bass.start(t); bass.stop(t + 0.14);
         },
 
         // GUNCLACKER: Bullet impact — distorted crack + ricochet whine + meaty thud
@@ -931,6 +460,352 @@ WB.Audio = {
             bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
             bass.connect(bassGain); bassGain.connect(this.masterGain);
             bass.start(t); bass.stop(t + 0.12);
+        },
+
+        // FIRE: Crackling pop — rising sine + filtered noise burst
+        fire(t, combo, pv) {
+            const pitch = (600 + combo * 40) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 2.5, t + 0.04);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.3, t + 0.12);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.16);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.06);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = 1800 * pv; filter.Q.value = 2;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.18, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.08);
+        },
+
+        // ICE: Crystalline shatter — high sine ring + sharp noise crack
+        ice(t, combo, pv) {
+            const pitch = (2200 + combo * 100) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.5, t + 0.1);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.18);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.015);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.value = 4000;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.22, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.03);
+        },
+
+        // SPARK: Electric zap — sawtooth buzz with frequency wobble + snap
+        spark(t, combo, pv) {
+            const pitch = (900 + combo * 60) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.setValueAtTime(pitch * 2, t + 0.01);
+            osc.frequency.setValueAtTime(pitch * 0.5, t + 0.025);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 1.5, t + 0.05);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = pitch * 1.5; filter.Q.value = 3;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.18, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+            osc.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.09);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.01);
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.25, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.012);
+            noise.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.015);
+        },
+
+        // STONE: Deep rumbling thud — ultra-low sine + long noise tail
+        stone(t, combo, pv) {
+            const pitch = (80 + combo * 8) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.15, t + 0.25);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.4, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.35);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.15);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.value = 600 * pv;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.3, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.18);
+        },
+
+        // WIND: Whooshing sweep — bandpass noise sweep high→low + whistle
+        wind(t, combo, pv) {
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.12);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(3000 * pv, t);
+            filter.frequency.exponentialRampToValueAtTime(400, t + 0.12);
+            filter.Q.value = 2;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.18, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.14);
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime((1800 + combo * 80) * pv, t);
+            osc.frequency.exponentialRampToValueAtTime(800, t + 0.08);
+            const oGain = this.ctx.createGain();
+            oGain.gain.setValueAtTime(0.1, t);
+            oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+            osc.connect(oGain); oGain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.1);
+        },
+
+        // WATER: Splashy burst — low bandpass noise pop + sine bubble
+        water(t, combo, pv) {
+            const pitch = (300 + combo * 25) * pv;
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.06);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = 600 * pv; filter.Q.value = 4;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.08);
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.3, t + 0.1);
+            const oGain = this.ctx.createGain();
+            oGain.gain.setValueAtTime(0.2, t);
+            oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+            osc.connect(oGain); oGain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.14);
+        },
+
+        // POISON: Sharp puncture + hiss — triangle stab + filtered noise decay
+        poison(t, combo, pv) {
+            const pitch = (1600 + combo * 90) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.3, t + 0.04);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.22, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.06);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.1);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.value = 3000 * pv;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.08, t + 0.02);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t + 0.02); noise.stop(t + 0.14);
+        },
+
+        // LIGHT: Bright chime — fast ascending sine arpeggio + shimmer
+        light(t, combo, pv) {
+            const pitch = (1400 + combo * 80) * pv;
+            for (let i = 0; i < 3; i++) {
+                const d = i * 0.015;
+                const np = pitch * (1 + i * 0.35);
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(np, t + d);
+                osc.frequency.exponentialRampToValueAtTime(np * 0.6, t + d + 0.05);
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.15, t + d);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + d + 0.06);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(t + d); osc.stop(t + d + 0.08);
+            }
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.04);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.value = 5000;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.06, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.05);
+        },
+
+        // SHADOW: Dark warble — descending sine with vibrato + muffled noise
+        shadow(t, combo, pv) {
+            const pitch = (400 + combo * 25) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.setValueAtTime(pitch * 1.3, t + 0.03);
+            osc.frequency.setValueAtTime(pitch * 0.6, t + 0.06);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.2, t + 0.15);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.18, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.2);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.08);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.value = 800 * pv;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.1, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.1);
+        },
+
+        // NATURE: Whip crack + woody thud
+        nature(t, combo, pv) {
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.015);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = 2000 * pv; filter.Q.value = 5;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.28, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.025);
+            const osc = this.ctx.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime((250 + combo * 15) * pv, t);
+            osc.frequency.exponentialRampToValueAtTime(80, t + 0.1);
+            const oGain = this.ctx.createGain();
+            oGain.gain.setValueAtTime(0.18, t);
+            oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+            osc.connect(oGain); oGain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.14);
+        },
+
+        // CRYSTAL: Shimmer chord — two close sines + glass crack
+        crystal(t, combo, pv) {
+            const pitch = (1800 + combo * 90) * pv;
+            const osc1 = this.ctx.createOscillator();
+            osc1.type = 'sine'; osc1.frequency.setValueAtTime(pitch, t);
+            osc1.frequency.exponentialRampToValueAtTime(pitch * 0.6, t + 0.12);
+            const osc2 = this.ctx.createOscillator();
+            osc2.type = 'sine'; osc2.frequency.setValueAtTime(pitch * 1.06, t);
+            osc2.frequency.exponentialRampToValueAtTime(pitch * 0.65, t + 0.12);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc1.connect(gain); osc2.connect(gain); gain.connect(this.masterGain);
+            osc1.start(t); osc2.start(t); osc1.stop(t + 0.18); osc2.stop(t + 0.18);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.02);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.value = 3500;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.18, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.03);
+        },
+
+        // MAGMA: Deep sizzle — low thud + rising hiss
+        magma(t, combo, pv) {
+            const pitch = (100 + combo * 10) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.15, t + 0.2);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.35, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.28);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.12);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.value = 2000 * pv;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.01, t);
+            nGain.gain.linearRampToValueAtTime(0.15, t + 0.04);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.14);
+        },
+
+        // STORM: Thunder boom — bass thud + crackling noise burst + flash tone
+        storm(t, combo, pv) {
+            const pitch = (120 + combo * 12) * pv;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.exponentialRampToValueAtTime(pitch * 0.2, t + 0.18);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.35, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.25);
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this._noiseBuffer(0.08);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = 1500 * pv; filter.Q.value = 1;
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.25, t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+            noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
+            noise.start(t); noise.stop(t + 0.1);
+            const flash = this.ctx.createOscillator();
+            flash.type = 'sine';
+            flash.frequency.setValueAtTime(3000 * pv, t);
+            flash.frequency.exponentialRampToValueAtTime(800, t + 0.03);
+            const fGain = this.ctx.createGain();
+            fGain.gain.setValueAtTime(0.12, t);
+            fGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+            flash.connect(fGain); fGain.connect(this.masterGain);
+            flash.start(t); flash.stop(t + 0.05);
+        },
+
+        // METAL: Metallic clang — detuned sine bell + heavy thud
+        metal(t, combo, pv) {
+            const pitch = (1200 + combo * 60) * pv;
+            const osc1 = this.ctx.createOscillator();
+            osc1.type = 'sine'; osc1.frequency.setValueAtTime(pitch, t);
+            osc1.frequency.exponentialRampToValueAtTime(pitch * 0.5, t + 0.12);
+            const osc2 = this.ctx.createOscillator();
+            osc2.type = 'sine'; osc2.frequency.setValueAtTime(pitch * 1.03, t);
+            osc2.frequency.exponentialRampToValueAtTime(pitch * 0.52, t + 0.12);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            osc1.connect(gain); osc2.connect(gain); gain.connect(this.masterGain);
+            osc1.start(t); osc2.start(t); osc1.stop(t + 0.2); osc2.stop(t + 0.2);
+            const bass = this.ctx.createOscillator();
+            bass.type = 'sine';
+            bass.frequency.setValueAtTime(150 * pv, t);
+            bass.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+            const bGain = this.ctx.createGain();
+            bGain.gain.setValueAtTime(0.25, t);
+            bGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+            bass.connect(bGain); bGain.connect(this.masterGain);
+            bass.start(t); bass.stop(t + 0.16);
         },
     },
 

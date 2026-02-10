@@ -125,14 +125,11 @@ WB.Renderer = {
         B.pushTranslate(x, y);
 
         switch (type) {
+            // ─── Generic weapons ───
             case 'sword':
                 B.fillRect(-1, -8, 2, 16, '#C0C0C0');
                 B.fillRect(-4, 4, 8, 2, '#DAA520');
                 B.fillRect(-1, 6, 2, 4, '#8B5E3C');
-                break;
-            case 'dagger':
-                B.fillTriangle(0, -6, -3, 2, 3, 2, '#C0C0C0');
-                B.fillRect(-1, 2, 2, 5, '#8B5E3C');
                 break;
             case 'bow':
                 B.drawQuadratic(3 + Math.cos(-Math.PI * 0.4) * 8, Math.sin(-Math.PI * 0.4) * 8,
@@ -149,32 +146,6 @@ WB.Renderer = {
                 B.fillRect(-1, -2, 2, 12, '#7B4B2A');
                 B.fillRect(-5, -7, 10, 6, '#777');
                 break;
-            case 'spear':
-                B.line(0, 8, 0, -4, '#8B6914', 2);
-                B.fillTriangle(-3, -4, 0, -10, 3, -4, '#B0B0B0');
-                break;
-            case 'scythe':
-                B.line(0, 8, 0, -4, '#5C3317', 2);
-                B.drawQuadratic(0, -4, 8, -12, 2, -14, '#C0C0C0', 1.5);
-                B.drawQuadratic(2, -14, 5, -10, 0, -4, '#888', 1);
-                break;
-            case 'unarmed':
-                B.fillCircle(0, 0, 6, '#F5D5A0');
-                B.strokeCircle(0, 0, 6, '#C9A55A', 1.5);
-                B.line(-3, -2, -3, 2, '#C9A55A', 1);
-                B.line(0, -3, 0, 2, '#C9A55A', 1);
-                B.line(3, -2, 3, 2, '#C9A55A', 1);
-                break;
-            case 'lance':
-                B.fillRect(-1, -2, 2, 14, '#B8860B');
-                B.fillTriangle(-4, -2, 0, -10, 4, -2, '#C0C0C0');
-                B.fillArc(0, 4, 5, 0, Math.PI, '#DAA520');
-                break;
-            case 'axe':
-                B.fillRect(-1, -2, 2, 12, '#6B3A1F');
-                B.fillPolygon([[-1, -6], [-7, -9], [-7, -2], [-1, 0]], '#999');
-                B.fillPolygon([[1, -6], [7, -9], [7, -2], [1, 0]], '#999');
-                break;
             case 'shuriken': {
                 const pts = [];
                 for (let i = 0; i < 8; i++) {
@@ -186,20 +157,6 @@ WB.Renderer = {
                 B.fillCircle(0, 0, 2, '#333');
                 break;
             }
-            case 'boomerang':
-                B.drawQuadratic(-6, -4, 0, 0, 6, -4, '#B8860B', 3);
-                B.drawQuadratic(-6, 4, 0, 0, 6, 4, '#B8860B', 3);
-                break;
-            case 'crossbow':
-                B.fillRect(-2, -2, 8, 4, '#6B3A1F');
-                B.drawQuadratic(-2, -8, 2, 0, -2, 8, '#555', 2);
-                B.line(0, 0, 8, 0, '#7CB900', 1.5);
-                break;
-            case 'magnet':
-                B.fillRect(-6, -8, 4, 8, '#DD3333');
-                B.fillRect(2, -8, 4, 8, '#3355CC');
-                B.fillRect(-6, -8, 12, 3, '#888');
-                break;
             case 'sawblade': {
                 const pts = [];
                 for (let i = 0; i < 16; i++) {
@@ -211,324 +168,204 @@ WB.Renderer = {
                 B.fillCircle(0, 0, 2, '#555');
                 break;
             }
-            case 'duplicator':
-                B.fillCircle(-3, 0, 6, '#00CC88');
-                B.strokeCircle(-3, 0, 6, '#009966', 1.5);
-                B.fillCircle(3, 0, 6, '#00CC88');
-                B.strokeCircle(3, 0, 6, '#009966', 1.5);
-                // Star on left
-                {
-                    const sr = 2.5;
-                    const starPts = [];
-                    for (let i = 0; i < 5; i++) {
-                        const sa = -Math.PI / 2 + (i * 2 * Math.PI / 5);
-                        const saI = sa + Math.PI / 5;
-                        starPts.push([-3 + Math.cos(sa) * sr, Math.sin(sa) * sr]);
-                        starPts.push([-3 + Math.cos(saI) * sr * 0.4, Math.sin(saI) * sr * 0.4]);
-                    }
-                    B.fillPolygon(starPts, 'rgba(255, 215, 0, 0.7)');
-                }
-                break;
-            case 'goku':
-                B.fillCircle(0, 2, 5, '#FF8C00');
-                // Spiky hair
-                B.fillTriangle(-5, 0, -3, -9, -1, -1, '#333');
-                B.fillTriangle(-2, -1, 0, -11, 2, -1, '#333');
-                B.fillTriangle(1, -1, 4, -8, 5, 0, '#333');
-                // Ki blast dot
-                B.fillCircle(0, 8, 2.5, '#FFDD44');
-                break;
-            case 'vegeta':
-                B.fillCircle(0, 2, 5, '#6644FF');
-                // Vegeta upswept flame hair (widow's peak)
-                B.fillTriangle(-4, 0, -5, -10, -2, -1, '#333');
-                B.fillTriangle(-2, -1, -1, -12, 1, -1, '#333');
-                B.fillTriangle(1, -1, 2, -11, 4, 0, '#333');
-                // Forehead point (widow's peak)
-                B.fillTriangle(-1, -1, 0, -5, 1, -1, '#333');
-                // Ki blast dot (purple)
-                B.fillCircle(0, 8, 2.5, '#AA66FF');
-                break;
             case 'ghost':
-                // Translucent ghost circle
                 B.setAlpha(0.5);
                 B.fillCircle(0, 0, 7, '#88DDFF');
                 B.restoreAlpha();
                 B.setAlpha(0.8);
                 B.strokeCircle(0, 0, 7, '#AAEEFF', 1.5);
                 B.restoreAlpha();
-                // Ghost eyes
                 B.fillCircle(-2.5, -1, 1.5, '#FFF');
                 B.fillCircle(2.5, -1, 1.5, '#FFF');
-                // Wispy tail
                 B.setAlpha(0.4);
                 B.fillTriangle(-3, 5, 0, 3, 3, 5, '#88DDFF');
                 B.fillTriangle(-5, 7, -2, 4, 0, 8, '#88DDFF');
                 B.fillTriangle(0, 8, 2, 4, 5, 7, '#88DDFF');
                 B.restoreAlpha();
                 break;
-            case 'muscle':
-                // Big circle with angry face
-                B.fillCircle(0, 0, 8, '#CC4422');
-                B.strokeCircle(0, 0, 8, '#993311', 1.5);
-                // Angry eyebrows
-                B.line(-4, -3, -1, -1.5, '#333', 2);
-                B.line(4, -3, 1, -1.5, '#333', 2);
-                // Eyes
-                B.fillCircle(-2, 0, 1, '#FFF');
-                B.fillCircle(2, 0, 1, '#FFF');
-                // Gritted teeth
-                B.fillRect(-3, 2, 6, 2, '#FFF');
-                B.line(-1, 2, -1, 4, '#CCC', 0.5);
-                B.line(1, 2, 1, 4, '#CCC', 0.5);
-                // Bicep bumps
-                B.setAlpha(0.4);
-                B.fillCircle(-7, -1, 3, '#CC4422');
-                B.fillCircle(7, -1, 3, '#CC4422');
-                B.restoreAlpha();
-                break;
-            case 'buu':
-                // Pink blob with antenna
-                B.fillCircle(0, 0, 7, '#FF69B4');
-                B.strokeCircle(0, 0, 7, '#CC5599', 1.5);
-                // Antenna
-                B.line(0, -6, 2, -12, '#FF88CC', 2);
-                B.fillCircle(2, -12, 2.5, '#FF88CC');
-                // Eyes
-                B.fillCircle(-2, -1, 1.5, '#FFF');
-                B.fillCircle(2, -1, 1.5, '#FFF');
-                B.fillCircle(-2, -1, 0.7, '#111');
-                B.fillCircle(2, -1, 0.7, '#111');
-                // Grin
-                B.setAlpha(0.6);
-                B.fillArc(0, 2, 3, 0, Math.PI, '#CC3366');
-                B.restoreAlpha();
-                break;
             case 'clacker':
-                // Newton's Cradle — 3 steel balls on strings
-                // Strings
                 B.line(-5, -10, -5, 0, '#888', 1);
                 B.line(0, -10, 0, 0, '#888', 1);
                 B.line(5, -10, 5, 0, '#888', 1);
-                // Steel balls
                 B.fillCircle(-5, 3, 4, '#D4D4D4');
                 B.strokeCircle(-5, 3, 4, '#999', 1);
                 B.fillCircle(0, 3, 4, '#D4D4D4');
                 B.strokeCircle(0, 3, 4, '#999', 1);
                 B.fillCircle(5, 3, 4, '#D4D4D4');
                 B.strokeCircle(5, 3, 4, '#999', 1);
-                // Specular dots
                 B.setAlpha(0.6);
                 B.fillCircle(-6, 1.5, 1.2, '#FFF');
                 B.fillCircle(-1, 1.5, 1.2, '#FFF');
                 B.fillCircle(4, 1.5, 1.2, '#FFF');
                 B.restoreAlpha();
-                // Frame bar
                 B.fillRect(-8, -11, 16, 2, '#666');
                 break;
-            case 'naruto':
-                // Orange spiral + spiky hair
-                B.fillCircle(0, 2, 6, '#FF8833');
-                B.fillTriangle(-5, 0, -3, -8, -1, -1, '#FFD700');
-                B.fillTriangle(-1, -1, 1, -10, 3, -1, '#FFD700');
-                B.fillTriangle(2, -1, 4, -7, 6, 0, '#FFD700');
-                // Rasengan
-                B.fillCircle(0, 8, 3, '#44BBFF');
-                B.setAlpha(0.5);
-                B.strokeCircle(0, 8, 3, '#2299DD', 1);
-                B.restoreAlpha();
-                break;
-            case 'sasuke':
-                // Dark hair + Sharingan eye + Chidori
-                B.fillCircle(0, 2, 6, '#6633CC');
-                B.fillTriangle(-3, 0, -5, -8, -1, -1, '#222');
-                B.fillTriangle(0, -1, 2, -10, 4, 0, '#222');
-                // Sharingan dot
-                B.fillCircle(0, 1, 2, '#FF0000');
-                B.fillCircle(0, 1, 0.8, '#111');
-                // Chidori
-                B.fillCircle(0, 8, 2.5, '#4488FF');
-                B.line(0, 8, 3, 6, '#AADDFF', 1);
-                B.line(0, 8, -2, 5, '#AADDFF', 1);
-                break;
-            case 'luffy':
-                // Straw hat + stretchy arm
-                B.fillCircle(0, 2, 6, '#CC2222');
-                B.strokeCircle(0, 2, 6, '#991111', 1.5);
-                // Straw hat
-                B.fillRect(-7, -4, 14, 3, '#FFD700');
-                B.fillRect(-4, -7, 8, 4, '#FFD700');
-                B.strokeRect(-7, -4, 14, 3, '#CC9900', 1);
-                // Red band
-                B.fillRect(-4, -5, 8, 2, '#CC2222');
-                break;
-            case 'zoro':
-                // Three swords (crossed)
-                B.fillRect(-1, -10, 2, 18, '#C0C0C0');
-                B.strokeRect(-1, -10, 2, 18, '#888', 0.8);
-                // Second sword (angled)
-                B.pushTransform(0, 0, 0.5);
-                B.fillRect(-1, -9, 2, 16, '#C0C0C0');
-                B.popTransform();
-                // Third sword (other angle)
-                B.pushTransform(0, 0, -0.5);
-                B.fillRect(-1, -9, 2, 16, '#C0C0C0');
-                B.popTransform();
-                // Bandana
-                B.fillRect(-6, -2, 12, 3, '#2E8B2E');
-                break;
-            case 'ichigo':
-                // Big cleaver sword (Zangetsu)
-                B.fillCircle(0, 2, 5, '#FF6633');
-                B.fillRect(-2, -10, 4, 14, '#C0C0C0');
-                B.strokeRect(-2, -10, 4, 14, '#888', 0.8);
-                // Handle
-                B.fillRect(-2, 4, 4, 5, '#654321');
-                // Guard
-                B.fillRect(-4, 3, 8, 2, '#DAA520');
-                break;
-            case 'saitama':
-                // Bald head + plain face + cape
-                B.fillCircle(0, 0, 8, '#F5D5A0');
-                B.strokeCircle(0, 0, 8, '#C9A55A', 1.5);
-                // Bald shine
-                B.setAlpha(0.4);
-                B.fillCircle(-2, -3, 3, '#FFF');
-                B.restoreAlpha();
-                // Simple face
-                B.fillCircle(-2, -1, 1, '#333');
-                B.fillCircle(2, -1, 1, '#333');
-                B.line(-1, 2, 1, 2, '#333', 1);
-                // Cape
-                B.setAlpha(0.5);
-                B.fillTriangle(-5, 5, 0, 3, 5, 5, '#FFF');
-                B.restoreAlpha();
-                break;
-            case 'frieza':
-                // Purple/white alien with tail
-                B.fillCircle(0, 0, 6, '#EECCFF');
-                B.strokeCircle(0, 0, 6, '#CC88DD', 1.5);
-                // Head dome
-                B.fillRect(-3, -8, 6, 3, '#DDBBEE');
-                // Horns (base form hint)
-                B.line(-3, -7, -5, -10, '#CC88DD', 1.5);
-                B.line(3, -7, 5, -10, '#CC88DD', 1.5);
-                // Tail
-                B.drawQuadratic(0, 5, 5, 8, 2, 10, '#CC88DD', 1.5);
-                break;
-            case 'jotaro':
-                // Hat + Star Platinum ghost
-                B.fillCircle(0, 2, 6, '#333');
-                B.strokeCircle(0, 2, 6, '#222', 1.5);
-                // Hat brim
-                B.fillRect(-8, -1, 16, 3, '#333');
-                // Hat fading into hair
-                B.fillRect(-5, -4, 10, 4, '#333');
-                // Star Platinum ghost behind
-                B.setAlpha(0.3);
-                B.fillCircle(0, 0, 9, '#8866CC');
-                B.restoreAlpha();
-                // Gold accent
-                B.fillRect(-2, -1, 4, 1, '#FFD700');
-                break;
-            case 'piccolo':
-                // Green Namekian with antenna + turban
-                B.fillCircle(0, 2, 6, '#2E8B57');
-                B.strokeCircle(0, 2, 6, '#1B5E3B', 1.5);
-                // Turban
-                B.fillCircle(0, -3, 5, '#FFF');
-                B.fillCircle(0, -5, 3, '#FFF');
-                // Antenna
-                B.line(0, -7, 2, -12, '#2E8B57', 1.5);
-                B.fillCircle(2, -12, 1.5, '#2E8B57');
-                // Cape
-                B.setAlpha(0.4);
-                B.fillTriangle(-6, 6, 0, 3, 6, 6, '#EEEEFF');
-                B.restoreAlpha();
-                break;
-            case 'tanjiro':
-                // Checkered haori + sword
-                B.fillCircle(0, 2, 6, '#44BBFF');
-                B.strokeCircle(0, 2, 6, '#2288AA', 1.5);
-                // Earring
-                B.setAlpha(0.6);
-                B.fillCircle(-4, 1, 2, '#AA0000');
-                B.restoreAlpha();
-                // Sword
-                B.fillRect(4, -8, 2, 14, '#333');
-                B.fillRect(3, 4, 4, 3, '#654321');
-                // Scar
-                B.line(-2, -3, 1, -5, '#880000', 1);
-                break;
             case 'gunclacker':
-                // Revolver icon
-                B.fillRect(-2, -6, 10, 4, '#555'); // barrel
+                B.fillRect(-2, -6, 10, 4, '#555');
                 B.strokeRect(-2, -6, 10, 4, '#333', 1);
-                B.fillCircle(2, -4, 3, '#777'); // cylinder
+                B.fillCircle(2, -4, 3, '#777');
                 B.strokeCircle(2, -4, 3, '#555', 0.8);
-                B.fillRect(-3, -3, 5, 6, '#8B4513'); // grip
+                B.fillRect(-3, -3, 5, 6, '#8B4513');
                 B.strokeRect(-3, -3, 5, 6, '#5C2D0A', 0.8);
-                // Muzzle flash hint
                 B.setAlpha(0.5);
                 B.fillCircle(9, -4, 3, '#FFD700');
                 B.restoreAlpha();
                 break;
-            case 'sailormoon':
-                // Hair buns (odango)
-                B.fillCircle(-5, -6, 3, '#FFD700');
-                B.fillCircle(5, -6, 3, '#FFD700');
-                // Pigtails
-                B.line(-5, -4, -7, 6, '#FFD700', 2);
-                B.line(5, -4, 7, 6, '#FFD700', 2);
-                // Face
-                B.fillCircle(0, 0, 5, '#FFB6C1');
-                B.strokeCircle(0, 0, 5, '#DD8899', 1.2);
-                // Crescent moon tiara
-                B.fillCircle(0, -4, 2, '#FFD700');
-                B.fillCircle(0.5, -4.2, 1.3, '#FFB6C1');
-                // Eyes
-                B.fillCircle(-2, -1, 1, '#4488FF');
-                B.fillCircle(2, -1, 1, '#4488FF');
-                // Sparkle
+
+            // ─── Elemental weapons ───
+            case 'fire':
+                // Flame icon — layered teardrops
+                B.fillTriangle(-5, 6, 0, -8, 5, 6, '#FF4411');
+                B.fillTriangle(-3, 6, 0, -4, 3, 6, '#FF8833');
+                B.fillTriangle(-1.5, 6, 0, -1, 1.5, 6, '#FFCC22');
+                // Ember sparks
                 B.setAlpha(0.6);
-                B.line(-8, 4, -6, 2, '#FFD700', 1);
-                B.line(-8, 2, -6, 4, '#FFD700', 1);
+                B.fillCircle(-4, -3, 1.5, '#FF6633');
+                B.fillCircle(3, -1, 1, '#FFAA33');
                 B.restoreAlpha();
                 break;
-            case 'david':
-                // Cyberpunk face
-                B.fillCircle(0, 0, 6, '#00AACC');
-                B.strokeCircle(0, 0, 6, '#008899', 1.5);
-                // Jacket collar
-                B.fillTriangle(-6, 3, -3, 0, -1, 5, '#DDDD44');
-                B.fillTriangle(6, 3, 3, 0, 1, 5, '#DDDD44');
-                // Cybernetic eye glow
-                B.fillCircle(2, -1, 1.5, '#00FFFF');
+            case 'ice':
+                // Snowflake / crystal
+                B.line(0, -8, 0, 8, '#66CCFF', 2);
+                B.line(-7, -4, 7, 4, '#66CCFF', 2);
+                B.line(-7, 4, 7, -4, '#66CCFF', 2);
+                // Branch tips
+                B.line(0, -8, -2, -6, '#AAEEFF', 1);
+                B.line(0, -8, 2, -6, '#AAEEFF', 1);
+                B.line(0, 8, -2, 6, '#AAEEFF', 1);
+                B.line(0, 8, 2, 6, '#AAEEFF', 1);
+                // Center gem
+                B.fillCircle(0, 0, 2, '#DDEEFF');
+                break;
+            case 'spark':
+                // Lightning bolt
+                B.fillPolygon([[0, -9], [3, -2], [1, -2], [4, 5], [-1, 0], [1, 0], [-2, -9]], '#FFE333');
+                B.strokePolygon([[0, -9], [3, -2], [1, -2], [4, 5], [-1, 0], [1, 0], [-2, -9]], '#CCAA00', 1);
+                // Spark dots
+                B.setAlpha(0.5);
+                B.fillCircle(-3, 3, 1, '#FFE333');
+                B.fillCircle(5, -4, 1, '#FFE333');
+                B.restoreAlpha();
+                break;
+            case 'stone':
+                // Boulder — chunky polygon
+                B.fillPolygon([[-6, -4], [-2, -8], [4, -7], [7, -2], [6, 5], [1, 8], [-5, 6], [-8, 1]], '#8B7355');
+                B.strokePolygon([[-6, -4], [-2, -8], [4, -7], [7, -2], [6, 5], [1, 8], [-5, 6], [-8, 1]], '#6B5335', 1.5);
+                // Crack lines
+                B.line(-2, -3, 1, 2, '#5A4030', 1);
+                B.line(2, -5, 3, 1, '#5A4030', 1);
+                break;
+            case 'wind':
+                // Swirling gusts
+                B.drawQuadratic(-7, -2, 0, -6, 7, -2, '#AADDCC', 2);
+                B.drawQuadratic(-5, 1, 0, -2, 5, 1, '#88CCBB', 1.5);
+                B.drawQuadratic(-6, 4, 0, 1, 6, 4, '#AADDCC', 1.5);
+                // Tiny leaf
+                B.setAlpha(0.6);
+                B.fillTriangle(3, -4, 5, -5, 4, -3, '#88CC88');
+                B.restoreAlpha();
+                break;
+            case 'water':
+                // Wave / droplet
+                B.fillCircle(0, 2, 6, '#3388DD');
+                B.strokeCircle(0, 2, 6, '#2266AA', 1.5);
+                // Droplet top
+                B.fillTriangle(-3, 0, 0, -8, 3, 0, '#3388DD');
+                // Highlight
                 B.setAlpha(0.4);
-                B.fillCircle(2, -1, 3, '#00FFFF');
+                B.fillCircle(-2, 0, 2, '#88CCFF');
                 B.restoreAlpha();
-                // Other eye
-                B.fillCircle(-2, -1, 1, '#333');
-                // Gorilla arm hint
-                B.fillRect(6, -2, 4, 4, '#555');
-                B.strokeRect(6, -2, 4, 4, '#00FFFF', 0.8);
                 break;
-            case 'vash':
-                // Red coat
-                B.fillCircle(0, 1, 6, '#CC0000');
-                B.strokeCircle(0, 1, 6, '#880000', 1.5);
-                // Yellow hair spike
-                B.fillTriangle(-2, -4, 0, -12, 2, -4, '#FFE4B5');
-                B.fillTriangle(2, -4, 4, -10, 5, -3, '#FFE4B5');
-                // Sunglasses
-                B.fillRect(-5, -2, 4, 2.5, '#FF8800');
-                B.fillRect(1, -2, 4, 2.5, '#FF8800');
-                B.line(-1, -1, 1, -1, '#FF8800', 0.8);
-                // Revolver hint
-                B.fillRect(5, 1, 6, 2, '#C0C0C0');
-                B.strokeRect(5, 1, 6, 2, '#888', 0.6);
-                // Red front sight
-                B.fillRect(10, 0, 1, 2, '#FF0000');
+            case 'poison':
+                // Skull & crossbones vibe — toxic circle with drip
+                B.fillCircle(0, -1, 6, '#66CC33');
+                B.strokeCircle(0, -1, 6, '#44AA11', 1.5);
+                // Skull face
+                B.fillCircle(-2, -2, 1.5, '#224400');
+                B.fillCircle(2, -2, 1.5, '#224400');
+                B.fillTriangle(-1, 1, 0, 0, 1, 1, '#224400');
+                // Drip
+                B.fillTriangle(-1, 5, 0, 8, 1, 5, '#44CC11');
+                break;
+            case 'light':
+                // Radiating star burst
+                for (let i = 0; i < 8; i++) {
+                    const a = (i * Math.PI) / 4;
+                    B.line(0, 0, Math.cos(a) * 8, Math.sin(a) * 8, '#FFEE88', 1.5);
+                }
+                // Center glow
+                B.fillCircle(0, 0, 4, '#FFEE88');
+                B.fillCircle(0, 0, 2, '#FFF');
+                break;
+            case 'shadow':
+                // Dark crescent with eye
+                B.fillCircle(0, 0, 7, '#553388');
+                B.fillCircle(2, -1, 5, '#2A1544');
+                // Glowing eye
+                B.fillCircle(-2, 0, 2, '#AA66FF');
+                B.fillCircle(-2, 0, 0.8, '#FFF');
+                // Wisp
+                B.setAlpha(0.4);
+                B.fillTriangle(2, 5, 5, 3, 4, 7, '#7744BB');
+                B.restoreAlpha();
+                break;
+            case 'nature':
+                // Leaf / vine
+                B.fillPolygon([[-1, 8], [-6, 2], [-5, -4], [0, -8], [5, -4], [6, 2], [1, 8]], '#33AA44');
+                B.strokePolygon([[-1, 8], [-6, 2], [-5, -4], [0, -8], [5, -4], [6, 2], [1, 8]], '#228833', 1);
+                // Leaf vein
+                B.line(0, -6, 0, 6, '#228833', 1);
+                B.line(0, -2, -3, 0, '#228833', 0.8);
+                B.line(0, 1, 3, 3, '#228833', 0.8);
+                break;
+            case 'crystal':
+                // Faceted gem shape
+                B.fillPolygon([[0, -9], [5, -3], [4, 4], [0, 8], [-4, 4], [-5, -3]], '#CC66FF');
+                B.strokePolygon([[0, -9], [5, -3], [4, 4], [0, 8], [-4, 4], [-5, -3]], '#9944CC', 1.5);
+                // Facet lines
+                B.line(0, -9, -4, 4, '#BB55EE', 0.8);
+                B.line(0, -9, 4, 4, '#BB55EE', 0.8);
+                // Shine
+                B.setAlpha(0.4);
+                B.fillTriangle(-2, -5, 0, -3, -3, -1, '#EECCFF');
+                B.restoreAlpha();
+                break;
+            case 'magma':
+                // Volcanic rock with lava cracks
+                B.fillCircle(0, 0, 7, '#553322');
+                B.strokeCircle(0, 0, 7, '#331100', 1.5);
+                // Lava cracks (bright lines)
+                B.line(-4, -3, 0, 1, '#FF6622', 1.5);
+                B.line(0, 1, 4, -1, '#FF4400', 1.5);
+                B.line(-1, 3, 3, 5, '#FF6622', 1.5);
+                // Hot core glow
+                B.setAlpha(0.4);
+                B.fillCircle(0, 0, 3, '#FF8844');
+                B.restoreAlpha();
+                break;
+            case 'storm':
+                // Thunder cloud + bolt
+                B.fillCircle(-3, -3, 5, '#7744CC');
+                B.fillCircle(3, -2, 4, '#6633BB');
+                B.fillCircle(0, -4, 4, '#8855DD');
+                // Mini lightning bolt below
+                B.fillPolygon([[0, 1], [2, 4], [0, 4], [2, 8]], '#FFE333');
+                B.line(0, 1, 2, 4, '#FFE333', 1.5);
+                B.line(2, 4, 0, 4, '#FFE333', 1.5);
+                B.line(0, 4, 2, 8, '#FFE333', 1.5);
+                break;
+            case 'metal':
+                // Shield shape
+                B.fillPolygon([[0, -8], [7, -4], [7, 2], [0, 8], [-7, 2], [-7, -4]], '#AABBCC');
+                B.strokePolygon([[0, -8], [7, -4], [7, 2], [0, 8], [-7, 2], [-7, -4]], '#889AAA', 1.5);
+                // Cross rivets
+                B.fillCircle(-3, -2, 1.2, '#778899');
+                B.fillCircle(3, -2, 1.2, '#778899');
+                B.fillCircle(0, 3, 1.2, '#778899');
+                // Shine
+                B.setAlpha(0.3);
+                B.fillTriangle(-4, -5, -1, -6, -3, -2, '#DDEEFF');
+                B.restoreAlpha();
                 break;
         }
         B.popTransform();

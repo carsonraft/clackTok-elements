@@ -159,19 +159,6 @@ WB.Ball = class {
             B.strokeCircle(this.x, this.y, this.radius + 2, this.color, 2);
         }
 
-        // Star marker for original duplicator ball
-        if (this.weaponType === 'duplicator' && this.isOriginal) {
-            const starR = this.radius * 0.35;
-            const starPts = [];
-            for (let i = 0; i < 5; i++) {
-                const a = -Math.PI / 2 + (i * 2 * Math.PI / 5);
-                const aInner = a + Math.PI / 5;
-                starPts.push([this.x + Math.cos(a) * starR, this.y + Math.sin(a) * starR]);
-                starPts.push([this.x + Math.cos(aInner) * starR * 0.4, this.y + Math.sin(aInner) * starR * 0.4]);
-            }
-            B.fillPolygon(starPts, 'rgba(255, 215, 0, 0.6)');
-        }
-
         B.flush();
 
         // HP text
