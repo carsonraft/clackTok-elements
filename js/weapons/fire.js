@@ -2,7 +2,9 @@ window.WB = window.WB || {};
 
 // Fire (Inferno): Directional flame aura that faces movement direction.
 // The flame cone damages and burns anything caught in it — like Kirby's fire breath!
-// Scaling: Burn stacks per hit increase. Super: Eruption AOE + permanent full-circle flame.
+// Scaling: Burn stacks per hit increase.
+// Super (Crystal Shards: Burn+Burn → Fire Bird): Owner becomes a blazing comet!
+// Ball gains massive speed boost, full-circle flame, and damages everything on contact.
 class FireWeapon extends WB.Weapon {
     constructor(owner) {
         super(owner, {
@@ -49,19 +51,29 @@ class FireWeapon extends WB.Weapon {
             }
         }
 
-        // Super: burning aura tick — damage ALL nearby enemies every 45 frames
-        if (this.superActive && WB.Game && WB.Game.balls) {
-            if (this.flickerTimer % 45 === 0) {
-                const auraRadius = this.owner.radius + 60;
+        // Super (Fire Bird): Owner is a blazing comet — constant speed boost + trail damage
+        if (this.superActive) {
+            // Speed boost every few frames — keep the comet flying!
+            if (this.flickerTimer % 15 === 0) {
+                const speed = Math.sqrt(this.owner.vx * this.owner.vx + this.owner.vy * this.owner.vy);
+                if (speed < 8) {
+                    const boostAngle = this.flameAngle;
+                    this.owner.vx += Math.cos(boostAngle) * 2.5;
+                    this.owner.vy += Math.sin(boostAngle) * 2.5;
+                }
+            }
+            // Burn everything nearby every 20 frames (the comet scorches)
+            if (this.flickerTimer % 20 === 0 && WB.Game && WB.Game.balls) {
+                const cometRadius = this.owner.radius + 45;
                 for (const target of WB.Game.balls) {
                     if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
                     const dx = target.x - this.owner.x;
                     const dy = target.y - this.owner.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < auraRadius) {
-                        target.takeDamage(2);
-                        target.poisonStacks = (target.poisonStacks || 0) + 1;
+                    if (Math.sqrt(dx * dx + dy * dy) < cometRadius) {
+                        target.takeDamage(3);
+                        target.poisonStacks = (target.poisonStacks || 0) + 2;
                         if (WB.GLEffects) {
-                            WB.GLEffects.spawnDamageNumber(target.x, target.y, 2, '#FF4411');
+                            WB.GLEffects.spawnDamageNumber(target.x, target.y, 3, '#FF4411');
                         }
                     }
                 }
@@ -111,7 +123,18 @@ class FireWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Eruption: apply 5 burn stacks to all enemies + full-circle flame
+        // Crystal Shards: Burn+Burn → FIRE BIRD!
+        // Owner becomes a blazing comet — full-circle flame + speed boost + burn everything
+        this.flameConeWidth = Math.PI * 2; // 360 degree flame!
+        this.flameReach = 100; // max reach immediately
+        this.currentDamage += 4;
+        this.burnPerHit += 3;
+        // Initial eruption burst — launch owner forward like a fireball!
+        const speed = Math.sqrt(this.owner.vx * this.owner.vx + this.owner.vy * this.owner.vy);
+        const launchAngle = speed > 0.5 ? Math.atan2(this.owner.vy, this.owner.vx) : this.flameAngle;
+        this.owner.vx = Math.cos(launchAngle) * 12;
+        this.owner.vy = Math.sin(launchAngle) * 12;
+        // Burn everything on initial ignition
         if (WB.Game && WB.Game.balls) {
             for (const target of WB.Game.balls) {
                 if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
@@ -122,9 +145,9 @@ class FireWeapon extends WB.Weapon {
                 }
             }
         }
-        this.flameConeWidth = Math.PI * 2; // 360 degree flame!
-        this.currentDamage += 3;
-        this.burnPerHit += 2;
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 30, '#FFCC22');
+        }
     }
 
     // Override tip position for parry system
@@ -136,17 +159,34 @@ class FireWeapon extends WB.Weapon {
         const r = this.owner.radius;
 
         if (this.superActive) {
-            // Full 360 flame ring
-            const pulse = 0.2 + Math.sin(this.flickerTimer * 0.1) * 0.08;
+            // FIRE BIRD — blazing comet with directional fire trail!
+            const pulse = 0.25 + Math.sin(this.flickerTimer * 0.12) * 0.1;
+            // Comet halo
             B.setAlpha(pulse);
-            B.fillCircle(this.owner.x, this.owner.y, this.flameReach, '#FF4411');
+            B.fillCircle(this.owner.x, this.owner.y, this.flameReach * 0.8, '#FF4411');
             B.restoreAlpha();
-            B.setAlpha(pulse * 0.6);
-            B.fillCircle(this.owner.x, this.owner.y, this.flameReach * 0.7, '#FF8833');
+            B.setAlpha(pulse * 0.7);
+            B.fillCircle(this.owner.x, this.owner.y, this.flameReach * 0.5, '#FF8833');
             B.restoreAlpha();
-            B.setAlpha(pulse * 0.3);
-            B.fillCircle(this.owner.x, this.owner.y, this.flameReach * 0.4, '#FFCC22');
+            B.setAlpha(pulse * 0.5);
+            B.fillCircle(this.owner.x, this.owner.y, this.flameReach * 0.3, '#FFCC22');
             B.restoreAlpha();
+            // Comet tail — flame trail behind movement direction
+            const speed = Math.sqrt(this.owner.vx * this.owner.vx + this.owner.vy * this.owner.vy);
+            if (speed > 1) {
+                const tailAngle = Math.atan2(-this.owner.vy, -this.owner.vx); // opposite of movement
+                for (let i = 0; i < 6; i++) {
+                    const tailDist = 20 + i * 15;
+                    const spread = (WB.random() - 0.5) * 0.5;
+                    const tx = this.owner.x + Math.cos(tailAngle + spread) * tailDist;
+                    const ty = this.owner.y + Math.sin(tailAngle + spread) * tailDist;
+                    const tailAlpha = 0.3 - i * 0.04;
+                    B.setAlpha(Math.max(0.02, tailAlpha));
+                    const tailSize = 12 - i * 1.5;
+                    B.fillCircle(tx, ty, Math.max(2, tailSize), i < 2 ? '#FF4411' : (i < 4 ? '#FF8833' : '#FFCC22'));
+                    B.restoreAlpha();
+                }
+            }
         } else {
             // Directional flame cone — the Kirby fire breath!
             const halfCone = this.flameConeWidth / 2;
@@ -218,6 +258,29 @@ class FireWeapon extends WB.Weapon {
                 1.5 + WB.random() * 1.5, '#FFAA33'
             );
             B.restoreAlpha();
+        }
+
+        // Heat wake / ember trail behind the ball (opposite of flame direction)
+        const moveSpeed = Math.sqrt(this.owner.vx * this.owner.vx + this.owner.vy * this.owner.vy);
+        if (moveSpeed > 1.5) {
+            const tailDir = Math.atan2(-this.owner.vy, -this.owner.vx);
+            const tailCount = this.superActive ? 8 : 4;
+            for (let i = 0; i < tailCount; i++) {
+                const td = r + 5 + i * (this.superActive ? 14 : 10);
+                const jitter = (WB.random() - 0.5) * 0.4;
+                const tx = this.owner.x + Math.cos(tailDir + jitter) * td;
+                const ty = this.owner.y + Math.sin(tailDir + jitter) * td;
+                const ta = this.superActive
+                    ? 0.35 - i * 0.035
+                    : 0.2 - i * 0.04;
+                B.setAlpha(Math.max(0.02, ta));
+                const tSize = this.superActive
+                    ? 10 - i * 0.8
+                    : 5 - i * 0.8;
+                const tColor = i < 1 ? '#FF4411' : (i < 3 ? '#FF8833' : '#FFCC22');
+                B.fillCircle(tx, ty, Math.max(1.5, tSize), tColor);
+                B.restoreAlpha();
+            }
         }
     }
 }

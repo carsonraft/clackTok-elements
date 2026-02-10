@@ -1,7 +1,9 @@
 window.WB = window.WB || {};
 
 // Wind (Gale Blade): Fastest rotating melee weapon with pushback on hit.
-// Scaling: RPM increases per hit. Super: Tornado vortex that pulls enemies in.
+// Scaling: RPM increases per hit.
+// Super (Crystal Shards: Cutter+Cutter → Super Cutter): Owner becomes a spinning
+// tornado vortex — pulls enemies in AND shreds them with super-fast rotation!
 class WindWeapon extends WB.Weapon {
     constructor(owner) {
         super(owner, {
@@ -20,18 +22,39 @@ class WindWeapon extends WB.Weapon {
         super.update();
         this.windTimer++;
 
-        // Super: Tornado vortex — pulls enemies toward owner
+        // Super (Cyclone): stronger vortex pull + wind shred damage
         if (this.superActive && WB.Game && WB.Game.balls) {
-            const vortexRadius = this.owner.radius + 100;
+            const vortexRadius = this.owner.radius + 120;
             for (const target of WB.Game.balls) {
                 if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
                 const dx = this.owner.x - target.x;
                 const dy = this.owner.y - target.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist < vortexRadius && dist > 0) {
-                    const pull = 0.3;
+                    // Strong pull toward center
+                    const pull = 0.6;
                     target.vx += (dx / dist) * pull;
                     target.vy += (dy / dist) * pull;
+                    // Also spin them around the vortex
+                    const perpX = -dy / dist;
+                    const perpY = dx / dist;
+                    target.vx += perpX * 0.3;
+                    target.vy += perpY * 0.3;
+                }
+            }
+            // Shred damage to anything very close (in the eye of the storm)
+            if (this.windTimer % 25 === 0) {
+                const shredRadius = this.owner.radius + 35;
+                for (const target of WB.Game.balls) {
+                    if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                    const dx = target.x - this.owner.x;
+                    const dy = target.y - this.owner.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < shredRadius) {
+                        target.takeDamage(2);
+                        if (WB.GLEffects) {
+                            WB.GLEffects.spawnDamageNumber(target.x, target.y, 2, '#AADDCC');
+                        }
+                    }
                 }
             }
         }
@@ -67,8 +90,27 @@ class WindWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        this.rotationSpeed *= 2;
-        this.currentDamage += 2;
+        // Crystal Shards: Cutter+Cutter → CYCLONE!
+        // Become a spinning vortex — insane rotation + stronger pull + contact shred
+        this.rotationSpeed *= 3;
+        this.currentDamage += 4;
+        this.reach += 15; // wider sweep
+        // Initial cyclone burst — blast everything outward then pull in
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                const dx = target.x - this.owner.x;
+                const dy = target.y - this.owner.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                target.vx += (dx / dist) * 6;
+                target.vy += (dy / dist) * 6;
+                target.takeDamage(4);
+            }
+        }
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 20, '#AADDCC');
+        }
+        WB.Renderer.triggerShake(8);
     }
 
     draw() {

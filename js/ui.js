@@ -19,7 +19,9 @@ WB.UI = {
     _computeMaxScroll() {
         const layout = this._getLayout();
         const rows = Math.ceil(this.weaponTypes.length / layout.cols);
-        const totalHeight = rows * (layout.btnH + layout.gap);
+        // Two grids stacked vertically
+        const singleGridH = rows * (layout.btnH + layout.gap);
+        const totalHeight = singleGridH * 2 + layout.gridGap;
         const visibleHeight = layout.gridBottom - layout.gridTop;
         this.maxScroll = Math.max(0, totalHeight - visibleHeight);
     },
@@ -37,10 +39,9 @@ WB.UI = {
         const c = WB.Config;
         const layout = this._getLayout();
 
-        // Check left panel buttons
+        // Check left panel buttons (Player 1)
         for (let i = 0; i < this.weaponTypes.length; i++) {
             const btn = this._getBtnRect('left', i, layout);
-            // Skip buttons outside visible grid
             if (btn.y + btn.h < layout.gridTop || btn.y > layout.gridBottom) continue;
             if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
                 this.selectedLeft = this.weaponTypes[i];
@@ -49,13 +50,36 @@ WB.UI = {
             }
         }
 
-        // Check right panel buttons
+        // Check right panel buttons (Player 2)
         for (let i = 0; i < this.weaponTypes.length; i++) {
             const btn = this._getBtnRect('right', i, layout);
-            // Skip buttons outside visible grid
             if (btn.y + btn.h < layout.gridTop || btn.y > layout.gridBottom) continue;
             if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
                 this.selectedRight = this.weaponTypes[i];
+                WB.Audio.menuClack();
+                return;
+            }
+        }
+
+        // Check toggle buttons
+        const toggleBtns = this._getToggleBtns(layout);
+        for (const tb of toggleBtns) {
+            if (mx >= tb.x && mx <= tb.x + tb.w && my >= tb.y && my <= tb.y + tb.h) {
+                WB.Config[tb.key] = !WB.Config[tb.key];
+                // Inelastic mode: swap restitution values
+                if (tb.key === 'INELASTIC_MODE') {
+                    if (WB.Config.INELASTIC_MODE) {
+                        WB.Config.BALL_RESTITUTION = WB.Config.INELASTIC_BALL_RESTITUTION;
+                        WB.Config.WALL_RESTITUTION = WB.Config.INELASTIC_WALL_RESTITUTION;
+                    } else {
+                        WB.Config.BALL_RESTITUTION = 1.0;
+                        WB.Config.WALL_RESTITUTION = 1.0;
+                    }
+                }
+                // DMG BOUNCE requires TIP BOUNCE — auto-enable it
+                if (tb.key === 'WEAPON_WALL_DMG_BOUNCE' && WB.Config.WEAPON_WALL_DMG_BOUNCE) {
+                    WB.Config.WEAPON_WALL_BOUNCE = true;
+                }
                 WB.Audio.menuClack();
                 return;
             }
@@ -111,31 +135,60 @@ WB.UI = {
     _getLayout() {
         const c = WB.Config;
         const cx = c.CANVAS_WIDTH / 2;
+        const pad = 15;
+        const panelW = c.CANVAS_WIDTH - pad * 2;
         return {
-            leftStart: 40,
-            rightStart: cx + 20,
-            panelWidth: cx - 60,
-            gridTop: 190,
-            gridBottom: c.CANVAS_HEIGHT - 160, // clip weapon grid above buttons
-            cols: 2,
-            btnH: 36,
-            gap: 5,
-            fightBtn: { x: cx - 170, y: c.CANVAS_HEIGHT - 80, w: 155, h: 55 },
-            simBtn:   { x: cx + 15,  y: c.CANVAS_HEIGHT - 80, w: 155, h: 55 },
-            randomBtn: { x: cx - 65, y: c.CANVAS_HEIGHT - 145, w: 130, h: 35 },
-            simCountBtn: { x: cx - 65, y: c.CANVAS_HEIGHT - 105, w: 130, h: 28 },
-            bestOfBtn: { x: 30, y: c.CANVAS_HEIGHT - 35, w: 120, h: 28 },
+            leftStart: pad,
+            rightStart: pad,
+            panelWidth: panelW,
+            gridTop: 155,
+            gridBottom: c.CANVAS_HEIGHT - 170,   // shrunk 30px for toggle row
+            gridGap: 36,   // gap between P1 and P2 grids (includes header)
+            cols: 4,
+            btnH: 30,
+            gap: 3,
+            toggleY: c.CANVAS_HEIGHT - 162,
+            fightBtn: { x: pad, y: c.CANVAS_HEIGHT - 65, w: panelW / 2 - 5, h: 48 },
+            simBtn:   { x: cx + 5, y: c.CANVAS_HEIGHT - 65, w: panelW / 2 - 5, h: 48 },
+            randomBtn: { x: cx - 50, y: c.CANVAS_HEIGHT - 118, w: 100, h: 30 },
+            simCountBtn: { x: cx - 50, y: c.CANVAS_HEIGHT - 85, w: 100, h: 22 },
+            bestOfBtn: { x: pad, y: c.CANVAS_HEIGHT - 25, w: 100, h: 22 },
         };
+    },
+
+    _getToggleBtns(layout) {
+        const c = WB.Config;
+        const pad = 15;
+        const toggleH = 24;
+        const toggleGap = 6;
+        const count = 4;
+        const totalGaps = (count - 1) * toggleGap;
+        const toggleW = Math.floor((c.CANVAS_WIDTH - pad * 2 - totalGaps) / count);
+        const startX = pad;
+        const y = layout.toggleY;
+        return [
+            { x: startX, y, w: toggleW, h: toggleH, key: 'INELASTIC_MODE', label: 'INELASTIC' },
+            { x: startX + (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'GRAVITY_MODE', label: 'GRAVITY' },
+            { x: startX + 2 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_BOUNCE', label: 'TIP BOUNCE' },
+            { x: startX + 3 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_DMG_BOUNCE', label: 'DMG BOUNCE' },
+        ];
     },
 
     _getBtnRect(side, index, layout) {
         const col = index % layout.cols;
         const row = Math.floor(index / layout.cols);
         const btnW = (layout.panelWidth - (layout.cols - 1) * layout.gap) / layout.cols;
-        const startX = side === 'left' ? layout.leftStart : layout.rightStart;
+        const rows = Math.ceil(this.weaponTypes.length / layout.cols);
+        const singleGridH = rows * (layout.btnH + layout.gap);
+
+        // Player 1 grid starts at gridTop, Player 2 starts after P1 grid + gap
+        const gridStartY = side === 'left'
+            ? layout.gridTop
+            : layout.gridTop + singleGridH + layout.gridGap;
+
         return {
-            x: startX + col * (btnW + layout.gap),
-            y: layout.gridTop + row * (layout.btnH + layout.gap) - this.menuScroll,
+            x: layout.leftStart + col * (btnW + layout.gap),
+            y: gridStartY + row * (layout.btnH + layout.gap) - this.menuScroll,
             w: btnW,
             h: layout.btnH,
         };
@@ -151,61 +204,105 @@ WB.UI = {
         // Background
         B.fillRect(0, 0, c.CANVAS_WIDTH, c.CANVAS_HEIGHT, '#FFF8E7');
 
-        // Title
-        T.drawText('WEAPON BALL', cx, 70, 'bold 44px "Courier New", monospace', '#333', 'center', 'alphabetic');
-        T.drawText('Choose your fighters', cx, 100, '16px "Courier New", monospace', '#888', 'center', 'alphabetic');
-
-        // Divider line
-        B.line(cx, 140, cx, c.CANVAS_HEIGHT - 170, '#DDD', 1);
-
-        // Panel headers
-        T.drawText('Player 1', layout.leftStart + layout.panelWidth / 2, 165,
-            'bold 18px "Courier New", monospace', '#555', 'center', 'alphabetic');
-        T.drawText('Player 2', layout.rightStart + layout.panelWidth / 2, 165,
-            'bold 18px "Courier New", monospace', '#555', 'center', 'alphabetic');
-
-        T.flush();
-
-        // Draw weapon grids
+        // Draw weapon grids first (both use full width, stacked vertically)
         this._drawGrid('left', layout);
         this._drawGrid('right', layout);
 
-        // Scroll indicators (fade hints at top/bottom of grid)
+        // Clip mask — cover overflow above and below grid area
+        B.fillRect(0, 0, c.CANVAS_WIDTH, layout.gridTop - 2, '#FFF8E7');
+        B.fillRect(0, layout.gridBottom + 1, c.CANVAS_WIDTH, c.CANVAS_HEIGHT - layout.gridBottom, '#FFF8E7');
+        B.flush();
+
+        // Title (drawn AFTER clip mask so it's not hidden)
+        T.drawText('WEAPON BALL', cx, 45, 'bold 32px "Courier New", monospace', '#333', 'center', 'alphabetic');
+        T.drawText('Choose your fighters', cx, 67, '12px "Courier New", monospace', '#888', 'center', 'alphabetic');
+
+        // Section labels above grids
+        const rows = Math.ceil(this.weaponTypes.length / layout.cols);
+        const singleGridH = rows * (layout.btnH + layout.gap);
+
+        // P1 selection indicator
+        if (this.selectedLeft) {
+            const col = WB.Config.COLORS[this.selectedLeft];
+            const name = WB.Config.WEAPON_NAMES[this.selectedLeft] || this.selectedLeft;
+            T.drawText('P1  ' + name, layout.leftStart + 2, layout.gridTop - 8,
+                'bold 11px "Courier New", monospace', col, 'left', 'alphabetic');
+        } else {
+            T.drawText('Player 1', layout.leftStart + 2, layout.gridTop - 8,
+                'bold 11px "Courier New", monospace', '#555', 'left', 'alphabetic');
+        }
+
+        // P2 label — show on right side of same line
+        if (this.selectedRight) {
+            const col = WB.Config.COLORS[this.selectedRight];
+            const name = WB.Config.WEAPON_NAMES[this.selectedRight] || this.selectedRight;
+            T.drawText('P2  ' + name, layout.leftStart + layout.panelWidth - 2, layout.gridTop - 8,
+                'bold 11px "Courier New", monospace', col, 'right', 'alphabetic');
+        } else {
+            T.drawText('Player 2', layout.leftStart + layout.panelWidth - 2, layout.gridTop - 8,
+                'bold 11px "Courier New", monospace', '#555', 'right', 'alphabetic');
+        }
+        T.flush();
+
+        // Scroll indicators
         if (this.maxScroll > 0) {
             if (this.menuScroll > 0) {
-                // Top fade — more items above
-                B.setAlpha(0.5);
-                B.fillRect(layout.leftStart, layout.gridTop - 16, layout.panelWidth, 16, '#FFF8E7');
-                B.fillRect(layout.rightStart, layout.gridTop - 16, layout.panelWidth, 16, '#FFF8E7');
-                B.restoreAlpha();
-                T.drawText('▲ scroll up ▲', cx, layout.gridTop - 4,
-                    '11px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
+                T.drawText('▲', cx, layout.gridTop + 6,
+                    '10px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
             }
             if (this.menuScroll < this.maxScroll) {
-                // Bottom fade — more items below
-                B.setAlpha(0.5);
-                B.fillRect(layout.leftStart, layout.gridBottom, layout.panelWidth, 16, '#FFF8E7');
-                B.fillRect(layout.rightStart, layout.gridBottom, layout.panelWidth, 16, '#FFF8E7');
-                B.restoreAlpha();
-                T.drawText('▼ scroll down ▼', cx, layout.gridBottom + 13,
-                    '11px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
+                T.drawText('▼', cx, layout.gridBottom - 2,
+                    '10px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
             }
             T.flush();
 
-            // Mini scrollbar on the right edge
+            // Mini scrollbar
             const trackH = layout.gridBottom - layout.gridTop;
             const thumbH = Math.max(20, trackH * (trackH / (trackH + this.maxScroll)));
             const thumbY = layout.gridTop + (this.menuScroll / this.maxScroll) * (trackH - thumbH);
-            B.fillRect(c.CANVAS_WIDTH - 14, layout.gridTop, 6, trackH, '#EEE');
-            B.fillRect(c.CANVAS_WIDTH - 14, thumbY, 6, thumbH, '#BBB');
+            B.fillRect(c.CANVAS_WIDTH - 8, layout.gridTop, 4, trackH, '#EEE');
+            B.fillRect(c.CANVAS_WIDTH - 8, thumbY, 4, thumbH, '#BBB');
         }
 
-        // Selected preview balls
+        // Physics modifier toggles
+        const toggleBtns = this._getToggleBtns(layout);
+        for (const tb of toggleBtns) {
+            const isOn = WB.Config[tb.key];
+            const bg = isOn ? '#5DAA8F' : '#DDD';
+            const border = isOn ? '#4A8A76' : '#BBB';
+            const textColor = isOn ? '#FFF' : '#888';
+
+            B.fillRect(tb.x, tb.y, tb.w, tb.h, bg);
+            B.strokeRect(tb.x, tb.y, tb.w, tb.h, border, 1.5);
+
+            // Checkbox square
+            const ckX = tb.x + 10;
+            const ckY = tb.y + tb.h / 2 - 5;
+            B.fillRect(ckX, ckY, 10, 10, isOn ? '#FFF' : '#F8F8F8');
+            B.strokeRect(ckX, ckY, 10, 10, isOn ? '#4A8A76' : '#AAA', 1);
+            if (isOn) {
+                // Checkmark
+                B.line(ckX + 2, ckY + 5, ckX + 4, ckY + 8, '#4A8A76', 2);
+                B.line(ckX + 4, ckY + 8, ckX + 8, ckY + 2, '#4A8A76', 2);
+            }
+            B.flush();
+
+            T.drawText(tb.label, tb.x + 26, tb.y + tb.h / 2,
+                'bold 11px "Courier New", monospace', textColor, 'left', 'middle');
+        }
+        T.flush();
+
+        // VS badge between preview balls
+        const previewY = c.CANVAS_HEIGHT - 125;
         if (this.selectedLeft) {
-            this._drawPreview(this.selectedLeft, 140, c.CANVAS_HEIGHT - 140);
+            this._drawPreview(this.selectedLeft, 60, previewY);
         }
         if (this.selectedRight) {
-            this._drawPreview(this.selectedRight, c.CANVAS_WIDTH - 140, c.CANVAS_HEIGHT - 140);
+            this._drawPreview(this.selectedRight, c.CANVAS_WIDTH - 60, previewY);
+        }
+        if (this.selectedLeft && this.selectedRight) {
+            T.drawText('VS', cx, previewY + 4,
+                'bold 16px "Courier New", monospace', '#999', 'center', 'middle');
         }
 
         // Random button
@@ -214,7 +311,7 @@ WB.UI = {
         B.strokeRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#888', 2);
         B.flush();
         T.drawText('RANDOM', rBtn.x + rBtn.w / 2, rBtn.y + rBtn.h / 2,
-            'bold 14px "Courier New", monospace', '#FFF', 'center', 'middle');
+            'bold 12px "Courier New", monospace', '#FFF', 'center', 'middle');
 
         // Sim count selector
         const scBtn = layout.simCountBtn;
@@ -222,7 +319,7 @@ WB.UI = {
         B.strokeRect(scBtn.x, scBtn.y, scBtn.w, scBtn.h, '#CCC', 1.5);
         B.flush();
         T.drawText(`Sims: ${WB.SimUI.simCount}`, scBtn.x + scBtn.w / 2, scBtn.y + scBtn.h / 2,
-            '12px "Courier New", monospace', '#888', 'center', 'middle');
+            '10px "Courier New", monospace', '#888', 'center', 'middle');
 
         // FIGHT button
         if (this.selectedLeft && this.selectedRight) {
@@ -231,7 +328,7 @@ WB.UI = {
             B.strokeRect(fBtn.x, fBtn.y, fBtn.w, fBtn.h, '#333', 3);
             B.flush();
             T.drawText('FIGHT!', fBtn.x + fBtn.w / 2, fBtn.y + fBtn.h / 2,
-                'bold 24px "Courier New", monospace', '#FFF', 'center', 'middle');
+                'bold 20px "Courier New", monospace', '#FFF', 'center', 'middle');
 
             // SIMULATE button
             const sBtn = layout.simBtn;
@@ -239,7 +336,7 @@ WB.UI = {
             B.strokeRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, '#333', 3);
             B.flush();
             T.drawText('SIMULATE', sBtn.x + sBtn.w / 2, sBtn.y + sBtn.h / 2,
-                'bold 20px "Courier New", monospace', '#FFF', 'center', 'middle');
+                'bold 16px "Courier New", monospace', '#FFF', 'center', 'middle');
         }
 
         // BEST OF button (bottom)
@@ -249,13 +346,25 @@ WB.UI = {
         B.strokeRect(boBtn.x, boBtn.y, boBtn.w, boBtn.h, savedCount > 0 ? '#B8860B' : '#AAA', 1.5);
         B.flush();
         T.drawText(`BEST OF (${savedCount})`, boBtn.x + boBtn.w / 2, boBtn.y + boBtn.h / 2,
-            'bold 12px "Courier New", monospace', '#FFF', 'center', 'middle');
+            'bold 10px "Courier New", monospace', '#FFF', 'center', 'middle');
     },
 
     _drawGrid(side, layout) {
         const selected = side === 'left' ? this.selectedLeft : this.selectedRight;
         const B = WB.GLBatch;
         const T = WB.GLText;
+
+        // Draw divider before P2 grid
+        if (side === 'right') {
+            const rows = Math.ceil(this.weaponTypes.length / layout.cols);
+            const singleGridH = rows * (layout.btnH + layout.gap);
+            const divY = layout.gridTop + singleGridH + 2 - this.menuScroll;
+            if (divY > layout.gridTop && divY < layout.gridBottom) {
+                B.setAlpha(0.4);
+                B.line(layout.leftStart + 5, divY, layout.leftStart + layout.panelWidth - 5, divY, '#999', 1);
+                B.restoreAlpha();
+            }
+        }
 
         for (let i = 0; i < this.weaponTypes.length; i++) {
             const type = this.weaponTypes[i];
@@ -273,14 +382,9 @@ WB.UI = {
             // Border
             B.strokeRect(btn.x, btn.y, btn.w, btn.h, isSelected ? '#333' : '#CCC', isSelected ? 2.5 : 1.5);
 
-            // Icon
+            // Icon (centered in compact buttons)
             B.flush();
-            WB.Renderer.drawWeaponIcon(type, btn.x + 15, btn.y + btn.h / 2, isSelected ? '#FFF' : color);
-
-            // Name
-            const name = WB.Config.WEAPON_NAMES[type] || type;
-            T.drawText(name, btn.x + 30, btn.y + btn.h / 2 + 4,
-                'bold 12px "Courier New", monospace', isSelected ? '#FFF' : '#555', 'left', 'alphabetic');
+            WB.Renderer.drawWeaponIcon(type, btn.x + btn.w / 2, btn.y + btn.h / 2, isSelected ? '#FFF' : color);
         }
         T.flush();
     },
@@ -291,10 +395,15 @@ WB.UI = {
         const T = WB.GLText;
 
         // Small preview ball
-        B.fillCircle(x, y, 18, color);
-        B.strokeCircle(x, y, 18, '#333', 2);
+        B.fillCircle(x, y, 16, color);
+        B.strokeCircle(x, y, 16, '#333', 2);
         B.flush();
 
-        T.drawText('100', x, y + 4, 'bold 12px "Courier New", monospace', '#FFF', 'center', 'alphabetic');
+        T.drawText('100', x, y + 4, 'bold 10px "Courier New", monospace', '#FFF', 'center', 'alphabetic');
+
+        // Name below
+        const name = WB.Config.WEAPON_NAMES[type] || type;
+        T.drawText(name, x, y + 26,
+            'bold 9px "Courier New", monospace', color, 'center', 'alphabetic');
     }
 };

@@ -28,8 +28,9 @@ class MagmaWeapon extends WB.Weapon {
         this.magmaTimer++;
         this.poolTimer++;
 
-        // Drop lava pools as ball moves (every 60 frames)
-        if (this.poolTimer >= 60) {
+        // Drop lava pools as ball moves (every 60 frames, or 30 in super)
+        const dropRate = this.superActive ? 30 : 60;
+        if (this.poolTimer >= dropRate) {
             this.poolTimer = 0;
             const speed = Math.sqrt(this.owner.vx * this.owner.vx + this.owner.vy * this.owner.vy);
             if (speed > 1.5) {
@@ -102,21 +103,44 @@ class MagmaWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Volcanic Eruption: 8 lava pools in a ring
-        for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const px = this.owner.x + Math.cos(a) * 80;
-            const py = this.owner.y + Math.sin(a) * 80;
-            // Clamp to arena
-            const arena = WB.Config.ARENA;
-            const cx = Math.max(arena.x + 20, Math.min(arena.x + arena.width - 20, px));
-            const cy = Math.max(arena.y + 20, Math.min(arena.y + arena.height - 20, py));
-            this._dropPool(cx, cy);
+        // Crystal Shards: Burn+Burn inspired → VOLCANIC ERUPTION!
+        // Massive lava burst — 12 pools in expanding rings + faster pool drops + burn all
+        const arena = WB.Config.ARENA;
+        // Inner ring (4 pools close)
+        for (let i = 0; i < 4; i++) {
+            const a = (i / 4) * Math.PI * 2;
+            const px = Math.max(arena.x + 20, Math.min(arena.x + arena.width - 20,
+                this.owner.x + Math.cos(a) * 50));
+            const py = Math.max(arena.y + 20, Math.min(arena.y + arena.height - 20,
+                this.owner.y + Math.sin(a) * 50));
+            this._dropPool(px, py);
         }
-        this.maxPools = 14;
-        this.poolDamage += 2;
-        this.currentDamage += 3;
-        this.poolLifespan = 450;
+        // Outer ring (8 pools far)
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+            const px = Math.max(arena.x + 20, Math.min(arena.x + arena.width - 20,
+                this.owner.x + Math.cos(a) * 110));
+            const py = Math.max(arena.y + 20, Math.min(arena.y + arena.height - 20,
+                this.owner.y + Math.sin(a) * 110));
+            this._dropPool(px, py);
+        }
+        this.maxPools = 20;
+        this.poolDamage += 3;
+        this.currentDamage += 4;
+        this.poolLifespan = 500;
+        // Pools drop every 30 frames in super (2x faster)
+        // Burn all enemies on eruption
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                target.poisonStacks = (target.poisonStacks || 0) + 3;
+                target.takeDamage(6);
+            }
+        }
+        WB.Renderer.triggerShake(12);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 30, '#FF6622');
+        }
     }
 
     draw() {

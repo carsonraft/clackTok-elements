@@ -66,28 +66,39 @@ class LightWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Solar Flare: 8-beam radial burst
+        // Crystal Shards: Spark+Spark inspired → SUPERNOVA!
+        // Massive expanding light sphere + 12-beam radial burst + big heal
         if (WB.Game && WB.Game.projectiles) {
-            for (let i = 0; i < 8; i++) {
-                const a = (i / 8) * Math.PI * 2;
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
                 WB.Game.projectiles.push(new WB.Projectile({
                     x: this.owner.x,
                     y: this.owner.y,
-                    vx: Math.cos(a) * 8,
-                    vy: Math.sin(a) * 8,
-                    damage: this.beamDamage + 3,
+                    vx: Math.cos(a) * 9,
+                    vy: Math.sin(a) * 9,
+                    damage: this.beamDamage + 5,
                     owner: this.owner,
                     ownerWeapon: this,
-                    radius: 4,
-                    lifespan: 120,
-                    bounces: 2,
+                    radius: 5,
+                    lifespan: 150,
+                    bounces: 3,
                     color: '#FFEE88',
                     piercing: true,
                 }));
             }
         }
-        this.fireRate = Math.max(30, this.fireRate - 25);
-        this.beamDamage += 3;
+        // Big heal burst — light purifies
+        this.owner.hp = Math.min(this.owner.hp + 25, this.owner.maxHp);
+        this.fireRate = Math.max(25, this.fireRate - 30);
+        this.beamDamage += 4;
+        // Flash!
+        if (WB.GLEffects) {
+            WB.GLEffects.triggerChromatic(0.5);
+        }
+        WB.Renderer.triggerShake(6);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 30, '#FFEE88');
+        }
     }
 
     draw() {

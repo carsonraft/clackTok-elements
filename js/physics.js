@@ -134,5 +134,33 @@ WB.Physics = {
             hit = 'bottom';
         }
         return hit;
+    },
+
+    // Bounce ball when its melee weapon tip extends outside the arena.
+    // Strength scales with weapon damage when WEAPON_WALL_DMG_BOUNCE is on.
+    weaponWallBounce(ball, arena) {
+        const weapon = ball.weapon;
+        if (!weapon || weapon.reach === 0 || weapon.isRanged) return null;
+
+        const tipX = weapon.getTipX();
+        const tipY = weapon.getTipY();
+        const left = arena.x;
+        const right = arena.x + arena.width;
+        const top = arena.y;
+        const bottom = arena.y + arena.height;
+
+        // Base strength, optionally scaled by weapon damage
+        let strength = WB.Config.WEAPON_WALL_BOUNCE_STRENGTH;
+        if (WB.Config.WEAPON_WALL_DMG_BOUNCE) {
+            strength = 1.0 + weapon.currentDamage * 0.5;
+        }
+        let hit = null;
+
+        if (tipX < left) { ball.vx += strength; hit = 'left'; }
+        else if (tipX > right) { ball.vx -= strength; hit = 'right'; }
+        if (tipY < top) { ball.vy += strength; hit = hit || 'top'; }
+        else if (tipY > bottom) { ball.vy -= strength; hit = hit || 'bottom'; }
+
+        return hit;
     }
 };

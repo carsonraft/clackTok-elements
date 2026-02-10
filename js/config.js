@@ -1,9 +1,9 @@
 window.WB = window.WB || {};
 
 WB.Config = {
-    CANVAS_WIDTH: 900,
-    CANVAS_HEIGHT: 780,
-    ARENA: { x: 100, y: 90, width: 700, height: 440 },
+    CANVAS_WIDTH: 540,
+    CANVAS_HEIGHT: 960,
+    ARENA: { x: 20, y: 70, width: 500, height: 780 },
     BALL_RADIUS: 30,
     BALL_MAX_HP: 100,
     BALL_MASS: 1.0,
@@ -13,8 +13,17 @@ WB.Config = {
     BALL_RESTITUTION: 1.0,
     WEAPON_HIT_COOLDOWN: 15,
     SUPER_THRESHOLD: 10,
-    NUDGE_INTERVAL: 90,
-    NUDGE_STRENGTH: 1.2,
+    NUDGE_INTERVAL: 30,
+    NUDGE_STRENGTH: 4.0,
+    // Physics modifier toggles
+    INELASTIC_MODE: false,
+    INELASTIC_BALL_RESTITUTION: 0.5,
+    INELASTIC_WALL_RESTITUTION: 0.6,
+    GRAVITY_MODE: false,
+    GRAVITY: 0.15,
+    WEAPON_WALL_BOUNCE: false,
+    WEAPON_WALL_BOUNCE_STRENGTH: 3.0,
+    WEAPON_WALL_DMG_BOUNCE: false,
     COLORS: {
         // Generic weapons
         sword:       '#E85D75',

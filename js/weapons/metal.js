@@ -64,11 +64,31 @@ class MetalWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Steel Fortress: max shield + reflect
-        this.shieldReduction = 0.6;
+        // Crystal Shards: Stone+Stone inspired → MECH ARMOR!
+        // Full 360 fortress shield + heavy reflect + bigger + heal
+        this.shieldReduction = 0.7; // 70% damage reduction!
         this.shieldAngleWidth = Math.PI * 2; // 360 degree shield
-        this.currentDamage += 3;
-        this.owner.mass *= 1.5; // heavier — harder to push
+        this.currentDamage += 5;
+        this.owner.mass *= 2;
+        this.owner.radius = Math.round(this.owner.radius * 1.3); // armor makes you bigger
+        this.owner.hp = Math.min(this.owner.hp + 20, this.owner.maxHp + 20);
+        this.owner.maxHp += 20;
+        // Armor slam on activation — knockback everything
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                const dx = target.x - this.owner.x;
+                const dy = target.y - this.owner.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                target.vx += (dx / dist) * 6;
+                target.vy += (dy / dist) * 6;
+                target.takeDamage(4);
+            }
+        }
+        WB.Renderer.triggerShake(8);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 20, '#AABBCC');
+        }
     }
 
     draw() {

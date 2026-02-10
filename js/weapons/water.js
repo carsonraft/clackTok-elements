@@ -74,28 +74,36 @@ class WaterWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Tsunami: fire a huge piercing wave burst
+        // Crystal Shards: Ice+Ice inspired → TIDAL WAVE!
+        // Giant rolling wave wall that sweeps across the arena
+        // Launch 12 massive piercing waves in a forward-facing arc
         if (WB.Game && WB.Game.projectiles) {
-            for (let i = 0; i < 8; i++) {
-                const a = (i / 8) * Math.PI * 2;
+            const aimAngle = this.angle;
+            for (let i = 0; i < 12; i++) {
+                const spread = (i / 12) * Math.PI * 2;
                 WB.Game.projectiles.push(new WB.Projectile({
                     x: this.owner.x,
                     y: this.owner.y,
-                    vx: Math.cos(a) * 4,
-                    vy: Math.sin(a) * 4,
-                    damage: 6,
+                    vx: Math.cos(spread) * 3.5,
+                    vy: Math.sin(spread) * 3.5,
+                    damage: 7,
                     owner: this.owner,
                     ownerWeapon: this,
-                    radius: 12,
-                    lifespan: 150,
-                    bounces: 2,
+                    radius: 15,
+                    lifespan: 180,
+                    bounces: 3,
                     color: '#3388DD',
                     piercing: true,
                 }));
             }
         }
-        this.fireRate = Math.max(40, this.fireRate - 30);
-        this.currentDamage += 2;
+        this.fireRate = Math.max(30, this.fireRate - 40);
+        this.waveCount = Math.min(this.waveCount + 3, 10);
+        this.currentDamage += 3;
+        WB.Renderer.triggerShake(8);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 25, '#3388DD');
+        }
     }
 
     draw() {

@@ -8,7 +8,7 @@ WB.Weapon = class {
         this.rotationSpeed = config.rotationSpeed || 0.05;
         this.baseDamage = config.baseDamage || 3;
         this.currentDamage = this.baseDamage;
-        this.reach = config.reach || 40;
+        this.reach = config.reach != null ? config.reach : 40;
         this.baseReach = this.reach;
         this.hitCount = 0;
         this.cooldown = 0;

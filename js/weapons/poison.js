@@ -47,22 +47,45 @@ class PoisonWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Pandemic: Poison ALL enemies with massive stacks
+        // Crystal Shards: Needle+Needle → TOXIC ERUPTION!
+        // Venomous spines burst out in all directions like a poison porcupine
+        // Fire 10 poison barb projectiles outward
+        if (WB.Game && WB.Game.projectiles) {
+            for (let i = 0; i < 10; i++) {
+                const a = (i / 10) * Math.PI * 2;
+                WB.Game.projectiles.push(new WB.Projectile({
+                    x: this.owner.x + Math.cos(a) * this.owner.radius,
+                    y: this.owner.y + Math.sin(a) * this.owner.radius,
+                    vx: Math.cos(a) * 5,
+                    vy: Math.sin(a) * 5,
+                    damage: 4,
+                    owner: this.owner,
+                    ownerWeapon: this,
+                    radius: 4,
+                    lifespan: 100,
+                    bounces: 1,
+                    color: '#66CC33',
+                    piercing: false,
+                }));
+            }
+        }
+        // Also apply massive poison to everyone
         if (WB.Game && WB.Game.balls) {
             for (const target of WB.Game.balls) {
                 if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
-                target.poisonStacks = (target.poisonStacks || 0) + 5;
-                target.takeDamage(3);
+                target.poisonStacks = (target.poisonStacks || 0) + 8;
+                target.takeDamage(4);
                 if (WB.Game.particles) {
                     WB.Game.particles.explode(target.x, target.y, 15, '#66CC33');
                 }
-                if (WB.GLEffects) {
-                    WB.GLEffects.spawnDamageNumber(target.x, target.y, 3, '#66CC33');
-                }
             }
         }
-        this.currentDamage += 2;
-        this.venomPerHit += 3;
+        this.currentDamage += 3;
+        this.venomPerHit += 4;
+        WB.Renderer.triggerShake(6);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 20, '#88EE44');
+        }
     }
 
     draw() {

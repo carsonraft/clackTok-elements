@@ -26,6 +26,7 @@ WB.SimUI = {
             winnerHp: result.winnerHp,
             score: result.score,
             frames: result.frames,
+            toggles: result.toggles || null,
             savedAt: Date.now(),
         });
         saved.sort((a, b) => b.score.total - a.score.total);
@@ -55,9 +56,36 @@ WB.SimUI = {
         return saved.some(s => s.seed === result.seed && s.weaponLeft === result.weaponLeft && s.weaponRight === result.weaponRight);
     },
 
+    // Snapshot physics toggles so replays match the original simulation
+    _snapshotToggles() {
+        return {
+            INELASTIC_MODE: WB.Config.INELASTIC_MODE,
+            BALL_RESTITUTION: WB.Config.BALL_RESTITUTION,
+            WALL_RESTITUTION: WB.Config.WALL_RESTITUTION,
+            GRAVITY_MODE: WB.Config.GRAVITY_MODE,
+            WEAPON_WALL_BOUNCE: WB.Config.WEAPON_WALL_BOUNCE,
+            WEAPON_WALL_DMG_BOUNCE: WB.Config.WEAPON_WALL_DMG_BOUNCE,
+        };
+    },
+
+    _restoreToggles(toggles) {
+        if (!toggles) return;
+        WB.Config.INELASTIC_MODE = toggles.INELASTIC_MODE;
+        WB.Config.BALL_RESTITUTION = toggles.BALL_RESTITUTION;
+        WB.Config.WALL_RESTITUTION = toggles.WALL_RESTITUTION;
+        WB.Config.GRAVITY_MODE = toggles.GRAVITY_MODE;
+        WB.Config.WEAPON_WALL_BOUNCE = toggles.WEAPON_WALL_BOUNCE;
+        WB.Config.WEAPON_WALL_DMG_BOUNCE = toggles.WEAPON_WALL_DMG_BOUNCE;
+    },
+
     // ─── Simulation ─────────────────────────────────────
     runSimulation(weaponLeft, weaponRight) {
+        this._simToggles = this._snapshotToggles();
         this.results = WB.Simulator.runBatch(weaponLeft, weaponRight, this.simCount);
+        // Stamp each result with the toggle state
+        for (const r of this.results) {
+            r.toggles = this._simToggles;
+        }
         this.scrollOffset = 0;
     },
 
@@ -327,6 +355,10 @@ WB.SimUI = {
     replayBattle(result) {
         this.isReplaying = true;
         this._replaySeed = result.seed;
+        // Save current toggles so we can restore after replay
+        this._preReplayToggles = this._snapshotToggles();
+        // Apply the toggles that were active during simulation
+        if (result.toggles) this._restoreToggles(result.toggles);
         WB.RNG.seed(result.seed);
         WB.UI.selectedLeft = result.weaponLeft;
         WB.UI.selectedRight = result.weaponRight;
@@ -337,6 +369,11 @@ WB.SimUI = {
         const returnState = this._replaySource === 'bestof' ? 'BEST_OF' : 'SIM_RESULTS';
         this.isReplaying = false;
         this._replaySource = null;
+        // Restore the user's toggles from before the replay
+        if (this._preReplayToggles) {
+            this._restoreToggles(this._preReplayToggles);
+            this._preReplayToggles = null;
+        }
         WB.RNG.unseed();
         return returnState;
     }

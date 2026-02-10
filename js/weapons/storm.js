@@ -75,10 +75,35 @@ class StormWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        this.thunderDamage += 4;
-        this.thunderRadius = 110;
-        this.currentDamage += 3;
-        this.rotationSpeed *= 1.3;
+        // Crystal Shards: Bomb+Bomb inspired → THUNDER GOD!
+        // Every hit is a thunderclap + massive initial lightning storm
+        this.thunderDamage += 6;
+        this.thunderRadius = 130;
+        this.currentDamage += 4;
+        this.rotationSpeed *= 1.5;
+        // Initial lightning storm — strike ALL enemies with thunder
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                target.takeDamage(8);
+                const dx = target.x - this.owner.x;
+                const dy = target.y - this.owner.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                target.vx += (dx / dist) * 5;
+                target.vy += (dy / dist) * 5;
+                if (WB.GLEffects) {
+                    WB.GLEffects.spawnDamageNumber(target.x, target.y, 8, '#FFE333');
+                    WB.GLEffects.spawnImpact(target.x, target.y, '#7744CC', 50);
+                }
+                if (WB.Game.particles) {
+                    WB.Game.particles.explode(target.x, target.y, 15, '#FFE333');
+                }
+            }
+        }
+        if (WB.GLEffects) {
+            WB.GLEffects.triggerChromatic(0.6);
+        }
+        WB.Renderer.triggerShake(15);
     }
 
     draw() {

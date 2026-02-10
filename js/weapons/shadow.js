@@ -28,10 +28,41 @@ class ShadowWeapon extends WB.Weapon {
         this.phaseTimer++;
 
         if (this.superActive) {
-            // Eclipse: permanently phased and unparryable
+            // Black Hole: permanently phased + gravity pull
             if (!this.phased) {
                 this.phased = true;
                 this.unparryable = true;
+            }
+            // Gravity well — pull enemies toward owner
+            if (this._blackHole && WB.Game && WB.Game.balls) {
+                const pullRadius = this.owner.radius + 100;
+                for (const target of WB.Game.balls) {
+                    if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                    const dx = this.owner.x - target.x;
+                    const dy = this.owner.y - target.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < pullRadius && dist > 0) {
+                        const pull = 0.25;
+                        target.vx += (dx / dist) * pull;
+                        target.vy += (dy / dist) * pull;
+                    }
+                }
+                // Periodic life drain to nearby enemies
+                if (this.flickerTimer % 35 === 0) {
+                    const drainRadius = this.owner.radius + 50;
+                    for (const target of WB.Game.balls) {
+                        if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                        const dx = target.x - this.owner.x;
+                        const dy = target.y - this.owner.y;
+                        if (Math.sqrt(dx * dx + dy * dy) < drainRadius) {
+                            target.takeDamage(2);
+                            this.owner.hp = Math.min(this.owner.hp + 2, this.owner.maxHp);
+                            if (WB.GLEffects) {
+                                WB.GLEffects.spawnDamageNumber(target.x, target.y, 2, '#7744CC');
+                            }
+                        }
+                    }
+                }
             }
         } else {
             // Phase cycle
@@ -82,10 +113,28 @@ class ShadowWeapon extends WB.Weapon {
     }
 
     activateSuper() {
+        // Crystal Shards inspired → BLACK HOLE!
+        // Become permanently phased + create a gravity well that pulls enemies in + drain life
         this.phased = true;
         this.unparryable = true;
-        this.damageMultiplier += 0.5;
-        this.currentDamage += 3;
+        this.damageMultiplier += 0.8;
+        this.currentDamage += 4;
+        this._blackHole = true;
+        // Initial shadow burst — damage + slow all enemies
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                target.takeDamage(5);
+                target.vx *= 0.3;
+                target.vy *= 0.3;
+                if (WB.Game.particles) {
+                    WB.Game.particles.explode(target.x, target.y, 10, '#553388');
+                }
+            }
+        }
+        if (WB.GLEffects) {
+            WB.GLEffects.triggerChromatic(0.4);
+        }
     }
 
     draw() {

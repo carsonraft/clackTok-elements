@@ -239,6 +239,30 @@ WB.Game = {
             }
         }
 
+        // 1b. Weapon tip wall bounce
+        if (WB.Config.WEAPON_WALL_BOUNCE) {
+            for (const ball of this.balls) {
+                if (!ball.isAlive) continue;
+                const wallHit = WB.Physics.weaponWallBounce(ball, WB.Config.ARENA);
+                if (wallHit) {
+                    const s = ball.getSpeed();
+                    WB.Audio.wallClack(s * 0.5);
+                    if (WB.GLEffects) {
+                        const tipX = ball.weapon.getTipX();
+                        const tipY = ball.weapon.getTipY();
+                        const a = WB.Config.ARENA;
+                        const wx = Math.max(a.x, Math.min(a.x + a.width, tipX));
+                        const wy = Math.max(a.y, Math.min(a.y + a.height, tipY));
+                        WB.GLEffects.spawnWallImpact(wx, wy, s * 0.4, ball.color);
+                        if (s >= 3) {
+                            WB.Renderer.triggerShake(1 + s * 0.3);
+                            if (this.particles) this.particles.spark(wx, wy, Math.floor(s * 1.5));
+                        }
+                    }
+                }
+            }
+        }
+
         // 2. Ball-ball collision (pairwise for N balls)
         for (let i = 0; i < this.balls.length; i++) {
             const ba = this.balls[i];

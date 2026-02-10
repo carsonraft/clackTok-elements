@@ -80,36 +80,41 @@ class CrystalWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Crystal Storm: launch all shards as piercing projectiles
+        // Crystal Shards: Cutter+Cutter inspired → CRYSTAL BARRAGE!
+        // Launch ALL current shards + spawn tons of new ones that fire outward
+        // First launch existing shards
         if (WB.Game && WB.Game.projectiles) {
-            for (let i = 0; i < this.shardCount; i++) {
-                const pos = this._getShardPos(i);
-                // Fire outward from orbit position
-                const dx = pos.x - this.owner.x;
-                const dy = pos.y - this.owner.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const totalShards = this.shardCount + 8; // existing + 8 bonus
+            for (let i = 0; i < totalShards; i++) {
+                const a = (i / totalShards) * Math.PI * 2;
+                const spawnDist = i < this.shardCount ? this.orbitRadius : this.owner.radius;
                 WB.Game.projectiles.push(new WB.Projectile({
-                    x: pos.x,
-                    y: pos.y,
-                    vx: (dx / dist) * 6,
-                    vy: (dy / dist) * 6,
-                    damage: this.currentDamage + 3,
+                    x: this.owner.x + Math.cos(a) * spawnDist,
+                    y: this.owner.y + Math.sin(a) * spawnDist,
+                    vx: Math.cos(a) * 7,
+                    vy: Math.sin(a) * 7,
+                    damage: this.currentDamage + 4,
                     owner: this.owner,
                     ownerWeapon: this,
-                    radius: 5,
-                    lifespan: 120,
-                    bounces: 2,
+                    radius: 6,
+                    lifespan: 150,
+                    bounces: 3,
                     color: '#CC66FF',
                     piercing: true,
                 }));
             }
         }
-        this.shardCount += 3;
-        this.orbitSpeed *= 1.5;
-        this.currentDamage += 2;
+        this.shardCount += 4;
+        this.orbitSpeed *= 1.8;
+        this.orbitRadius += 10;
+        this.currentDamage += 3;
         // Refill cooldown array
         while (this.shardCooldowns.length < this.shardCount) {
             this.shardCooldowns.push(0);
+        }
+        WB.Renderer.triggerShake(8);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 25, '#CC66FF');
         }
     }
 

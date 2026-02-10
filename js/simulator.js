@@ -11,8 +11,10 @@ WB.Simulator = {
         const realGame = WB.Game;
         const realAudio = WB.Audio;
         const realRenderer = WB.Renderer;
+        const realGLEffects = WB.GLEffects;
         WB.Audio = this._noopAudio;
         WB.Renderer = this._noopRenderer;
+        WB.GLEffects = this._noopGLEffects;
 
         // Create sim game state (weapons access WB.Game.balls etc.)
         const simGame = this._createSimGame(weaponLeft, weaponRight);
@@ -45,15 +47,37 @@ WB.Simulator = {
             const leftKingDead = leftOrig && !leftOrig.isAlive;
             const rightKingDead = rightOrig && !rightOrig.isAlive;
 
-            let loserSide = null;
-            if (leftAlive.length === 0 || leftKingDead) loserSide = 'left';
-            else if (rightAlive.length === 0 || rightKingDead) loserSide = 'right';
+            const leftDead = leftAlive.length === 0 || leftKingDead;
+            const rightDead = rightAlive.length === 0 || rightKingDead;
 
-            if (loserSide) {
-                const winnerSide = loserSide === 'left' ? 'right' : 'left';
-                winner = simGame.balls.find(b => b.side === winnerSide && b.isOriginal && b.isAlive)
-                      || simGame.balls.find(b => b.side === winnerSide && b.isAlive);
+            if (leftDead || rightDead) {
+                if (leftDead && rightDead) {
+                    // Simultaneous death — coin flip
+                    winner = WB.random() < 0.5 ? simGame.balls[0] : simGame.balls[1];
+                } else {
+                    const winnerSide = leftDead ? 'right' : 'left';
+                    winner = simGame.balls.find(b => b.side === winnerSide && b.isOriginal && b.isAlive)
+                          || simGame.balls.find(b => b.side === winnerSide && b.isAlive);
+                }
                 break;
+            }
+        }
+
+        // If no winner by timeout, award to the ball with more HP (no draws)
+        if (!winner && simGame.balls.length >= 2) {
+            const b1 = simGame.balls[0];
+            const b2 = simGame.balls[1];
+            if (b1.isAlive && b2.isAlive) {
+                if (b1.hp !== b2.hp) {
+                    winner = b1.hp > b2.hp ? b1 : b2;
+                } else {
+                    // True tie — more hits landed wins; coin flip if still tied
+                    const h1 = b1.weapon.hitCount;
+                    const h2 = b2.weapon.hitCount;
+                    winner = h1 !== h2 ? (h1 > h2 ? b1 : b2) : (WB.random() < 0.5 ? b1 : b2);
+                }
+            } else {
+                winner = b1.isAlive ? b1 : (b2.isAlive ? b2 : null);
             }
         }
 
@@ -67,6 +91,7 @@ WB.Simulator = {
         WB.Game = realGame;
         WB.Audio = realAudio;
         WB.Renderer = realRenderer;
+        WB.GLEffects = realGLEffects;
         WB.RNG.unseed();
 
         return {
@@ -128,6 +153,14 @@ WB.Simulator = {
         // 1. Update balls
         for (const ball of game.balls) {
             if (ball.isAlive) ball.update();
+        }
+
+        // 1b. Weapon tip wall bounce
+        if (WB.Config.WEAPON_WALL_BOUNCE) {
+            for (const ball of game.balls) {
+                if (!ball.isAlive) continue;
+                WB.Physics.weaponWallBounce(ball, WB.Config.ARENA);
+            }
         }
 
         // 2. Ball-ball collision (pairwise for N balls)
@@ -236,5 +269,27 @@ WB.Simulator = {
         triggerShake() {},
         drawFrame() {}, drawCountdown() {}, drawResult() {},
         drawWeaponIcon() {}, drawTitle() {}, drawStats() {}
+    },
+    _noopGLEffects: {
+        _impacts: [], _dmgNumbers: [], _wallImpacts: [],
+        _combo: { left: 0, right: 0, leftTimer: 0, rightTimer: 0, leftDisplay: 0, rightDisplay: 0 },
+        _superFlash: 0, _arenaPulse: 0, _hitStop: 0, _collisionFlash: 0,
+        _chromatic: 0, _barrel: 0, _shockwaves: [], _clashSparks: [],
+        init() {}, resetFrame() {}, update() {}, draw() {},
+        applyShake() {}, clearShake() {},
+        spawnImpact() {}, spawnDamageNumber() {}, spawnWallImpact() {},
+        triggerSuperFlash() {}, triggerArenaPulse() {},
+        triggerHitStop() {}, triggerCollisionFlash() {},
+        triggerChromatic() {}, triggerBarrel() {},
+        triggerShockwave() {}, spawnClashSparks() {},
+        incrementCombo() {}, getCombo() { return 0; },
+        drawSpeedLines() {}, drawImpacts() {},
+        drawDamageNumbers() {}, drawVignette() {},
+        drawSuperFlash() {}, drawArenaPulse() {},
+        drawComboCounters() {}, drawWallImpacts() {},
+        drawCollisionFlash() {}, drawChromatic() {},
+        drawBarrel() {}, drawShockwaves() {},
+        drawClashSparks() {},
+        isHitStopped() { return false; },
     }
 };

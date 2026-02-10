@@ -1,7 +1,9 @@
 window.WB = window.WB || {};
 
 // Spark (Volt Whip): Melee weapon with chain lightning that jumps to a 2nd target.
-// Scaling: Chain count increases. Super: Tesla Field damage aura.
+// Scaling: Chain count increases.
+// Super (Crystal Shards: Spark+Spark → Area Spark): Owner radiates an expanding
+// electricity field that grows while stationary and shrinks while moving!
 class SparkWeapon extends WB.Weapon {
     constructor(owner) {
         super(owner, {
@@ -15,6 +17,8 @@ class SparkWeapon extends WB.Weapon {
         this.chainCount = 1;
         this.chainRange = 120;
         this.teslaTimer = 0;
+        this.sparkFieldRadius = 0; // for Area Spark super
+        this.sparkFieldMax = 130;
         this.scalingStat.value = this.chainCount;
     }
 
@@ -22,18 +26,27 @@ class SparkWeapon extends WB.Weapon {
         super.update();
         this.teslaTimer++;
 
-        // Super: Tesla Field — periodic AOE damage
-        if (this.superActive && WB.Game && WB.Game.balls) {
-            if (this.teslaTimer % 30 === 0) {
-                const auraRadius = this.owner.radius + 70;
+        // Super (Area Spark): electricity field grows when still, shrinks when moving
+        if (this.superActive) {
+            const speed = Math.sqrt(this.owner.vx * this.owner.vx + this.owner.vy * this.owner.vy);
+            if (speed < 2) {
+                // Growing — Kirby plants and the field expands!
+                this.sparkFieldRadius = Math.min(this.sparkFieldMax, this.sparkFieldRadius + 1.5);
+            } else {
+                // Shrinking while moving
+                this.sparkFieldRadius = Math.max(30, this.sparkFieldRadius - 2);
+            }
+            // Damage everything inside the field every 20 frames
+            if (this.teslaTimer % 20 === 0 && WB.Game && WB.Game.balls) {
+                const fieldR = this.owner.radius + this.sparkFieldRadius;
                 for (const target of WB.Game.balls) {
                     if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
                     const dx = target.x - this.owner.x;
                     const dy = target.y - this.owner.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < auraRadius) {
-                        target.takeDamage(2);
+                    if (Math.sqrt(dx * dx + dy * dy) < fieldR) {
+                        target.takeDamage(3);
                         if (WB.GLEffects) {
-                            WB.GLEffects.spawnDamageNumber(target.x, target.y, 2, '#FFE333');
+                            WB.GLEffects.spawnDamageNumber(target.x, target.y, 3, '#FFE333');
                         }
                         if (WB.Game.particles) {
                             WB.Game.particles.emit(target.x, target.y, 4, '#FFE333');
@@ -99,9 +112,30 @@ class SparkWeapon extends WB.Weapon {
     }
 
     activateSuper() {
+        // Crystal Shards: Spark+Spark → AREA SPARK!
+        // Expanding electricity field — grows when stationary, shrinks when moving
         this.currentDamage += 3;
         this.chainCount += 2;
-        this.rotationSpeed *= 1.4;
+        this.rotationSpeed *= 1.3;
+        this.sparkFieldRadius = 50; // start with a decent field
+        // Initial zap burst — damage everyone nearby
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                const dx = target.x - this.owner.x;
+                const dy = target.y - this.owner.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 120) {
+                    target.takeDamage(5);
+                    if (WB.Game.particles) {
+                        WB.Game.particles.explode(target.x, target.y, 12, '#FFE333');
+                    }
+                }
+            }
+        }
+        if (WB.GLEffects) {
+            WB.GLEffects.triggerChromatic(0.4);
+        }
+        WB.Renderer.triggerShake(10);
     }
 
     draw() {
@@ -139,12 +173,32 @@ class SparkWeapon extends WB.Weapon {
 
         B.popTransform();
 
-        // Super: Tesla field ring
-        if (this.superActive) {
-            const pulse = 0.12 + Math.sin(this.teslaTimer * 0.1) * 0.06;
+        // Super: Area Spark expanding/contracting field
+        if (this.superActive && this.sparkFieldRadius > 5) {
+            const fieldR = r + this.sparkFieldRadius;
+            // Crackling field with animated arcs
+            const pulse = 0.1 + Math.sin(this.teslaTimer * 0.08) * 0.05;
             B.setAlpha(pulse);
-            B.strokeCircle(this.owner.x, this.owner.y, r + 70, '#FFE333', 1.5);
+            B.fillCircle(this.owner.x, this.owner.y, fieldR, '#FFE333');
             B.restoreAlpha();
+            B.setAlpha(pulse * 1.5);
+            B.strokeCircle(this.owner.x, this.owner.y, fieldR, '#FFFF88', 2);
+            B.restoreAlpha();
+            // Random lightning arcs at the field boundary
+            if (this.teslaTimer % 3 === 0) {
+                B.setAlpha(0.4);
+                const arcAngle = WB.random() * Math.PI * 2;
+                const arcX = this.owner.x + Math.cos(arcAngle) * fieldR;
+                const arcY = this.owner.y + Math.sin(arcAngle) * fieldR;
+                const jitter = (WB.random() - 0.5) * 20;
+                B.line(
+                    this.owner.x + Math.cos(arcAngle) * (fieldR * 0.5),
+                    this.owner.y + Math.sin(arcAngle) * (fieldR * 0.5),
+                    arcX + jitter, arcY + jitter,
+                    '#FFFF44', 2
+                );
+                B.restoreAlpha();
+            }
         }
     }
 }

@@ -70,12 +70,30 @@ class NatureWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Overgrowth: max reach + thorns
-        this.reach = 130;
-        this.thornsDamage = 2;
-        this.currentDamage += 3;
-        this.rootChance = 0.5;
+        // Crystal Shards: Needle+Needle inspired → WORLD TREE!
+        // Vine explodes to max reach + thorns aura expands + roots all enemies on activation
+        this.reach = 140;
+        this.thornsDamage = 3;
+        this.currentDamage += 4;
+        this.rootChance = 0.7; // massive root chance
         this.scalingStat.value = this.reach;
+        // World Tree eruption — root ALL enemies and deal damage
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                target.vx *= 0.05;
+                target.vy *= 0.05;
+                target.takeDamage(6);
+                if (WB.Game.particles) {
+                    WB.Game.particles.explode(target.x, target.y, 12, '#33AA44');
+                }
+            }
+        }
+        // Heal from the World Tree's life force
+        this.owner.hp = Math.min(this.owner.hp + 15, this.owner.maxHp);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 25, '#44BB55');
+        }
     }
 
     draw() {

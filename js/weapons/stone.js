@@ -1,7 +1,9 @@
 window.WB = window.WB || {};
 
 // Stone (Boulder): Body-contact weapon with 1.3x size and high mass/knockback.
-// Scaling: Mass value increases. Super: Landslide (2x size, +30 HP).
+// Scaling: Mass value increases.
+// Super (Crystal Shards: Stone+Stone → Ultra Stone): Become a COLOSSAL boulder —
+// 2.5x size, near-immovable mass, earthquake stomp that damages nearby enemies!
 class StoneWeapon extends WB.Weapon {
     constructor(owner) {
         super(owner, {
@@ -22,6 +24,35 @@ class StoneWeapon extends WB.Weapon {
 
     update() {
         if (this.contactCooldown > 0) this.contactCooldown--;
+        // Super: earthquake stomp — periodic ground pound damages nearby
+        if (this.superActive && WB.Game && WB.Game.balls) {
+            if (!this._stompTimer) this._stompTimer = 0;
+            this._stompTimer++;
+            if (this._stompTimer % 50 === 0) {
+                const quakeRadius = this.owner.radius + 40;
+                for (const target of WB.Game.balls) {
+                    if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                    const dx = target.x - this.owner.x;
+                    const dy = target.y - this.owner.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < quakeRadius) {
+                        target.takeDamage(3);
+                        // Bounce target up (push away)
+                        if (dist > 0) {
+                            target.vx += (dx / dist) * 5;
+                            target.vy += (dy / dist) * 5;
+                        }
+                        if (WB.GLEffects) {
+                            WB.GLEffects.spawnDamageNumber(target.x, target.y, 3, '#8B7355');
+                        }
+                    }
+                }
+                WB.Renderer.triggerShake(6);
+                if (WB.Game.particles) {
+                    WB.Game.particles.explode(this.owner.x, this.owner.y, 12, '#8B7355');
+                }
+            }
+        }
     }
 
     canHit() {
@@ -58,13 +89,31 @@ class StoneWeapon extends WB.Weapon {
     }
 
     activateSuper() {
-        // Landslide: grow even bigger + heal
-        this.owner.radius = Math.round(WB.Config.BALL_RADIUS * 2);
-        this.owner.mass *= 2;
-        this.owner.hp = Math.min(this.owner.hp + 30, this.owner.maxHp + 30);
-        this.owner.maxHp += 30;
-        this.currentDamage += 4;
+        // Crystal Shards: Stone+Stone → ULTRA STONE!
+        // Become colossal — 2.5x size, immovable mass, earthquake stomp
+        this.owner.radius = Math.round(WB.Config.BALL_RADIUS * 2.5);
+        this.owner.mass *= 4;
+        this.owner.hp = Math.min(this.owner.hp + 40, this.owner.maxHp + 40);
+        this.owner.maxHp += 40;
+        this.currentDamage += 6;
+        this._stompTimer = 0;
         this.scalingStat.value = this.owner.mass.toFixed(1);
+        // Ground-pound burst on activation
+        if (WB.Game && WB.Game.balls) {
+            for (const target of WB.Game.balls) {
+                if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
+                target.takeDamage(6);
+                const dx = target.x - this.owner.x;
+                const dy = target.y - this.owner.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                target.vx += (dx / dist) * 8;
+                target.vy += (dy / dist) * 8;
+            }
+        }
+        WB.Renderer.triggerShake(12);
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.explode(this.owner.x, this.owner.y, 25, '#8B7355');
+        }
     }
 
     draw() {
