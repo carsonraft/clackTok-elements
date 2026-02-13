@@ -14,6 +14,8 @@ WB.Projectile = class {
         this.bounces = config.bounces || 0;
         this.color = config.color || '#FFF';
         this.piercing = config.piercing || false;
+        this.homing = config.homing || 0;          // 0 = no homing, 0.01-0.15 = gentle curve
+        this.damageFalloff = config.damageFalloff || 0; // damage multiplier lost per bounce (e.g. 0.5 = 50% per bounce)
         this.alive = true;
         this.trail = [];
         this._hitTargets = new Set();
@@ -27,6 +29,29 @@ WB.Projectile = class {
         this.y += this.vy;
         this.lifespan--;
         if (this.lifespan <= 0) this.alive = false;
+
+        // Homing: gently curve toward nearest enemy ball
+        if (this.homing > 0 && WB.Game && WB.Game.balls) {
+            let closest = null, closestDist = Infinity;
+            for (const b of WB.Game.balls) {
+                if (b === this.owner || !b.isAlive) continue;
+                if (this.owner && b.side === this.owner.side) continue;
+                const dx = b.x - this.x, dy = b.y - this.y;
+                const dist = dx * dx + dy * dy;
+                if (dist < closestDist) { closestDist = dist; closest = b; }
+            }
+            if (closest) {
+                const targetAngle = Math.atan2(closest.y - this.y, closest.x - this.x);
+                const currentAngle = Math.atan2(this.vy, this.vx);
+                let diff = targetAngle - currentAngle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                const newAngle = currentAngle + diff * this.homing;
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                this.vx = Math.cos(newAngle) * speed;
+                this.vy = Math.sin(newAngle) * speed;
+            }
+        }
 
         const a = WB.Config.ARENA;
         let bounced = false;
@@ -66,6 +91,10 @@ WB.Projectile = class {
                 this._hitTargets.clear();
                 bounced = true; bounceX = this.x; bounceY = a.y + a.height;
             } else { this.alive = false; }
+        }
+        // Apply damage falloff on bounce (e.g. Zeus bolts lose 50% per bounce)
+        if (bounced && this.damageFalloff > 0) {
+            this.damage = Math.max(0.5, this.damage * (1 - this.damageFalloff));
         }
         // CLACKY projectile bounce effects!
         if (bounced) {
@@ -113,6 +142,10 @@ WB.Projectile = class {
                     WB.GLEffects.spawnImpact(target.x, target.y, this.color, 25 + this.damage * 2);
                     WB.GLEffects.spawnDamageNumber(target.x, target.y, this.damage, this.color);
                 }
+            }
+            // Weapon callback (e.g. Zeus ball lightning spawning)
+            if (this.ownerWeapon && this.ownerWeapon.onProjectileHit) {
+                this.ownerWeapon.onProjectileHit(this, target);
             }
             // Extra screen shake on projectile hit
             WB.Renderer.triggerShake(2 + this.damage * 0.3);

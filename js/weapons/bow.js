@@ -115,4 +115,4 @@ class BowWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('bow', BowWeapon);
+WB.WeaponRegistry.register('bow', BowWeapon, 'classic');

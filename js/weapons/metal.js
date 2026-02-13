@@ -149,4 +149,4 @@ class MetalWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('metal', MetalWeapon);
+WB.WeaponRegistry.register('metal', MetalWeapon, 'elemental');

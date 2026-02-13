@@ -23,14 +23,17 @@ WB.Simulator = {
         const simGame = this._createSimGame(weaponLeft, weaponRight);
         WB.Game = simGame;
 
+        // Clear arena modifiers from any previous sim
+        if (WB.ArenaModifiers) WB.ArenaModifiers.clear();
+
         // Set up excitement tracker
         const excitement = new WB.Excitement();
         simGame._excitement = excitement;
 
         // Initial velocities (must match startBattle in main.js)
         for (const ball of simGame.balls) {
-            ball.vx = (WB.random() - 0.5) * 16;
-            ball.vy = (WB.random() - 0.5) * 16;
+            ball.vx = (WB.random() - 0.5) * 22;
+            ball.vy = (WB.random() - 0.5) * 22;
         }
 
         // Run simulation
@@ -90,6 +93,13 @@ WB.Simulator = {
             ? excitement.computeScore(winnerIdx, simGame.balls[0], simGame.balls[1])
             : { total: 0, breakdown: {}, meta: { frames: frame, totalHits: excitement.totalHits } };
 
+        // Clean up arena modifiers (restore wall shifts etc.)
+        if (WB.ArenaModifiers) {
+            const wallShift = WB.ArenaModifiers.getModifier('DionysusWallShift');
+            if (wallShift) wallShift.restore();
+            WB.ArenaModifiers.clear();
+        }
+
         // Restore real modules
         WB.Game = realGame;
         WB.Audio = realAudio;
@@ -145,6 +155,7 @@ WB.Simulator = {
         return {
             balls,
             projectiles: [],
+            hazards: [],
             particles: noopParticles,
             state: 'BATTLE',
             _excitement: null,
@@ -158,6 +169,9 @@ WB.Simulator = {
 
         // Hit stop — skip physics (matches rendered battle)
         if (WB.GLEffects.isHitStopped()) return;
+
+        // 0b. Arena modifiers (flood slow, wall shift, etc.)
+        if (WB.ArenaModifiers) WB.ArenaModifiers.update();
 
         // 1. Update balls
         for (const ball of game.balls) {
@@ -291,6 +305,15 @@ WB.Simulator = {
 
             if (!proj.alive) {
                 game.projectiles.splice(i, 1);
+            }
+        }
+
+        // 5b. Update hazards
+        if (game.hazards) {
+            for (let i = game.hazards.length - 1; i >= 0; i--) {
+                const h = game.hazards[i];
+                h.update(game.balls);
+                if (!h.alive) game.hazards.splice(i, 1);
             }
         }
 

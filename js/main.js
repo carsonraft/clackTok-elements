@@ -84,6 +84,11 @@ WB.Game = {
                         } else {
                             this.state = 'MENU';
                         }
+                        // Restore arena modifiers (e.g. Dionysus wall shift)
+                        const wallShift = WB.ArenaModifiers.getModifier('wallshift');
+                        if (wallShift && wallShift.restore) wallShift.restore();
+                        WB.ArenaModifiers.clear();
+                        this._restoreMenuSize();
                         this._playAgainBtn = null;
                     }
                 }
@@ -92,13 +97,53 @@ WB.Game = {
         }
     },
 
+    // Menu-size constants (original canvas dimensions)
+    _MENU_WIDTH: 540,
+    _MENU_HEIGHT: 960,
+
+    _applyStageSize() {
+        const preset = WB.Config.STAGE_PRESETS[WB.Config.STAGE_SIZE_INDEX];
+        WB.Config.ARENA.width = preset.width;
+        WB.Config.ARENA.height = preset.height;
+        WB.Config.ARENA.x = 20;
+        WB.Config.ARENA.y = 70;
+        // Recalculate canvas to fit arena with margins
+        const cw = preset.width + 40;
+        const ch = preset.height + 180;
+        WB.Config.CANVAS_WIDTH = cw;
+        WB.Config.CANVAS_HEIGHT = ch;
+        this.canvas.width = cw;
+        this.canvas.height = ch;
+        WB.GL.resize(cw, ch);
+    },
+
+    _restoreMenuSize() {
+        const w = this._MENU_WIDTH;
+        const h = this._MENU_HEIGHT;
+        WB.Config.CANVAS_WIDTH = w;
+        WB.Config.CANVAS_HEIGHT = h;
+        WB.Config.ARENA.x = 20;
+        WB.Config.ARENA.y = 70;
+        WB.Config.ARENA.width = 500;
+        WB.Config.ARENA.height = 780;
+        this.canvas.width = w;
+        this.canvas.height = h;
+        WB.GL.resize(w, h);
+    },
+
     startCountdown() {
         this.state = 'COUNTDOWN';
         this.countdownTimer = 0;
         this.projectiles = [];
+        this.hazards = [];
         this.particles = new WB.ParticleSystem();
         this.winner = null;
         this._excitement = new WB.Excitement();
+        WB.ArenaModifiers.clear();
+
+        // Apply selected stage size & friction
+        this._applyStageSize();
+        WB.Config.BALL_FRICTION = WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].value;
 
         // Create balls
         const arena = WB.Config.ARENA;
@@ -119,8 +164,8 @@ WB.Game = {
         this.state = 'BATTLE';
         // Give balls initial random velocity - EXPLOSIVE START
         for (const ball of this.balls) {
-            ball.vx = (WB.random() - 0.5) * 16;
-            ball.vy = (WB.random() - 0.5) * 16;
+            ball.vx = (WB.random() - 0.5) * 22;
+            ball.vy = (WB.random() - 0.5) * 22;
             // Launch particles from each ball
             if (this.particles) {
                 this.particles.emit(ball.x, ball.y, 12, ball.color, {
@@ -231,6 +276,9 @@ WB.Game = {
             WB.Renderer.drawFrame(this);
             return;
         }
+
+        // 0b. Update arena modifiers (before ball physics — may shift arena bounds)
+        WB.ArenaModifiers.update();
 
         // 1. Update balls
         for (const ball of this.balls) {
@@ -435,6 +483,15 @@ WB.Game = {
             }
         }
 
+        // 5b. Update and check hazards
+        for (let i = this.hazards.length - 1; i >= 0; i--) {
+            const h = this.hazards[i];
+            h.update(this.balls);
+            if (!h.alive) {
+                this.hazards.splice(i, 1);
+            }
+        }
+
         // 6. Record excitement metrics (use first two original balls)
         if (this._excitement && this.balls.length >= 2) {
             this._excitement.recordFrame(this.balls[0], this.balls[1]);
@@ -462,57 +519,74 @@ WB.Game = {
         const leftKingDead = leftOriginal && !leftOriginal.isAlive;
         const rightKingDead = rightOriginal && !rightOriginal.isAlive;
 
-        // Win conditions:
-        // - All balls on one side dead
-        // - The original (king) ball on the duplicator side is dead
-        let loserSide = null;
-        if (leftAlive.length === 0 || leftKingDead) {
-            loserSide = 'left';
-        } else if (rightAlive.length === 0 || rightKingDead) {
-            loserSide = 'right';
-        }
+        const leftDead = leftAlive.length === 0 || leftKingDead;
+        const rightDead = rightAlive.length === 0 || rightKingDead;
 
-        if (loserSide) {
-            const winnerSide = loserSide === 'left' ? 'right' : 'left';
+        if (!leftDead && !rightDead) return; // no winner yet
+
+        // Double KO — both sides dead in the same frame
+        if (leftDead && rightDead) {
+            // Pick higher HP ball, or coin-flip
+            const b1 = this.balls[0];
+            const b2 = this.balls[1];
+            this.winner = b1.hp >= b2.hp ? b1 : b2;
+            this._isDraw = true;
+        } else {
+            const winnerSide = leftDead ? 'right' : 'left';
             this.winner = this.balls.find(b => b.side === winnerSide && b.isOriginal && b.isAlive)
                        || this.balls.find(b => b.side === winnerSide && b.isAlive);
-            if (this.winner) {
-                WB.Audio.death();
-                WB.Audio.victoryFanfare();
-                // MASSIVE victory screen shake + flash
-                WB.Renderer.triggerShake(25);
-                if (WB.GLEffects) {
-                    WB.GLEffects.triggerSuperFlash(this.winner.color);
-                    WB.GLEffects.triggerHitStop(10);
-                    // EXTREME screen deformation on victory
-                    WB.GLEffects.triggerShockwave(this.winner.x, this.winner.y, 1.0);
-                    WB.GLEffects.triggerChromatic(1.2);
-                    WB.GLEffects.triggerBarrel(0.7);
-                }
-                // Explode all dead balls on loser side — MASSIVE explosions
-                for (const b of this.balls) {
-                    if (b.side === loserSide && !b.isAlive) {
-                        this.particles.explode(b.x, b.y, 40, b.color);
-                        this.particles.spark(b.x, b.y, 25);
-                    }
-                }
-                // Also explode any alive losers (king was killed)
-                for (const b of this.balls) {
-                    if (b.side === loserSide && b.isAlive) {
-                        b.isAlive = false;
-                        this.particles.explode(b.x, b.y, 40, b.color);
-                        this.particles.spark(b.x, b.y, 25);
-                    }
-                }
-                // Victory particle burst from winner
-                this.particles.explode(this.winner.x, this.winner.y, 30, this.winner.color);
-                this.particles.spark(this.winner.x, this.winner.y, 20);
-                this.state = 'RESULT';
+            this._isDraw = false;
+        }
+
+        if (this.winner) {
+            const loserSide = this.winner.side === 'left' ? 'right' : 'left';
+            WB.Audio.death();
+            WB.Audio.victoryFanfare();
+            // MASSIVE victory screen shake + flash
+            WB.Renderer.triggerShake(25);
+            if (WB.GLEffects) {
+                WB.GLEffects.triggerSuperFlash(this.winner.color);
+                WB.GLEffects.triggerHitStop(10);
+                // EXTREME screen deformation on victory
+                WB.GLEffects.triggerShockwave(this.winner.x, this.winner.y, 1.0);
+                WB.GLEffects.triggerChromatic(1.2);
+                WB.GLEffects.triggerBarrel(0.7);
             }
+            // Explode all dead balls on loser side — MASSIVE explosions
+            for (const b of this.balls) {
+                if (b.side === loserSide && !b.isAlive) {
+                    this.particles.explode(b.x, b.y, 40, b.color);
+                    this.particles.spark(b.x, b.y, 25);
+                }
+            }
+            // Also explode any alive losers (king was killed)
+            for (const b of this.balls) {
+                if (b.side === loserSide && b.isAlive) {
+                    b.isAlive = false;
+                    this.particles.explode(b.x, b.y, 40, b.color);
+                    this.particles.spark(b.x, b.y, 25);
+                }
+            }
+            // On draw, explode both sides
+            if (this._isDraw) {
+                for (const b of this.balls) {
+                    this.particles.explode(b.x, b.y, 40, b.color);
+                    this.particles.spark(b.x, b.y, 25);
+                }
+            }
+            // Victory particle burst from winner
+            this.particles.explode(this.winner.x, this.winner.y, 30, this.winner.color);
+            this.particles.spark(this.winner.x, this.winner.y, 20);
+            this.state = 'RESULT';
         }
     },
 
     drawResult() {
+        // Rapidly decay screen effects so they don't obscure the result
+        WB.GLEffects.update();
+        WB.GLEffects.update();
+        WB.GLEffects.update();
+
         // Keep rendering the frozen arena
         WB.Renderer.drawFrame(this);
         // Update particles (death explosion continues)

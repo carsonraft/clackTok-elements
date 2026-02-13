@@ -150,4 +150,4 @@ class StoneWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('stone', StoneWeapon);
+WB.WeaponRegistry.register('stone', StoneWeapon, 'elemental');

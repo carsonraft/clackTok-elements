@@ -23,6 +23,22 @@ WB.Ball = class {
         this.frameCount = 0;
         this.damageFlash = 0;
         this.trail = [];
+
+        // Per-ball overrides (used by god weapons)
+        this.maxSpeed = WB.Config.BALL_MAX_SPEED;
+        this.gravityMultiplier = 1.0;
+
+        // Debuff system (used by Greek Pantheon weapons)
+        this.debuffs = {
+            burn: [],           // Array of { damage, remaining, tickRate, timer }
+            forgeMarks: 0,      // Hephaestus: damage resistance reduction
+            madness: 0,         // Dionysus: stacks
+            madnessDecayTimer: 0,
+            movementInverted: 0, // frames remaining
+            weaponReversed: 0,   // frames remaining
+            slowFactor: 1,       // Poseidon: velocity multiplier (1=normal, 0.5=half speed)
+            slowTimer: 0,        // frames remaining
+        };
     }
 
     update() {
@@ -40,15 +56,23 @@ WB.Ball = class {
         this.x += this.vx;
         this.y += this.vy;
         if (WB.Config.GRAVITY_MODE) {
-            this.vy += WB.Config.GRAVITY;
+            const grav = WB.Config.GRAVITY * this.gravityMultiplier;
+            // Movement inversion: gravity goes wrong direction
+            this.vy += this.debuffs.movementInverted > 0 ? -grav : grav;
         }
         this.vx *= WB.Config.BALL_FRICTION;
         this.vy *= WB.Config.BALL_FRICTION;
 
+        // Poseidon slow debuff
+        if (this.debuffs.slowTimer > 0) {
+            this.vx *= this.debuffs.slowFactor;
+            this.vy *= this.debuffs.slowFactor;
+        }
+
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > WB.Config.BALL_MAX_SPEED) {
-            this.vx = (this.vx / speed) * WB.Config.BALL_MAX_SPEED;
-            this.vy = (this.vy / speed) * WB.Config.BALL_MAX_SPEED;
+        if (speed > this.maxSpeed) {
+            this.vx = (this.vx / speed) * this.maxSpeed;
+            this.vy = (this.vy / speed) * this.maxSpeed;
         }
 
         const wallHit = WB.Physics.bounceOffWalls(this, WB.Config.ARENA);
@@ -89,12 +113,46 @@ WB.Ball = class {
             }
         }
 
+        // ─── Debuff processing ─────────────────────────
+        const d = this.debuffs;
+
+        // Burn DOTs (Apollo)
+        for (let i = d.burn.length - 1; i >= 0; i--) {
+            const b = d.burn[i];
+            b.timer++;
+            if (b.timer >= b.tickRate) {
+                this.takeDamage(b.damage);
+                b.timer = 0;
+            }
+            b.remaining--;
+            if (b.remaining <= 0) d.burn.splice(i, 1);
+        }
+
+        // Madness stack decay (Dionysus) — lose 1 stack every 5 sec
+        if (d.madness > 0) {
+            d.madnessDecayTimer++;
+            if (d.madnessDecayTimer >= 300) {
+                d.madness = Math.max(0, d.madness - 1);
+                d.madnessDecayTimer = 0;
+            }
+        }
+
+        // Debuff timers
+        if (d.movementInverted > 0) d.movementInverted--;
+        if (d.weaponReversed > 0) d.weaponReversed--;
+        if (d.slowTimer > 0) {
+            d.slowTimer--;
+            if (d.slowTimer <= 0) d.slowFactor = 1; // restore speed
+        }
+
         if (this.damageFlash > 0) this.damageFlash--;
     }
 
     takeDamage(amount) {
         if (this.invulnerable) return;
-        this.hp -= amount;
+        // Forge marks amplify incoming damage (Hephaestus debuff)
+        const multiplier = 1 + (this.debuffs.forgeMarks * 0.3);
+        this.hp -= amount * multiplier;
         this.damageFlash = 6;
         if (this.hp <= 0) {
             this.hp = 0;
@@ -144,7 +202,7 @@ WB.Ball = class {
         B.flush();
 
         // HP text
-        const fontSize = Math.max(10, Math.floor(this.radius * 0.6));
+        const fontSize = Math.max(12, Math.floor(this.radius * 0.7));
         const font = `bold ${fontSize}px "Courier New", monospace`;
         const hpText = Math.ceil(this.hp).toString();
         T.drawTextWithStroke(hpText, this.x, this.y, font, '#FFF', '#333', 3, 'center', 'middle');

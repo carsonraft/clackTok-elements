@@ -194,4 +194,4 @@ class ClackerWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('clacker', ClackerWeapon);
+WB.WeaponRegistry.register('clacker', ClackerWeapon, 'classic');

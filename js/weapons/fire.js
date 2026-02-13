@@ -285,4 +285,4 @@ class FireWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('fire', FireWeapon);
+WB.WeaponRegistry.register('fire', FireWeapon, 'elemental');

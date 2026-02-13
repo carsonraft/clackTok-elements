@@ -33,8 +33,15 @@ WB.Renderer = {
         // Arena background
         B.fillRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#FFFDF5');
 
-        // Arena border
-        B.strokeRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#333', 3);
+        // Draw arena modifiers (behind everything else — flood water, wall shift tint)
+        WB.ArenaModifiers.draw();
+
+        // Draw hazards (behind balls, on top of arena modifiers)
+        if (game.hazards) {
+            for (const h of game.hazards) {
+                h.draw();
+            }
+        }
 
         // Draw projectiles (behind balls)
         for (const p of game.projectiles) {
@@ -74,6 +81,10 @@ WB.Renderer = {
         // ── HUD layer (immune to shake / screen effects) ──
         B.flush();
         WB.GLEffects.clearShake();
+
+        // Arena border — drawn after clearShake so it doesn't shift on bounces
+        B.strokeRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#333', 3);
+
         this.drawTitle(game);
         this.drawStats(game);
     },
@@ -87,16 +98,16 @@ WB.Renderer = {
         const b2 = game.balls[1];
         const name1 = WB.Config.WEAPON_NAMES[b1.weaponType] || b1.weaponType;
         const name2 = WB.Config.WEAPON_NAMES[b2.weaponType] || b2.weaponType;
-        const font = 'bold 18px "Courier New", monospace';
+        const font = 'bold 22px "Courier New", monospace';
 
         // Left weapon name (stroke + fill)
-        T.drawTextWithStroke(name1, cx - 22, 48, font, b1.color, '#333', 3, 'right', 'alphabetic');
+        T.drawTextWithStroke(name1, cx - 24, 48, font, b1.color, '#333', 3, 'right', 'alphabetic');
 
         // VS
-        T.drawText('VS', cx, 48, 'bold 14px "Courier New", monospace', '#333', 'center', 'alphabetic');
+        T.drawText('vs', cx, 48, 'bold 16px "Courier New", monospace', '#555', 'center', 'alphabetic');
 
         // Right weapon name
-        T.drawTextWithStroke(name2, cx + 22, 48, font, b2.color, '#333', 3, 'left', 'alphabetic');
+        T.drawTextWithStroke(name2, cx + 24, 48, font, b2.color, '#333', 3, 'left', 'alphabetic');
 
         // Draw small weapon icon shapes next to names
         T.flush();
@@ -508,6 +519,135 @@ WB.Renderer = {
                 B.fillTriangle(-4, -5, -1, -6, -3, -2, '#DDEEFF');
                 B.restoreAlpha();
                 break;
+            case 'gravity':
+                // Black hole with orbiting moon
+                B.fillCircle(0, 0, 6, '#220044');
+                B.strokeCircle(0, 0, 6, '#6622AA', 1);
+                B.setAlpha(0.15);
+                B.fillCircle(0, 0, 10, '#330066');
+                B.restoreAlpha();
+                B.fillCircle(6, -5, 3, '#CCCCBB');
+                B.strokeCircle(6, -5, 3, '#999', 0.8);
+                break;
+
+            // ─── Pantheon weapons ───
+            case 'zeus':
+                // Lightning bolt — zigzag
+                B.fillPolygon([[-1, -9], [3, -3], [1, -3], [5, 5], [0, 0], [2, 0], [-2, -9]], '#FFD700');
+                B.strokePolygon([[-1, -9], [3, -3], [1, -3], [5, 5], [0, 0], [2, 0], [-2, -9]], '#CC9900', 1);
+                // Glow
+                B.setAlpha(0.2);
+                B.fillCircle(2, -1, 5, '#FFD700');
+                B.restoreAlpha();
+                break;
+            case 'poseidon':
+                // Trident
+                B.fillRect(-1, -2, 2, 14, '#2E8B8B');
+                // Three prongs
+                B.fillRect(-1, -9, 2, 8, '#00CED1');
+                B.fillTriangle(-1, -10, 1, -10, 0, -13, '#00CED1');
+                B.fillRect(-5, -7, 2, 6, '#00CED1');
+                B.fillTriangle(-6, -8, -4, -8, -5, -11, '#00CED1');
+                B.fillRect(3, -7, 2, 6, '#00CED1');
+                B.fillTriangle(3, -8, 5, -8, 4, -11, '#00CED1');
+                break;
+            case 'hephaestus':
+                // Forge hammer — dark iron
+                B.fillRect(-1, -2, 2, 12, '#5C3317');
+                B.fillRect(-5, -8, 10, 7, '#4A4A4A');
+                B.strokeRect(-5, -8, 10, 7, '#333', 1);
+                // Hot face
+                B.setAlpha(0.4);
+                B.fillRect(3, -7, 2, 5, '#FF6600');
+                B.restoreAlpha();
+                break;
+            case 'artemis':
+                // Moon bow — crescent + arrow
+                B.drawQuadratic(3 + Math.cos(-Math.PI * 0.4) * 8, Math.sin(-Math.PI * 0.4) * 8,
+                    3 + 8, 0,
+                    3 + Math.cos(Math.PI * 0.4) * 8, Math.sin(Math.PI * 0.4) * 8,
+                    '#2E5E2E', 2);
+                B.line(3 + Math.cos(-Math.PI * 0.4) * 8, Math.sin(-Math.PI * 0.4) * 8,
+                    0, 0, '#C0C0C0', 1);
+                B.line(0, 0,
+                    3 + Math.cos(Math.PI * 0.4) * 8, Math.sin(Math.PI * 0.4) * 8,
+                    '#C0C0C0', 1);
+                // Silver crescent moon
+                B.setAlpha(0.3);
+                B.fillCircle(6, -6, 3, '#C0C0C0');
+                B.restoreAlpha();
+                break;
+            case 'apollo':
+                // Sun — radiating circle
+                B.fillCircle(0, 0, 5, '#FFA500');
+                B.strokeCircle(0, 0, 5, '#CC6600', 1);
+                for (let i = 0; i < 8; i++) {
+                    const a = (i * Math.PI) / 4;
+                    B.line(Math.cos(a) * 6, Math.sin(a) * 6, Math.cos(a) * 9, Math.sin(a) * 9, '#FFD700', 1.5);
+                }
+                B.fillCircle(0, 0, 2.5, '#FFD700');
+                break;
+            case 'ares':
+                // War blade — crimson sword
+                B.fillRect(-1, -9, 2, 12, '#B22222');
+                B.strokeRect(-1, -9, 2, 12, '#8B0000', 1);
+                B.fillRect(-4, 2, 8, 2, '#8B0000');
+                B.fillRect(-1, 4, 2, 4, '#4A2020');
+                // Blood drop
+                B.setAlpha(0.5);
+                B.fillCircle(3, -5, 1.5, '#DC143C');
+                B.restoreAlpha();
+                break;
+            case 'hermes':
+                // Winged sandal
+                B.fillRect(-5, 2, 10, 4, '#87CEEB');
+                B.strokeRect(-5, 2, 10, 4, '#5BA3C0', 1);
+                // Wings
+                B.fillTriangle(-6, 2, -10, -3, -7, 0, '#B0E0E6');
+                B.fillTriangle(-6, 2, -12, -1, -8, 3, '#87CEEB');
+                B.fillTriangle(6, 2, 10, -3, 7, 0, '#B0E0E6');
+                B.fillTriangle(6, 2, 12, -1, 8, 3, '#87CEEB');
+                break;
+            case 'hades':
+                // Skull icon
+                B.fillCircle(0, -2, 6, '#2E0854');
+                B.strokeCircle(0, -2, 6, '#6A0DAD', 1);
+                // Eyes
+                B.fillCircle(-2.5, -3, 1.5, '#9955DD');
+                B.fillCircle(2.5, -3, 1.5, '#9955DD');
+                // Jaw
+                B.fillRect(-3, 2, 6, 3, '#2E0854');
+                B.strokeRect(-3, 2, 6, 3, '#6A0DAD', 0.8);
+                // Soul wisps
+                B.setAlpha(0.3);
+                B.fillCircle(-5, 4, 1.5, '#9955DD');
+                B.fillCircle(5, 3, 1.5, '#9955DD');
+                B.restoreAlpha();
+                break;
+            case 'athena':
+                // Shield + spear
+                // Shield (half circle)
+                B.fillPolygon([[0, -7], [5, -4], [6, 1], [4, 5], [0, 7], [-4, 5], [-6, 1], [-5, -4]], '#B0B0B0');
+                B.strokePolygon([[0, -7], [5, -4], [6, 1], [4, 5], [0, 7], [-4, 5], [-6, 1], [-5, -4]], '#808080', 1.5);
+                // Shield emblem
+                B.fillCircle(0, 0, 2, '#DAA520');
+                // Spear behind
+                B.line(7, -8, 7, 8, '#8B7355', 1.5);
+                B.fillTriangle(5.5, -8, 8.5, -8, 7, -12, '#B0B0B0');
+                break;
+            case 'dionysus':
+                // Grape vine
+                B.line(0, 8, 0, -2, '#228B22', 2);
+                B.line(0, -2, -3, -5, '#228B22', 1.5);
+                B.line(0, -2, 3, -4, '#228B22', 1.5);
+                // Grapes
+                B.fillCircle(-1, -6, 3, '#6A0DAD');
+                B.fillCircle(2, -5, 2.5, '#7722CC');
+                B.fillCircle(-3, -4, 2, '#9933EE');
+                B.fillCircle(0, -3, 2, '#8B00FF');
+                // Leaf
+                B.fillTriangle(3, -2, 6, -4, 5, 0, '#2E8B2E');
+                break;
         }
         B.popTransform();
     },
@@ -539,17 +679,23 @@ WB.Renderer = {
         B.flush();
         T.flush();
 
-        // Dim background
-        B.fillRect(0, 0, c.CANVAS_WIDTH, c.CANVAS_HEIGHT, 'rgba(0,0,0,0.5)');
+        // Dim background — heavy opacity so result is clearly readable
+        B.fillRect(0, 0, c.CANVAS_WIDTH, c.CANVAS_HEIGHT, 'rgba(0,0,0,0.75)');
         B.flush();
 
         const cx = c.CANVAS_WIDTH / 2;
         const cy = c.ARENA.y + c.ARENA.height / 2;
         const name = WB.Config.WEAPON_NAMES[winner.weaponType] || winner.weaponType;
+        const isDraw = game._isDraw;
 
         // Winner banner
-        T.drawTextWithStroke(name.toUpperCase() + ' WINS!', cx, cy - 40,
-            'bold 36px "Courier New", monospace', winner.color, '#333', 4, 'center', 'middle');
+        if (isDraw) {
+            T.drawTextWithStroke('DRAW!', cx, cy - 40,
+                'bold 42px "Courier New", monospace', '#AAA', '#333', 4, 'center', 'middle');
+        } else {
+            T.drawTextWithStroke(name.toUpperCase() + ' WINS!', cx, cy - 40,
+                'bold 36px "Courier New", monospace', winner.color, '#333', 4, 'center', 'middle');
+        }
 
         // Stats
         T.drawText('Hits: ' + winner.weapon.hitCount + '  |  ' + winner.weapon.getScalingDisplay(),

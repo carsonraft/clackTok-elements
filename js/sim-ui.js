@@ -65,6 +65,10 @@ WB.SimUI = {
             GRAVITY_MODE: WB.Config.GRAVITY_MODE,
             WEAPON_WALL_BOUNCE: WB.Config.WEAPON_WALL_BOUNCE,
             WEAPON_WALL_DMG_BOUNCE: WB.Config.WEAPON_WALL_DMG_BOUNCE,
+            SUPERS_ENABLED: WB.Config.SUPERS_ENABLED,
+            STAGE_SIZE_INDEX: WB.Config.STAGE_SIZE_INDEX,
+            FRICTION_INDEX: WB.Config.FRICTION_INDEX,
+            BALL_FRICTION: WB.Config.BALL_FRICTION,
         };
     },
 
@@ -76,16 +80,30 @@ WB.SimUI = {
         WB.Config.GRAVITY_MODE = toggles.GRAVITY_MODE;
         WB.Config.WEAPON_WALL_BOUNCE = toggles.WEAPON_WALL_BOUNCE;
         WB.Config.WEAPON_WALL_DMG_BOUNCE = toggles.WEAPON_WALL_DMG_BOUNCE;
+        if (toggles.SUPERS_ENABLED !== undefined) WB.Config.SUPERS_ENABLED = toggles.SUPERS_ENABLED;
+        if (toggles.STAGE_SIZE_INDEX !== undefined) WB.Config.STAGE_SIZE_INDEX = toggles.STAGE_SIZE_INDEX;
+        if (toggles.FRICTION_INDEX !== undefined) WB.Config.FRICTION_INDEX = toggles.FRICTION_INDEX;
+        if (toggles.BALL_FRICTION !== undefined) WB.Config.BALL_FRICTION = toggles.BALL_FRICTION;
     },
 
     // ─── Simulation ─────────────────────────────────────
     runSimulation(weaponLeft, weaponRight) {
         this._simToggles = this._snapshotToggles();
+        // Apply stage size and friction for simulation
+        const preset = WB.Config.STAGE_PRESETS[WB.Config.STAGE_SIZE_INDEX];
+        const savedArena = { ...WB.Config.ARENA };
+        WB.Config.ARENA.width = preset.width;
+        WB.Config.ARENA.height = preset.height;
+        WB.Config.BALL_FRICTION = WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].value;
+
         this.results = WB.Simulator.runBatch(weaponLeft, weaponRight, this.simCount);
         // Stamp each result with the toggle state
         for (const r of this.results) {
             r.toggles = this._simToggles;
         }
+        // Restore arena for menu display
+        WB.Config.ARENA.width = savedArena.width;
+        WB.Config.ARENA.height = savedArena.height;
         this.scrollOffset = 0;
     },
 

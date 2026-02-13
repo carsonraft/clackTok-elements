@@ -135,4 +135,4 @@ class SawbladeWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('sawblade', SawbladeWeapon);
+WB.WeaponRegistry.register('sawblade', SawbladeWeapon, 'classic');

@@ -306,4 +306,4 @@ class GravityWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('gravity', GravityWeapon);
+WB.WeaponRegistry.register('gravity', GravityWeapon, 'elemental');

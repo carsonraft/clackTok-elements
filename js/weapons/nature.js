@@ -146,4 +146,4 @@ class NatureWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('nature', NatureWeapon);
+WB.WeaponRegistry.register('nature', NatureWeapon, 'elemental');

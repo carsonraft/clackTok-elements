@@ -128,23 +128,23 @@ WB.GLEffects = {
     // ─── Wall Impact ──────────────────────────────────
     // Visual ring + sparks where a ball hits a wall
     spawnWallImpact(x, y, speed, color) {
-        if (speed < 1.5) return; // Lower threshold — more wall impacts visible
-        const intensity = Math.min(1, speed / 8);
+        if (speed < 3) return; // higher threshold — fewer wall impacts
+        const intensity = Math.min(1, speed / 10);
         this._wallImpacts.push({
             x, y, color,
             radius: 5,
-            maxRadius: 25 + intensity * 40,
+            maxRadius: 15 + intensity * 25,
             life: 1.0,
-            speed: 2.5 + intensity * 3.5,
+            speed: 2 + intensity * 2.5,
         });
-        // Spark particles at wall contact — MORE of them
+        // Small spark at wall contact
         if (WB.Game && WB.Game.particles) {
-            const count = Math.floor(4 + intensity * 12);
+            const count = Math.floor(2 + intensity * 4);
             for (let i = 0; i < count; i++) {
                 WB.Game.particles.emit(x, y, 1, color, {
-                    speed: 3 + Math.random() * 5 * intensity,
-                    life: 8 + Math.random() * 12,
-                    size: 1.5 + Math.random() * 2.5,
+                    speed: 2 + Math.random() * 3 * intensity,
+                    life: 6 + Math.random() * 8,
+                    size: 1 + Math.random() * 2,
                 });
             }
         }
@@ -153,7 +153,7 @@ WB.GLEffects = {
     // ─── Collision Flash ──────────────────────────────
     // Quick screen flash on ball-ball collisions
     triggerCollisionFlash(color) {
-        this._collisionFlash = 0.85;
+        this._collisionFlash = 0.4;
         this._collisionFlashColor = color || '#FFF';
     },
 
@@ -248,15 +248,10 @@ WB.GLEffects = {
         const T = WB.GLText;
         const c = WB.Config;
 
-        // Impact rings — THICK and JUICY
+        // Impact rings — clean and readable
         for (const imp of this._impacts) {
-            B.setAlpha(imp.life * 0.7);
-            B.strokeCircle(imp.x, imp.y, imp.radius, imp.color, 3.0 * imp.life);
-            // Inner glow ring
-            B.strokeCircle(imp.x, imp.y, imp.radius * 0.6, imp.color, 2.0 * imp.life);
-            // Outer halo ring (fainter, wider)
-            B.setAlpha(imp.life * 0.25);
-            B.strokeCircle(imp.x, imp.y, imp.radius * 1.3, imp.color, 1.5 * imp.life);
+            B.setAlpha(imp.life * 0.45);
+            B.strokeCircle(imp.x, imp.y, imp.radius, imp.color, 2.0 * imp.life);
             B.restoreAlpha();
         }
 
@@ -274,34 +269,31 @@ WB.GLEffects = {
 
         // Damage numbers
         for (const dn of this._dmgNumbers) {
-            const size = Math.round(16 * dn.scale);
+            const size = Math.round(18 * dn.scale);
             const font = `bold ${size}px "Courier New", monospace`;
             T.drawTextWithStroke(dn.text, dn.x, dn.y, font, dn.color, '#000', 2, 'center', 'middle');
         }
 
         T.flush();
 
-        // Wall impact rings — visible and punchy
+        // Wall impact rings — subtle
         for (const wi of this._wallImpacts) {
-            B.setAlpha(wi.life * 0.6);
-            B.strokeCircle(wi.x, wi.y, wi.radius, wi.color, 2.5 * wi.life);
-            // Outer ring echo
-            B.setAlpha(wi.life * 0.2);
-            B.strokeCircle(wi.x, wi.y, wi.radius * 1.4, wi.color, 1.5 * wi.life);
+            B.setAlpha(wi.life * 0.35);
+            B.strokeCircle(wi.x, wi.y, wi.radius, wi.color, 1.5 * wi.life);
             B.restoreAlpha();
         }
 
         // Collision flash overlay
         if (this._collisionFlash > 0) {
             const rgba = WB.GL.parseColor(this._collisionFlashColor);
-            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._collisionFlash * 0.15})`;
+            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._collisionFlash * 0.08})`;
             B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, flashColor);
         }
 
         // Super flash overlay (full screen white flash)
         if (this._superFlash > 0) {
             const rgba = WB.GL.parseColor(this._superFlashColor);
-            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._superFlash * 0.4})`;
+            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._superFlash * 0.2})`;
             B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, flashColor);
             B.flush();
         }
@@ -343,11 +335,11 @@ WB.GLEffects = {
     drawSpeedLines(ball) {
         if (!ball.isAlive) return;
         const speed = ball.getSpeed();
-        if (speed < 3) return; // Lower threshold — more speed lines!
+        if (speed < 4) return; // higher threshold — fewer speed lines
 
         const B = WB.GLBatch;
-        const intensity = Math.min(1, (speed - 3) / 5);
-        const lineCount = Math.floor(4 + intensity * 8); // More lines
+        const intensity = Math.min(1, (speed - 4) / 6);
+        const lineCount = Math.floor(2 + intensity * 4); // fewer lines
         const moveAngle = Math.atan2(ball.vy, ball.vx);
 
         B.setAlpha(intensity * 0.3);
@@ -370,11 +362,10 @@ WB.GLEffects = {
     // Radial spark lines at a collision point
     spawnClashSparks(x, y, count, color) {
         const B = WB.GLBatch;
-        // These are immediate — drawn then forgotten (one-frame effect)
-        // Instead we'll add them as particles for persistence
         if (WB.Game && WB.Game.particles) {
+            count = Math.ceil((count || 12) * 0.4);  // reduce clash sparks
             const colors = [color || '#FFD700', '#FFF', '#FFA500', '#FF6'];
-            for (let i = 0; i < (count || 12); i++) {
+            for (let i = 0; i < count; i++) {
                 const c = colors[Math.floor(Math.random() * colors.length)];
                 WB.Game.particles.emit(x, y, 1, c, {
                     speed: 6 + Math.random() * 5,

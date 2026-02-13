@@ -136,4 +136,4 @@ class WaterWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('water', WaterWeapon);
+WB.WeaponRegistry.register('water', WaterWeapon, 'elemental');

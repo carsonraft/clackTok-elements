@@ -172,4 +172,4 @@ class CrystalWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('crystal', CrystalWeapon);
+WB.WeaponRegistry.register('crystal', CrystalWeapon, 'elemental');

@@ -167,4 +167,4 @@ class StormWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('storm', StormWeapon);
+WB.WeaponRegistry.register('storm', StormWeapon, 'elemental');

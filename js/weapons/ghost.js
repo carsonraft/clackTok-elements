@@ -186,4 +186,4 @@ class GhostWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('ghost', GhostWeapon);
+WB.WeaponRegistry.register('ghost', GhostWeapon, 'classic');

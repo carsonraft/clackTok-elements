@@ -204,4 +204,4 @@ class ShadowWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('shadow', ShadowWeapon);
+WB.WeaponRegistry.register('shadow', ShadowWeapon, 'elemental');

@@ -193,4 +193,4 @@ class MagmaWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('magma', MagmaWeapon);
+WB.WeaponRegistry.register('magma', MagmaWeapon, 'elemental');

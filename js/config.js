@@ -7,9 +7,9 @@ WB.Config = {
     BALL_RADIUS: 30,
     BALL_MAX_HP: 100,
     BALL_MASS: 1.0,
-    BALL_MAX_SPEED: 10,
+    BALL_MAX_SPEED: 14,
     BALL_FRICTION: 0.9998,
-    WALL_RESTITUTION: 1.05,
+    WALL_RESTITUTION: 1.12,
     BALL_RESTITUTION: 1.0,
     WEAPON_HIT_COOLDOWN: 15,
     SUPER_THRESHOLD: 10,
@@ -22,6 +22,30 @@ WB.Config = {
     WEAPON_WALL_BOUNCE: true,
     WEAPON_WALL_BOUNCE_STRENGTH: 3.0,
     WEAPON_WALL_DMG_BOUNCE: false,
+    SUPERS_ENABLED: true,
+    // Stage size presets (index into STAGE_PRESETS)
+    STAGE_SIZE_INDEX: 0,
+    STAGE_PRESETS: [
+        { label: 'SMALL',  width: 340, height: 540 },
+        { label: 'MEDIUM', width: 500, height: 780 },
+        { label: 'LARGE',  width: 500, height: 1200 },
+        { label: 'HUGE',   width: 500, height: 1600 },
+    ],
+    // Friction presets (index into FRICTION_PRESETS)
+    FRICTION_INDEX: 2,
+    FRICTION_PRESETS: [
+        { label: 'NONE',   value: 1.0 },
+        { label: 'LOW',    value: 0.9999 },
+        { label: 'MED',    value: 0.9998 },
+        { label: 'HIGH',   value: 0.998 },
+        { label: 'HEAVY',  value: 0.995 },
+    ],
+    // Pack/Season definitions
+    PACKS: {
+        classic:   { name: 'Classic',   color: '#888888' },
+        elemental: { name: 'Elemental', color: '#5DAA8F' },
+        pantheon:  { name: 'Pantheon',  color: '#DAA520' },
+    },
     COLORS: {
         // Generic weapons
         sword:       '#E85D75',
@@ -48,6 +72,17 @@ WB.Config = {
         storm:       '#7744CC',
         metal:       '#AABBCC',
         gravity:     '#220044',
+        // Greek Pantheon weapons
+        zeus:        '#FFD700',
+        poseidon:    '#008080',
+        ares:        '#DC143C',
+        athena:      '#C0C0C0',
+        apollo:      '#FFA500',
+        artemis:     '#228B22',
+        hephaestus:  '#CC5500',
+        hermes:      '#87CEEB',
+        hades:       '#2E0854',
+        dionysus:    '#8B00FF',
     },
     WEAPON_NAMES: {
         // Generic weapons
@@ -75,5 +110,16 @@ WB.Config = {
         storm:       'Thunder Hammer',
         metal:       'Iron Guard',
         gravity:     'Gravity Well',
+        // Greek Pantheon weapons
+        zeus:        'Zeus',
+        poseidon:    'Poseidon',
+        ares:        'Ares',
+        athena:      'Athena',
+        apollo:      'Apollo',
+        artemis:     'Artemis',
+        hephaestus:  'Hephaestus',
+        hermes:      'Hermes',
+        hades:       'Hades',
+        dionysus:    'Dionysus',
     }
 };

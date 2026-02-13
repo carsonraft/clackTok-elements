@@ -45,28 +45,31 @@ WB.ParticleSystem = class {
     }
 
     emit(x, y, count, color, opts) {
+        count = Math.ceil(count * 0.5);  // global particle reduction
         for (let i = 0; i < count; i++) {
             this.particles.push(new WB.Particle(x, y, color, opts));
         }
     }
 
     explode(x, y, count, color) {
+        count = Math.ceil(count * 0.4);  // global particle reduction
         for (let i = 0; i < count; i++) {
             this.particles.push(new WB.Particle(x, y, color, {
                 speed: 6 + Math.random() * 4,
-                life: 40 + Math.random() * 30,
+                life: 30 + Math.random() * 20,  // shorter life
                 size: 3 + Math.random() * 5
             }));
         }
     }
 
     spark(x, y, count) {
+        count = Math.ceil(count * 0.4);  // global particle reduction
         const colors = ['#FFD700', '#FFF', '#FFA500'];
         for (let i = 0; i < count; i++) {
             const color = colors[Math.floor(Math.random() * colors.length)];
             this.particles.push(new WB.Particle(x, y, color, {
                 speed: 5 + Math.random() * 3,
-                life: 10 + Math.random() * 10,
+                life: 8 + Math.random() * 8,  // shorter life
                 size: 1.5 + Math.random() * 2
             }));
         }
@@ -79,8 +82,8 @@ WB.ParticleSystem = class {
                 this.particles.splice(i, 1);
             }
         }
-        if (this.particles.length > 600) {
-            this.particles.splice(0, this.particles.length - 600);
+        if (this.particles.length > 300) {
+            this.particles.splice(0, this.particles.length - 300);
         }
     }
 

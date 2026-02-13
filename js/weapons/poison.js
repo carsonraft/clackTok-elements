@@ -145,4 +145,4 @@ class PoisonWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('poison', PoisonWeapon);
+WB.WeaponRegistry.register('poison', PoisonWeapon, 'elemental');

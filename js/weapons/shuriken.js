@@ -94,4 +94,4 @@ class ShurikenWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('shuriken', ShurikenWeapon);
+WB.WeaponRegistry.register('shuriken', ShurikenWeapon, 'classic');

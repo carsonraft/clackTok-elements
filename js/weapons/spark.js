@@ -203,4 +203,4 @@ class SparkWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('spark', SparkWeapon);
+WB.WeaponRegistry.register('spark', SparkWeapon, 'elemental');

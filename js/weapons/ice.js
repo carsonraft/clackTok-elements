@@ -154,4 +154,4 @@ class IceWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('ice', IceWeapon);
+WB.WeaponRegistry.register('ice', IceWeapon, 'elemental');

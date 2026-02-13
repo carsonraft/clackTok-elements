@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pantheon Balance Report</title>
+    <style>
+        body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { color: #DAA520; text-align: center; }
+        h2 { color: #87CEEB; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .progress { color: #888; font-size: 13px; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0 30px; }
+        th, td { padding: 6px 10px; text-align: center; border: 1px solid #333; font-size: 13px; }
+        th { background: #222244; color: #DAA520; }
+        td { background: #16213e; }
+        .good { color: #4ade80; }
+        .ok { color: #facc15; }
+        .bad { color: #f87171; }
+        .dominant { color: #ff6b6b; font-weight: bold; }
+        .weak { color: #818cf8; font-weight: bold; }
+        .balanced { color: #4ade80; }
+        #output { white-space: pre-wrap; line-height: 1.5; }
+        .matchup-grid td.win70 { background: #1a3a1a; }
+        .matchup-grid td.win60 { background: #1a2e1a; }
+        .matchup-grid td.lose60 { background: #2e1a1a; }
+        .matchup-grid td.lose70 { background: #3a1a1a; }
+        .matchup-grid td.mirror { background: #222; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>Pantheon Balance Report</h1>
+    <div id="output"><span class="progress">Loading game scripts...</span></div>
+
+    <!-- Stub canvas for WebGL init -->
+    <canvas id="gameCanvas" style="display:none"></canvas>
+
+    <!-- WebGL rendering (exact same as index.html) -->
+    <script src="js/webgl/gl-context.js?v=9"></script>
+    <script src="js/webgl/gl-batch.js?v=9"></script>
+    <script src="js/webgl/gl-text.js?v=9"></script>
+    <script src="js/webgl/gl-effects.js?v=9"></script>
+
+    <!-- Core systems -->
+    <script src="js/rng.js?v=9"></script>
+    <script src="js/config.js?v=9"></script>
+    <script src="js/physics.js?v=9"></script>
+    <script src="js/audio.js?v=9"></script>
+    <script src="js/particles.js?v=9"></script>
+    <script src="js/projectile.js?v=9"></script>
+    <script src="js/excitement.js?v=9"></script>
+    <script src="js/hazard.js?v=9"></script>
+    <script src="js/arena-modifiers.js?v=9"></script>
+
+    <!-- Weapon system -->
+    <script src="js/weapon.js?v=9"></script>
+
+    <!-- Generic weapons -->
+    <script src="js/weapons/sword.js?v=9"></script>
+    <script src="js/weapons/bow.js?v=9"></script>
+    <script src="js/weapons/hammer.js?v=9"></script>
+    <script src="js/weapons/shuriken.js?v=9"></script>
+    <script src="js/weapons/sawblade.js?v=9"></script>
+    <script src="js/weapons/ghost.js?v=9"></script>
+    <script src="js/weapons/clacker.js?v=9"></script>
+    <script src="js/weapons/gunclacker.js?v=9"></script>
+
+    <!-- Elemental weapons -->
+    <script src="js/weapons/fire.js?v=9"></script>
+    <script src="js/weapons/ice.js?v=9"></script>
+    <script src="js/weapons/spark.js?v=9"></script>
+    <script src="js/weapons/stone.js?v=9"></script>
+    <script src="js/weapons/wind.js?v=9"></script>
+    <script src="js/weapons/water.js?v=9"></script>
+    <script src="js/weapons/poison.js?v=9"></script>
+    <script src="js/weapons/light.js?v=9"></script>
+    <script src="js/weapons/shadow.js?v=9"></script>
+    <script src="js/weapons/nature.js?v=9"></script>
+    <script src="js/weapons/crystal.js?v=9"></script>
+    <script src="js/weapons/magma.js?v=9"></script>
+    <script src="js/weapons/storm.js?v=9"></script>
+    <script src="js/weapons/metal.js?v=9"></script>
+    <script src="js/weapons/gravity.js?v=9"></script>
+
+    <!-- Pantheon weapons -->
+    <script src="js/weapons/zeus.js?v=9"></script>
+    <script src="js/weapons/poseidon.js?v=9"></script>
+    <script src="js/weapons/hephaestus.js?v=9"></script>
+    <script src="js/weapons/artemis.js?v=9"></script>
+    <script src="js/weapons/apollo.js?v=9"></script>
+    <script src="js/weapons/ares.js?v=9"></script>
+    <script src="js/weapons/hermes.js?v=9"></script>
+    <script src="js/weapons/hades.js?v=9"></script>
+    <script src="js/weapons/athena.js?v=9"></script>
+    <script src="js/weapons/dionysus.js?v=9"></script>
+
+    <!-- Game entities -->
+    <script src="js/ball.js?v=9"></script>
+    <script src="js/simulator.js?v=9"></script>
+
+    <!-- Rendering and UI -->
+    <script src="js/renderer.js?v=9"></script>
+    <script src="js/ui.js?v=9"></script>
+    <script src="js/sim-ui.js?v=9"></script>
+
+    <!-- Game loop -->
+    <script src="js/main.js?v=9"></script>
+
+    <script>
+    // Wait for all scripts to load, then run analysis
+    window.addEventListener('load', function() {
+        var out = document.getElementById('output');
+        var gods = ['zeus', 'poseidon', 'hephaestus', 'artemis', 'apollo', 'ares', 'hermes', 'hades', 'athena', 'dionysus'];
+        var SIMS_PER_MATCHUP = 200;
+
+        // Initialize canvas stub so WB.Game doesn't crash
+        if (!WB.Game) {
+            WB.Game = { state: 'MENU', balls: [], projectiles: [], hazards: [],
+                particles: { particles: [], emit: function(){}, explode: function(){}, spark: function(){}, update: function(){}, draw: function(){} } };
+        }
+
+        // CRITICAL: Apply stage size preset so sims match the actual game arena
+        // Default STAGE_SIZE_INDEX=0 → SMALL (340x540), which is what players use
+        var preset = WB.Config.STAGE_PRESETS[WB.Config.STAGE_SIZE_INDEX];
+        WB.Config.ARENA.width = preset.width;
+        WB.Config.ARENA.height = preset.height;
+        // Also apply friction to match game defaults
+        WB.Config.BALL_FRICTION = WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].value;
+        out.textContent = 'Arena: ' + preset.label + ' (' + preset.width + 'x' + preset.height + ') | Friction: ' + WB.Config.BALL_FRICTION + '\nRunning ' + (gods.length * (gods.length - 1) / 2) + ' matchups x ' + SIMS_PER_MATCHUP + ' battles each...\n';
+
+        // Run all matchups async to not freeze the page
+        setTimeout(function() {
+            var winRates = {};
+            var matchups = {};
+
+            for (var g = 0; g < gods.length; g++) {
+                winRates[gods[g]] = { wins: 0, losses: 0, total: 0, avgHpLeft: 0 };
+            }
+
+            for (var i = 0; i < gods.length; i++) {
+                for (var j = i + 1; j < gods.length; j++) {
+                    var left = gods[i];
+                    var right = gods[j];
+                    var key = left + '_vs_' + right;
+                    var leftWins = 0, rightWins = 0;
+                    var totalScore = 0, totalFrames = 0;
+                    var leftHpTotal = 0, rightHpTotal = 0;
+
+                    for (var s = 0; s < SIMS_PER_MATCHUP; s++) {
+                        var seed = Math.floor(Math.random() * 2147483647);
+                        try {
+                            var result = WB.Simulator.runBattle(left, right, seed);
+                            if (result.winner === 'left') {
+                                leftWins++;
+                                leftHpTotal += result.winnerHp;
+                            } else {
+                                rightWins++;
+                                rightHpTotal += result.winnerHp;
+                            }
+                            totalScore += result.score.total;
+                            totalFrames += result.frames;
+                        } catch (e) {
+                            console.error('Sim error:', left, 'vs', right, 'seed', seed, e);
+                        }
+                    }
+
+                    matchups[key] = {
+                        left: left, right: right,
+                        leftWins: leftWins, rightWins: rightWins,
+                        leftWinRate: (leftWins / SIMS_PER_MATCHUP * 100).toFixed(1),
+                        rightWinRate: (rightWins / SIMS_PER_MATCHUP * 100).toFixed(1),
+                        avgScore: (totalScore / SIMS_PER_MATCHUP).toFixed(1),
+                        avgTime: (totalFrames / SIMS_PER_MATCHUP / 60).toFixed(1)
+                    };
+
+                    winRates[left].wins += leftWins;
+                    winRates[left].losses += rightWins;
+                    winRates[left].total += SIMS_PER_MATCHUP;
+                    winRates[left].avgHpLeft += leftHpTotal;
+
+                    winRates[right].wins += rightWins;
+                    winRates[right].losses += leftWins;
+                    winRates[right].total += SIMS_PER_MATCHUP;
+                    winRates[right].avgHpLeft += rightHpTotal;
+                }
+            }
+
+            // BUILD REPORT using safe DOM methods
+            out.textContent = '';
+
+            // Helper: create element with text
+            function el(tag, text, className) {
+                var e = document.createElement(tag);
+                if (text) e.textContent = text;
+                if (className) e.className = className;
+                return e;
+            }
+
+            function colorSpan(text, color, bold) {
+                var s = document.createElement('span');
+                s.textContent = text;
+                s.style.color = color || '#fff';
+                if (bold) s.style.fontWeight = 'bold';
+                return s;
+            }
+
+            // 1. OVERALL RANKINGS
+            out.appendChild(el('h2', 'Overall Win Rates (across all matchups)'));
+            var rankings = gods.map(function(g) {
+                return {
+                    name: g,
+                    winRate: (winRates[g].wins / winRates[g].total * 100).toFixed(1),
+                    wins: winRates[g].wins,
+                    losses: winRates[g].losses,
+                    total: winRates[g].total,
+                    avgHp: winRates[g].wins > 0 ? (winRates[g].avgHpLeft / winRates[g].wins).toFixed(0) : '0'
+                };
+            }).sort(function(a, b) { return parseFloat(b.winRate) - parseFloat(a.winRate); });
+
+            var table = document.createElement('table');
+            var thead = document.createElement('tr');
+            ['Rank', 'God', 'Win Rate', 'W-L', 'Avg Winner HP', 'Status'].forEach(function(h) {
+                var th = document.createElement('th');
+                th.textContent = h;
+                thead.appendChild(th);
+            });
+            table.appendChild(thead);
+
+            rankings.forEach(function(r, idx) {
+                var tr = document.createElement('tr');
+                var wr = parseFloat(r.winRate);
+                var statusClass, statusText;
+                if (wr >= 65) { statusClass = 'dominant'; statusText = 'OVERPOWERED'; }
+                else if (wr >= 58) { statusClass = 'ok'; statusText = 'Strong'; }
+                else if (wr >= 42) { statusClass = 'balanced'; statusText = 'Balanced'; }
+                else if (wr >= 35) { statusClass = 'ok'; statusText = 'Weak'; }
+                else { statusClass = 'weak'; statusText = 'UNDERPOWERED'; }
+
+                var td1 = el('td', '' + (idx + 1));
+                var td2 = document.createElement('td');
+                td2.appendChild(colorSpan(WB.Config.WEAPON_NAMES[r.name] || r.name, WB.Config.COLORS[r.name], true));
+                var td3 = el('td', r.winRate + '%', wr >= 55 ? 'good' : (wr >= 45 ? 'ok' : 'bad'));
+                var td4 = el('td', r.wins + '-' + r.losses);
+                var td5 = el('td', r.avgHp + ' HP');
+                var td6 = el('td', statusText, statusClass);
+
+                tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+                tr.appendChild(td4); tr.appendChild(td5); tr.appendChild(td6);
+                table.appendChild(tr);
+            });
+            out.appendChild(table);
+
+            // 2. HEAD-TO-HEAD MATRIX
+            out.appendChild(el('h2', 'Head-to-Head Win Rate Matrix'));
+            var note = el('p', 'Cell = row god win % vs column god. Green bg = favored, Red bg = unfavored.');
+            note.style.color = '#888'; note.style.fontSize = '12px';
+            out.appendChild(note);
+
+            var mtable = document.createElement('table');
+            mtable.className = 'matchup-grid';
+            var mheader = document.createElement('tr');
+            mheader.appendChild(document.createElement('th'));
+            gods.forEach(function(g) {
+                var th = document.createElement('th');
+                th.appendChild(colorSpan((WB.Config.WEAPON_NAMES[g] || g).substring(0, 5), WB.Config.COLORS[g], false));
+                mheader.appendChild(th);
+            });
+            mtable.appendChild(mheader);
+
+            gods.forEach(function(rowGod) {
+                var mrow = document.createElement('tr');
+                var label = document.createElement('td');
+                label.style.textAlign = 'left';
+                label.appendChild(colorSpan(WB.Config.WEAPON_NAMES[rowGod] || rowGod, WB.Config.COLORS[rowGod], true));
+                mrow.appendChild(label);
+
+                gods.forEach(function(colGod) {
+                    var mtd = document.createElement('td');
+                    if (rowGod === colGod) {
+                        mtd.className = 'mirror';
+                        mtd.textContent = '\u2014';
+                        mrow.appendChild(mtd);
+                        return;
+                    }
+                    var wr = 50;
+                    var key1 = rowGod + '_vs_' + colGod;
+                    var key2 = colGod + '_vs_' + rowGod;
+                    if (matchups[key1]) wr = parseFloat(matchups[key1].leftWinRate);
+                    else if (matchups[key2]) wr = parseFloat(matchups[key2].rightWinRate);
+
+                    if (wr >= 70) mtd.className = 'win70';
+                    else if (wr >= 60) mtd.className = 'win60';
+                    else if (wr <= 30) mtd.className = 'lose70';
+                    else if (wr <= 40) mtd.className = 'lose60';
+                    mtd.textContent = wr.toFixed(0) + '%';
+                    mrow.appendChild(mtd);
+                });
+                mtable.appendChild(mrow);
+            });
+            out.appendChild(mtable);
+
+            // 3. MOST EXTREME MATCHUPS
+            out.appendChild(el('h2', 'Most Extreme Matchups'));
+            var allMatchupList = Object.keys(matchups).map(function(k) {
+                var m = matchups[k];
+                var lwr = parseFloat(m.leftWinRate);
+                return {
+                    left: m.left, right: m.right,
+                    leftWinRate: m.leftWinRate, rightWinRate: m.rightWinRate,
+                    avgScore: m.avgScore, avgTime: m.avgTime,
+                    dominance: Math.abs(lwr - 50),
+                    favored: lwr >= 50 ? m.left : m.right,
+                    unfavored: lwr >= 50 ? m.right : m.left,
+                    winPct: Math.max(lwr, parseFloat(m.rightWinRate))
+                };
+            }).sort(function(a, b) { return b.dominance - a.dominance; });
+
+            var extTable = document.createElement('table');
+            var extHead = document.createElement('tr');
+            ['Matchup', 'Dominant', 'Win %', 'Avg Score', 'Avg Time'].forEach(function(h) {
+                var th = document.createElement('th'); th.textContent = h; extHead.appendChild(th);
+            });
+            extTable.appendChild(extHead);
+
+            allMatchupList.slice(0, 10).forEach(function(m) {
+                var tr = document.createElement('tr');
+                var td1 = document.createElement('td');
+                td1.appendChild(colorSpan(WB.Config.WEAPON_NAMES[m.favored] || m.favored, WB.Config.COLORS[m.favored], false));
+                td1.appendChild(document.createTextNode(' vs '));
+                td1.appendChild(colorSpan(WB.Config.WEAPON_NAMES[m.unfavored] || m.unfavored, WB.Config.COLORS[m.unfavored], false));
+                var td2 = document.createElement('td');
+                td2.appendChild(colorSpan(WB.Config.WEAPON_NAMES[m.favored] || m.favored, WB.Config.COLORS[m.favored], true));
+                var td3 = el('td', m.winPct.toFixed(0) + '%', m.winPct >= 70 ? 'bad' : 'ok');
+                var td4 = el('td', m.avgScore);
+                var td5 = el('td', m.avgTime + 's');
+                tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5);
+                extTable.appendChild(tr);
+            });
+            out.appendChild(extTable);
+
+            // 4. BALANCE RECOMMENDATIONS
+            out.appendChild(el('h2', 'Balance Recommendations'));
+            var needsBuff = rankings.filter(function(r) { return parseFloat(r.winRate) < 42; });
+            var needsNerf = rankings.filter(function(r) { return parseFloat(r.winRate) > 58; });
+
+            if (needsNerf.length > 0) {
+                var nerfH = el('h3', 'Needs Nerf (>58% win rate):');
+                nerfH.style.color = '#f87171';
+                out.appendChild(nerfH);
+                var nerfList = document.createElement('ul');
+                needsNerf.forEach(function(r) {
+                    var li = document.createElement('li');
+                    li.appendChild(colorSpan(WB.Config.WEAPON_NAMES[r.name] || r.name, WB.Config.COLORS[r.name], true));
+                    var losses = [];
+                    Object.keys(matchups).forEach(function(k) {
+                        var m = matchups[k];
+                        if (m.left === r.name && parseFloat(m.leftWinRate) < 45) losses.push((WB.Config.WEAPON_NAMES[m.right] || m.right) + ' (' + m.rightWinRate + '%)');
+                        if (m.right === r.name && parseFloat(m.rightWinRate) < 45) losses.push((WB.Config.WEAPON_NAMES[m.left] || m.left) + ' (' + m.leftWinRate + '%)');
+                    });
+                    li.appendChild(document.createTextNode(' \u2014 ' + r.winRate + '% overall. ' + (losses.length > 0 ? 'Only weak vs: ' + losses.join(', ') : 'No clear counters!')));
+                    nerfList.appendChild(li);
+                });
+                out.appendChild(nerfList);
+            }
+
+            if (needsBuff.length > 0) {
+                var buffH = el('h3', 'Needs Buff (<42% win rate):');
+                buffH.style.color = '#818cf8';
+                out.appendChild(buffH);
+                var buffList = document.createElement('ul');
+                needsBuff.forEach(function(r) {
+                    var li = document.createElement('li');
+                    li.appendChild(colorSpan(WB.Config.WEAPON_NAMES[r.name] || r.name, WB.Config.COLORS[r.name], true));
+                    var bestWins = [];
+                    Object.keys(matchups).forEach(function(k) {
+                        var m = matchups[k];
+                        if (m.left === r.name && parseFloat(m.leftWinRate) > 55) bestWins.push((WB.Config.WEAPON_NAMES[m.right] || m.right) + ' (' + m.leftWinRate + '%)');
+                        if (m.right === r.name && parseFloat(m.rightWinRate) > 55) bestWins.push((WB.Config.WEAPON_NAMES[m.left] || m.left) + ' (' + m.rightWinRate + '%)');
+                    });
+                    li.appendChild(document.createTextNode(' \u2014 ' + r.winRate + '% overall. ' + (bestWins.length > 0 ? 'Beats: ' + bestWins.join(', ') : 'No favorable matchups!')));
+                    buffList.appendChild(li);
+                });
+                out.appendChild(buffList);
+            }
+
+            if (needsNerf.length === 0 && needsBuff.length === 0) {
+                var allGood = el('p', 'All gods are within balanced range (42-58% win rate)!', 'balanced');
+                allGood.style.fontSize = '18px';
+                out.appendChild(allGood);
+            }
+
+            // 5. CROSS-PACK SAMPLE
+            out.appendChild(el('h2', 'Cross-Pack: Pantheon vs Elemental (sample)'));
+            var elementals = ['fire', 'ice', 'spark', 'gravity', 'poison'];
+            var ctable = document.createElement('table');
+            ctable.className = 'matchup-grid';
+            var cheader = document.createElement('tr');
+            cheader.appendChild(document.createElement('th'));
+            elementals.forEach(function(e) {
+                var th = document.createElement('th');
+                th.appendChild(colorSpan(WB.Config.WEAPON_NAMES[e] || e, WB.Config.COLORS[e], false));
+                cheader.appendChild(th);
+            });
+            ctable.appendChild(cheader);
+
+            gods.forEach(function(god) {
+                var crow = document.createElement('tr');
+                var clabel = document.createElement('td');
+                clabel.style.textAlign = 'left';
+                clabel.appendChild(colorSpan(WB.Config.WEAPON_NAMES[god] || god, WB.Config.COLORS[god], true));
+                crow.appendChild(clabel);
+
+                elementals.forEach(function(elem) {
+                    var lw = 0;
+                    var crossSims = 30;
+                    for (var s = 0; s < crossSims; s++) {
+                        var seed = Math.floor(Math.random() * 2147483647);
+                        try {
+                            var r = WB.Simulator.runBattle(god, elem, seed);
+                            if (r.winner === 'left') lw++;
+                        } catch (e) { /* skip */ }
+                    }
+                    var wr = (lw / crossSims * 100).toFixed(0);
+                    var ctd = document.createElement('td');
+                    if (wr >= 70) ctd.className = 'win70';
+                    else if (wr >= 60) ctd.className = 'win60';
+                    else if (wr <= 30) ctd.className = 'lose70';
+                    else if (wr <= 40) ctd.className = 'lose60';
+                    ctd.textContent = wr + '%';
+                    crow.appendChild(ctd);
+                });
+                ctable.appendChild(crow);
+            });
+            out.appendChild(ctable);
+
+            var footer = el('p', 'Simulation complete. ' + SIMS_PER_MATCHUP + ' battles per pantheon matchup, 30 per cross-pack matchup.');
+            footer.style.color = '#666';
+            footer.style.textAlign = 'center';
+            footer.style.marginTop = '40px';
+            out.appendChild(footer);
+
+        }, 100);
+    });
+    </script>
+</body>
+</html>

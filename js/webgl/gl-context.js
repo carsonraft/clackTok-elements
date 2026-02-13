@@ -101,6 +101,19 @@ WB.GL = {
         gl.bindVertexArray(null);
     },
 
+    resize(w, h) {
+        this.width = w;
+        this.height = h;
+        // Update projection matrix
+        this.projMatrix[0] = 2 / w;
+        this.projMatrix[4] = -2 / h;
+        // Resize FBO texture
+        const gl = this.gl;
+        gl.bindTexture(gl.TEXTURE_2D, this._fboTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    },
+
     beginFrame() {
         const gl = this.gl;
         this._deform.time += 1 / 60;

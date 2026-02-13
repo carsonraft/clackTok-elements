@@ -29,7 +29,9 @@ WB.Weapon = class {
     getMidY() { return this.owner.y + Math.sin(this.angle) * this.reach * 0.6; }
 
     update() {
-        this.angle += this.rotationSpeed;
+        // Dionysus madness debuff: reverse weapon rotation direction
+        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
+        this.angle += this.rotationSpeed * dir;
         if (this.cooldown > 0) this.cooldown--;
     }
 
@@ -100,6 +102,7 @@ WB.Weapon = class {
     }
 
     checkSuper() {
+        if (!WB.Config.SUPERS_ENABLED) return;
         if (!this.superActive && this.hitCount >= this.superThreshold) {
             this.superActive = true;
             this.activateSuper();
@@ -145,12 +148,18 @@ WB.Weapon = class {
     }
 };
 
-// Registry for creating weapons by type
+// Registry for creating weapons by type, with pack/season support
 WB.WeaponRegistry = {
     _map: {},
+    _packs: {},        // packId → { types: [] }
+    _activePack: null,
 
-    register(type, ctor) {
+    register(type, ctor, pack) {
         this._map[type] = ctor;
+        if (pack) {
+            if (!this._packs[pack]) this._packs[pack] = { types: [] };
+            this._packs[pack].types.push(type);
+        }
     },
 
     create(type, owner) {
@@ -159,7 +168,27 @@ WB.WeaponRegistry = {
         return new Ctor(owner);
     },
 
-    getTypes() {
+    // Get all types, optionally filtered by pack
+    getTypes(pack) {
+        if (pack) return this._packs[pack] ? this._packs[pack].types : [];
         return Object.keys(this._map);
+    },
+
+    getPacks() {
+        return Object.keys(this._packs);
+    },
+
+    setActivePack(pack) {
+        this._activePack = pack || null;
+    },
+
+    getActivePack() {
+        return this._activePack;
+    },
+
+    // Get types for the currently active pack (or all if none selected)
+    getActiveTypes() {
+        if (this._activePack) return this.getTypes(this._activePack);
+        return this.getTypes();
     }
 };

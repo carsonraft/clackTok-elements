@@ -156,4 +156,4 @@ class LightWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('light', LightWeapon);
+WB.WeaponRegistry.register('light', LightWeapon, 'elemental');

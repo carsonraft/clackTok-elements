@@ -5,14 +5,28 @@ WB.UI = {
     selectedRight: null,
     hoveredBtn: null,
     weaponTypes: [],
+    selectedPack: 'elemental',  // Default pack tab (switches to 'pantheon' once gods are added)
     menuScroll: 0,       // Scroll offset for weapon grid
     maxScroll: 0,        // Computed max scroll
 
     init() {
-        this.weaponTypes = WB.WeaponRegistry.getTypes();
-        // Default selections
-        this.selectedLeft = this.weaponTypes[0] || 'sword';
-        this.selectedRight = this.weaponTypes[1] || 'dagger';
+        this._switchPack(this.selectedPack);
+    },
+
+    _switchPack(pack) {
+        this.selectedPack = pack;
+        this.weaponTypes = WB.WeaponRegistry.getTypes(pack);
+        // Reset selections if current picks aren't in this pack
+        if (this.selectedLeft && this.weaponTypes.indexOf(this.selectedLeft) === -1) {
+            this.selectedLeft = null;
+        }
+        if (this.selectedRight && this.weaponTypes.indexOf(this.selectedRight) === -1) {
+            this.selectedRight = null;
+        }
+        // Auto-select first two if nothing selected
+        if (!this.selectedLeft) this.selectedLeft = this.weaponTypes[0] || null;
+        if (!this.selectedRight) this.selectedRight = this.weaponTypes[1] || this.weaponTypes[0] || null;
+        this.menuScroll = 0;
         this._computeMaxScroll();
     },
 
@@ -38,6 +52,18 @@ WB.UI = {
     handleMenuClick(mx, my) {
         const c = WB.Config;
         const layout = this._getLayout();
+
+        // Check pack tabs first (above all other elements)
+        const packTabs = this._getPackTabs(layout);
+        for (const tab of packTabs) {
+            if (mx >= tab.x && mx <= tab.x + tab.w && my >= tab.y && my <= tab.y + tab.h) {
+                if (this.selectedPack !== tab.pack) {
+                    this._switchPack(tab.pack);
+                    WB.Audio.menuClack();
+                }
+                return;
+            }
+        }
 
         // Check left panel buttons (Player 1)
         for (let i = 0; i < this.weaponTypes.length; i++) {
@@ -122,6 +148,25 @@ WB.UI = {
             return;
         }
 
+        // Check stage size selector
+        const ssBtn = layout.stageSizeBtn;
+        if (mx >= ssBtn.x && mx <= ssBtn.x + ssBtn.w && my >= ssBtn.y && my <= ssBtn.y + ssBtn.h) {
+            const presets = WB.Config.STAGE_PRESETS;
+            WB.Config.STAGE_SIZE_INDEX = (WB.Config.STAGE_SIZE_INDEX + 1) % presets.length;
+            WB.Audio.menuClack();
+            return;
+        }
+
+        // Check friction selector
+        const frBtn = layout.frictionBtn;
+        if (mx >= frBtn.x && mx <= frBtn.x + frBtn.w && my >= frBtn.y && my <= frBtn.y + frBtn.h) {
+            const presets = WB.Config.FRICTION_PRESETS;
+            WB.Config.FRICTION_INDEX = (WB.Config.FRICTION_INDEX + 1) % presets.length;
+            WB.Config.BALL_FRICTION = presets[WB.Config.FRICTION_INDEX].value;
+            WB.Audio.menuClack();
+            return;
+        }
+
         // Check BEST OF button
         const boBtn = layout.bestOfBtn;
         if (mx >= boBtn.x && mx <= boBtn.x + boBtn.w && my >= boBtn.y && my <= boBtn.y + boBtn.h) {
@@ -132,45 +177,99 @@ WB.UI = {
         return null;
     },
 
+    // ─── Layout ──────────────────────────────────────────
+    // Bottom panel (below grids):
+    //   Row 1: P1 preview  ─  RANDOM  ─  P2 preview    (previewRow)
+    //   Row 2: toggles (5 across)                        (toggleY)
+    //   Row 3: Stage | Sims | Friction                   (selectorsY)
+    //   Row 4: [ FIGHT! ]  [ SIMULATE ]                  (fightBtn)
+    //   Row 5: BEST OF                                   (bestOfBtn)
+
     _getLayout() {
         const c = WB.Config;
         const cx = c.CANVAS_WIDTH / 2;
         const pad = 15;
         const panelW = c.CANVAS_WIDTH - pad * 2;
+
+        // Bottom panel starts from the bottom and stacks upward
+        const bottomPad = 8;
+        const bestOfH = 22;
+        const fightH  = 44;
+        const selectorH = 24;
+        const toggleH = 24;
+        const previewH = 55;  // ball (28diam) + name label + padding
+        const rowGap = 8;
+
+        const bestOfY    = c.CANVAS_HEIGHT - bottomPad - bestOfH;
+        const fightY     = bestOfY - rowGap - fightH;
+        const selectorsY = fightY - rowGap - selectorH;
+        const toggleY    = selectorsY - rowGap - toggleH;
+        const previewY   = toggleY - rowGap - previewH;
+        const gridBottom = previewY - 8;
+
+        const selectorW = Math.floor((panelW - 12) / 3);  // 3 selectors with 6px gaps
+
         return {
             leftStart: pad,
             rightStart: pad,
             panelWidth: panelW,
-            gridTop: 155,
-            gridBottom: c.CANVAS_HEIGHT - 170,   // shrunk 30px for toggle row
-            gridGap: 36,   // gap between P1 and P2 grids (includes header)
+            gridTop: 96,
+            gridBottom: gridBottom,
+            gridGap: 30,
             cols: 4,
-            btnH: 30,
+            btnH: 28,
             gap: 3,
-            toggleY: c.CANVAS_HEIGHT - 162,
-            fightBtn: { x: pad, y: c.CANVAS_HEIGHT - 65, w: panelW / 2 - 5, h: 48 },
-            simBtn:   { x: cx + 5, y: c.CANVAS_HEIGHT - 65, w: panelW / 2 - 5, h: 48 },
-            randomBtn: { x: cx - 50, y: c.CANVAS_HEIGHT - 118, w: 100, h: 30 },
-            simCountBtn: { x: cx - 50, y: c.CANVAS_HEIGHT - 85, w: 100, h: 22 },
-            bestOfBtn: { x: pad, y: c.CANVAS_HEIGHT - 25, w: 100, h: 22 },
+            previewY: previewY,
+            toggleY: toggleY,
+            selectorsY: selectorsY,
+            fightBtn:    { x: pad, y: fightY, w: panelW / 2 - 4, h: fightH },
+            simBtn:      { x: cx + 4, y: fightY, w: panelW / 2 - 4, h: fightH },
+            randomBtn:   { x: cx - 40, y: previewY + previewH / 2 - 13, w: 80, h: 26 },
+            simCountBtn: { x: pad + selectorW + 6, y: selectorsY, w: selectorW, h: selectorH },
+            stageSizeBtn:{ x: pad, y: selectorsY, w: selectorW, h: selectorH },
+            frictionBtn: { x: pad + (selectorW + 6) * 2, y: selectorsY, w: selectorW, h: selectorH },
+            bestOfBtn:   { x: pad, y: bestOfY, w: 100, h: bestOfH },
         };
+    },
+
+    _getPackTabs(layout) {
+        const c = WB.Config;
+        // Use config PACKS keys so all tabs show even before weapons are registered
+        const packs = Object.keys(WB.Config.PACKS || {});
+        const packNames = WB.Config.PACKS || {};
+        const pad = 15;
+        const tabH = 20;
+        const tabGap = 4;
+        const totalW = c.CANVAS_WIDTH - pad * 2;
+        const tabW = Math.floor((totalW - (packs.length - 1) * tabGap) / packs.length);
+        const y = 66;
+        return packs.map((pack, i) => ({
+            x: pad + i * (tabW + tabGap),
+            y,
+            w: tabW,
+            h: tabH,
+            pack,
+            label: (packNames[pack] && packNames[pack].name) || pack.toUpperCase(),
+            color: (packNames[pack] && packNames[pack].color) || '#888',
+        }));
     },
 
     _getToggleBtns(layout) {
         const c = WB.Config;
         const pad = 15;
-        const toggleH = 24;
-        const toggleGap = 6;
-        const count = 4;
+        const toggleH = 22;
+        const toggleGap = 4;
+        const count = 5;
         const totalGaps = (count - 1) * toggleGap;
         const toggleW = Math.floor((c.CANVAS_WIDTH - pad * 2 - totalGaps) / count);
         const startX = pad;
         const y = layout.toggleY;
         return [
-            { x: startX, y, w: toggleW, h: toggleH, key: 'INELASTIC_MODE', label: 'INELASTIC' },
+            { x: startX, y, w: toggleW, h: toggleH, key: 'INELASTIC_MODE', label: 'INELSTC' },
             { x: startX + (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'GRAVITY_MODE', label: 'GRAVITY' },
-            { x: startX + 2 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_BOUNCE', label: 'TIP BOUNCE' },
-            { x: startX + 3 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_DMG_BOUNCE', label: 'DMG BOUNCE' },
+            { x: startX + 2 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_BOUNCE', label: 'TIP BNC' },
+            { x: startX + 3 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_DMG_BOUNCE', label: 'DMG BNC' },
+            { x: startX + 4 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'SUPERS_ENABLED', label: 'SUPERS' },
         ];
     },
 
@@ -194,6 +293,7 @@ WB.UI = {
         };
     },
 
+    // ─── Draw ────────────────────────────────────────────
     drawMenu() {
         const c = WB.Config;
         const cx = c.CANVAS_WIDTH / 2;
@@ -213,34 +313,41 @@ WB.UI = {
         B.fillRect(0, layout.gridBottom + 1, c.CANVAS_WIDTH, c.CANVAS_HEIGHT - layout.gridBottom, '#FFF8E7');
         B.flush();
 
-        // Title (drawn AFTER clip mask so it's not hidden)
-        T.drawText('WEAPON BALL', cx, 45, 'bold 32px "Courier New", monospace', '#333', 'center', 'alphabetic');
-        T.drawText('Choose your fighters', cx, 67, '12px "Courier New", monospace', '#888', 'center', 'alphabetic');
+        // Title
+        T.drawText('WEAPON BALL', cx, 38, 'bold 32px "Courier New", monospace', '#333', 'center', 'alphabetic');
+        T.drawText('Choose your fighters', cx, 58, '13px "Courier New", monospace', '#888', 'center', 'alphabetic');
+        T.flush();
 
-        // Section labels above grids
-        const rows = Math.ceil(this.weaponTypes.length / layout.cols);
-        const singleGridH = rows * (layout.btnH + layout.gap);
+        // Pack tabs
+        const packTabs = this._getPackTabs(layout);
+        for (const tab of packTabs) {
+            const isActive = this.selectedPack === tab.pack;
+            B.fillRect(tab.x, tab.y, tab.w, tab.h, isActive ? tab.color : '#E8E0D0');
+            B.strokeRect(tab.x, tab.y, tab.w, tab.h, isActive ? '#333' : '#C8B8A0', isActive ? 1.5 : 1);
+            B.flush();
+            T.drawText(tab.label, tab.x + tab.w / 2, tab.y + tab.h / 2,
+                'bold 11px "Courier New", monospace', isActive ? '#FFF' : '#999', 'center', 'middle');
+        }
+        T.flush();
 
-        // P1 selection indicator
+        // P1 / P2 selection labels
         if (this.selectedLeft) {
             const col = WB.Config.COLORS[this.selectedLeft];
             const name = WB.Config.WEAPON_NAMES[this.selectedLeft] || this.selectedLeft;
-            T.drawText('P1  ' + name, layout.leftStart + 2, layout.gridTop - 8,
-                'bold 11px "Courier New", monospace', col, 'left', 'alphabetic');
+            T.drawText('P1  ' + name, layout.leftStart + 2, layout.gridTop - 6,
+                'bold 13px "Courier New", monospace', col, 'left', 'alphabetic');
         } else {
-            T.drawText('Player 1', layout.leftStart + 2, layout.gridTop - 8,
-                'bold 11px "Courier New", monospace', '#555', 'left', 'alphabetic');
+            T.drawText('Player 1', layout.leftStart + 2, layout.gridTop - 6,
+                'bold 13px "Courier New", monospace', '#555', 'left', 'alphabetic');
         }
-
-        // P2 label — show on right side of same line
         if (this.selectedRight) {
             const col = WB.Config.COLORS[this.selectedRight];
             const name = WB.Config.WEAPON_NAMES[this.selectedRight] || this.selectedRight;
-            T.drawText('P2  ' + name, layout.leftStart + layout.panelWidth - 2, layout.gridTop - 8,
-                'bold 11px "Courier New", monospace', col, 'right', 'alphabetic');
+            T.drawText('P2  ' + name, layout.leftStart + layout.panelWidth - 2, layout.gridTop - 6,
+                'bold 13px "Courier New", monospace', col, 'right', 'alphabetic');
         } else {
-            T.drawText('Player 2', layout.leftStart + layout.panelWidth - 2, layout.gridTop - 8,
-                'bold 11px "Courier New", monospace', '#555', 'right', 'alphabetic');
+            T.drawText('Player 2', layout.leftStart + layout.panelWidth - 2, layout.gridTop - 6,
+                'bold 13px "Courier New", monospace', '#555', 'right', 'alphabetic');
         }
         T.flush();
 
@@ -248,11 +355,11 @@ WB.UI = {
         if (this.maxScroll > 0) {
             if (this.menuScroll > 0) {
                 T.drawText('▲', cx, layout.gridTop + 6,
-                    '10px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
+                    '12px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
             }
             if (this.menuScroll < this.maxScroll) {
                 T.drawText('▼', cx, layout.gridBottom - 2,
-                    '10px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
+                    '12px "Courier New", monospace', '#AAA', 'center', 'alphabetic');
             }
             T.flush();
 
@@ -264,7 +371,34 @@ WB.UI = {
             B.fillRect(c.CANVAS_WIDTH - 8, thumbY, 4, thumbH, '#BBB');
         }
 
-        // Physics modifier toggles
+        // ─── Bottom panel ────────────────────────────────
+
+        // Subtle separator line
+        B.setAlpha(0.3);
+        B.line(layout.leftStart + 10, layout.gridBottom + 4, layout.leftStart + layout.panelWidth - 10, layout.gridBottom + 4, '#999', 1);
+        B.restoreAlpha();
+
+        // Row 1: Preview balls + RANDOM
+        const previewCenterY = layout.previewY + 20;  // center of ball within preview row
+        if (this.selectedLeft) {
+            this._drawPreview(this.selectedLeft, 50, previewCenterY);
+        }
+        if (this.selectedRight) {
+            this._drawPreview(this.selectedRight, c.CANVAS_WIDTH - 50, previewCenterY);
+        }
+
+        // VS label
+        T.drawText('VS', cx, previewCenterY,
+            'bold 14px "Courier New", monospace', '#CCC', 'center', 'middle');
+
+        const rBtn = layout.randomBtn;
+        B.fillRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#AAA');
+        B.strokeRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#888', 1.5);
+        B.flush();
+        T.drawText('RANDOM', rBtn.x + rBtn.w / 2, rBtn.y + rBtn.h / 2,
+            'bold 12px "Courier New", monospace', '#FFF', 'center', 'middle');
+
+        // Row 2: Toggles
         const toggleBtns = this._getToggleBtns(layout);
         for (const tb of toggleBtns) {
             const isOn = WB.Config[tb.key];
@@ -273,80 +407,55 @@ WB.UI = {
             const textColor = isOn ? '#FFF' : '#888';
 
             B.fillRect(tb.x, tb.y, tb.w, tb.h, bg);
-            B.strokeRect(tb.x, tb.y, tb.w, tb.h, border, 1.5);
-
-            // Checkbox square
-            const ckX = tb.x + 10;
-            const ckY = tb.y + tb.h / 2 - 5;
-            B.fillRect(ckX, ckY, 10, 10, isOn ? '#FFF' : '#F8F8F8');
-            B.strokeRect(ckX, ckY, 10, 10, isOn ? '#4A8A76' : '#AAA', 1);
-            if (isOn) {
-                // Checkmark
-                B.line(ckX + 2, ckY + 5, ckX + 4, ckY + 8, '#4A8A76', 2);
-                B.line(ckX + 4, ckY + 8, ckX + 8, ckY + 2, '#4A8A76', 2);
-            }
+            B.strokeRect(tb.x, tb.y, tb.w, tb.h, border, 1);
             B.flush();
 
-            T.drawText(tb.label, tb.x + 26, tb.y + tb.h / 2,
-                'bold 11px "Courier New", monospace', textColor, 'left', 'middle');
+            T.drawText(tb.label, tb.x + tb.w / 2, tb.y + tb.h / 2,
+                'bold 11px "Courier New", monospace', textColor, 'center', 'middle');
         }
         T.flush();
 
-        // VS badge between preview balls
-        const previewY = c.CANVAS_HEIGHT - 125;
-        if (this.selectedLeft) {
-            this._drawPreview(this.selectedLeft, 60, previewY);
-        }
-        if (this.selectedRight) {
-            this._drawPreview(this.selectedRight, c.CANVAS_WIDTH - 60, previewY);
-        }
-        if (this.selectedLeft && this.selectedRight) {
-            T.drawText('VS', cx, previewY + 4,
-                'bold 16px "Courier New", monospace', '#999', 'center', 'middle');
-        }
+        // Row 3: Stage | Sims | Friction selectors
+        this._drawSelector(layout.stageSizeBtn, 'Stage: ' + WB.Config.STAGE_PRESETS[WB.Config.STAGE_SIZE_INDEX].label);
+        this._drawSelector(layout.simCountBtn, 'Sims: ' + WB.SimUI.simCount);
+        this._drawSelector(layout.frictionBtn, 'Fric: ' + WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].label);
 
-        // Random button
-        const rBtn = layout.randomBtn;
-        B.fillRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#AAA');
-        B.strokeRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#888', 2);
-        B.flush();
-        T.drawText('RANDOM', rBtn.x + rBtn.w / 2, rBtn.y + rBtn.h / 2,
-            'bold 12px "Courier New", monospace', '#FFF', 'center', 'middle');
-
-        // Sim count selector
-        const scBtn = layout.simCountBtn;
-        B.fillRect(scBtn.x, scBtn.y, scBtn.w, scBtn.h, '#E8E0D0');
-        B.strokeRect(scBtn.x, scBtn.y, scBtn.w, scBtn.h, '#CCC', 1.5);
-        B.flush();
-        T.drawText(`Sims: ${WB.SimUI.simCount}`, scBtn.x + scBtn.w / 2, scBtn.y + scBtn.h / 2,
-            '10px "Courier New", monospace', '#888', 'center', 'middle');
-
-        // FIGHT button
+        // Row 4: FIGHT + SIMULATE
         if (this.selectedLeft && this.selectedRight) {
             const fBtn = layout.fightBtn;
             B.fillRect(fBtn.x, fBtn.y, fBtn.w, fBtn.h, '#E85D75');
-            B.strokeRect(fBtn.x, fBtn.y, fBtn.w, fBtn.h, '#333', 3);
+            B.strokeRect(fBtn.x, fBtn.y, fBtn.w, fBtn.h, '#333', 2.5);
             B.flush();
             T.drawText('FIGHT!', fBtn.x + fBtn.w / 2, fBtn.y + fBtn.h / 2,
                 'bold 20px "Courier New", monospace', '#FFF', 'center', 'middle');
 
-            // SIMULATE button
             const sBtn = layout.simBtn;
             B.fillRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, '#6BB5E0');
-            B.strokeRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, '#333', 3);
+            B.strokeRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, '#333', 2.5);
             B.flush();
             T.drawText('SIMULATE', sBtn.x + sBtn.w / 2, sBtn.y + sBtn.h / 2,
                 'bold 16px "Courier New", monospace', '#FFF', 'center', 'middle');
         }
 
-        // BEST OF button (bottom)
+        // Row 5: BEST OF
         const boBtn = layout.bestOfBtn;
         const savedCount = WB.SimUI.loadBestOf().length;
         B.fillRect(boBtn.x, boBtn.y, boBtn.w, boBtn.h, savedCount > 0 ? '#D4A853' : '#CCC');
-        B.strokeRect(boBtn.x, boBtn.y, boBtn.w, boBtn.h, savedCount > 0 ? '#B8860B' : '#AAA', 1.5);
+        B.strokeRect(boBtn.x, boBtn.y, boBtn.w, boBtn.h, savedCount > 0 ? '#B8860B' : '#AAA', 1);
         B.flush();
         T.drawText(`BEST OF (${savedCount})`, boBtn.x + boBtn.w / 2, boBtn.y + boBtn.h / 2,
-            'bold 10px "Courier New", monospace', '#FFF', 'center', 'middle');
+            'bold 11px "Courier New", monospace', '#FFF', 'center', 'middle');
+    },
+
+    _drawSelector(btn, label) {
+        const B = WB.GLBatch;
+        const T = WB.GLText;
+        B.fillRect(btn.x, btn.y, btn.w, btn.h, '#E8E0D0');
+        B.strokeRect(btn.x, btn.y, btn.w, btn.h, '#C8B8A0', 1);
+        B.flush();
+        T.drawText(label, btn.x + btn.w / 2, btn.y + btn.h / 2,
+            '12px "Courier New", monospace', '#776655', 'center', 'middle');
+        T.flush();
     },
 
     _drawGrid(side, layout) {
@@ -395,15 +504,16 @@ WB.UI = {
         const T = WB.GLText;
 
         // Small preview ball
-        B.fillCircle(x, y, 16, color);
-        B.strokeCircle(x, y, 16, '#333', 2);
+        B.fillCircle(x, y, 14, color);
+        B.strokeCircle(x, y, 14, '#333', 1.5);
         B.flush();
 
-        T.drawText('100', x, y + 4, 'bold 10px "Courier New", monospace', '#FFF', 'center', 'alphabetic');
+        T.drawText('100', x, y + 3, 'bold 11px "Courier New", monospace', '#FFF', 'center', 'alphabetic');
 
         // Name below
         const name = WB.Config.WEAPON_NAMES[type] || type;
-        T.drawText(name, x, y + 26,
-            'bold 9px "Courier New", monospace', color, 'center', 'alphabetic');
+        T.drawText(name, x, y + 24,
+            'bold 10px "Courier New", monospace', color, 'center', 'alphabetic');
+        T.flush();
     }
 };

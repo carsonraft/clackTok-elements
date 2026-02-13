@@ -171,4 +171,4 @@ class WindWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('wind', WindWeapon);
+WB.WeaponRegistry.register('wind', WindWeapon, 'elemental');

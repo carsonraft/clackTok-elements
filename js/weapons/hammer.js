@@ -73,4 +73,4 @@ class HammerWeapon extends WB.Weapon {
     }
 }
 
-WB.WeaponRegistry.register('hammer', HammerWeapon);
+WB.WeaponRegistry.register('hammer', HammerWeapon, 'classic');
