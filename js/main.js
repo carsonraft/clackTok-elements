@@ -2,7 +2,7 @@ window.WB = window.WB || {};
 
 WB.Game = {
     canvas: null,
-    state: 'MENU', // MENU | COUNTDOWN | BATTLE | RESULT | SIM_RESULTS | BEST_OF
+    state: 'MENU', // MENU | COUNTDOWN | BATTLE | RESULT | SIM_RESULTS | BEST_OF | PRE_BATTLE_CUTSCENE | POST_BATTLE_CUTSCENE
     balls: [],
     projectiles: [],
     particles: null,
@@ -10,6 +10,7 @@ WB.Game = {
     countdownText: '',
     winner: null,
     _playAgainBtn: null,
+    _resultTimer: 0,
 
     init() {
         this.canvas = document.getElementById('gameCanvas');
@@ -24,6 +25,7 @@ WB.Game = {
         this.particles = new WB.ParticleSystem();
 
         WB.Audio.init();
+        if (WB.Cutscene) WB.Cutscene.init();
         WB.UI.init();
 
         // Scroll handler for menu + simulation results
@@ -75,23 +77,13 @@ WB.Game = {
                 break;
             }
             case 'RESULT': {
-                if (this._playAgainBtn) {
-                    const btn = this._playAgainBtn;
-                    if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-                        if (WB.SimUI.isReplaying) {
-                            const returnState = WB.SimUI.onReplayEnd();
-                            this.state = returnState;
-                        } else {
-                            this.state = 'MENU';
-                        }
-                        // Restore arena modifiers (e.g. Dionysus wall shift)
-                        const wallShift = WB.ArenaModifiers.getModifier('wallshift');
-                        if (wallShift && wallShift.restore) wallShift.restore();
-                        WB.ArenaModifiers.clear();
-                        this._restoreMenuSize();
-                        this._playAgainBtn = null;
-                    }
-                }
+                // Click anywhere to return immediately
+                this._returnFromResult();
+                break;
+            }
+            case 'PRE_BATTLE_CUTSCENE':
+            case 'POST_BATTLE_CUTSCENE': {
+                if (WB.Cutscene) WB.Cutscene.skip();
                 break;
             }
         }
@@ -105,15 +97,31 @@ WB.Game = {
         const preset = WB.Config.STAGE_PRESETS[WB.Config.STAGE_SIZE_INDEX];
         WB.Config.ARENA.width = preset.width;
         WB.Config.ARENA.height = preset.height;
-        WB.Config.ARENA.x = 20;
-        WB.Config.ARENA.y = 70;
-        // Recalculate canvas to fit arena with margins
-        const cw = preset.width + 40;
-        const ch = preset.height + 180;
+
+        const sidePad = 20;
+        const cw = preset.width + sidePad * 2;
+
+        // Reserve space: title area above arena, HUD below arena
+        // HUD: 10 top gap + bar(24) + gap(6) + bar(24) + gap(12) + stats(18) + margin(12) = 106
+        const titleH = 60;
+        const hudH = 106;
+        const naturalH = titleH + preset.height + hudH;
+
+        // Enforce smartphone aspect ratio (minimum 10:16)
+        const minH = Math.round(cw * 1.6);
+        const ch = Math.max(naturalH, minH);
+
+        // Distribute extra vertical space: 40% above arena, 60% below
+        // This keeps the title snug and gives more breathing room to HUD
+        const extraSpace = ch - titleH - preset.height - hudH;
+        const topExtra = Math.round(extraSpace * 0.4);
+        const arenaY = titleH + topExtra;
+
+        WB.Config.ARENA.x = sidePad;
+        WB.Config.ARENA.y = arenaY;
         WB.Config.CANVAS_WIDTH = cw;
         WB.Config.CANVAS_HEIGHT = ch;
-        this.canvas.width = cw;
-        this.canvas.height = ch;
+        // GL.resize handles canvas.width/height (DPR-scaled) + CSS size
         WB.GL.resize(cw, ch);
     },
 
@@ -126,8 +134,7 @@ WB.Game = {
         WB.Config.ARENA.y = 70;
         WB.Config.ARENA.width = 500;
         WB.Config.ARENA.height = 780;
-        this.canvas.width = w;
-        this.canvas.height = h;
+        // GL.resize handles canvas.width/height (DPR-scaled) + CSS size
         WB.GL.resize(w, h);
     },
 
@@ -158,6 +165,14 @@ WB.Game = {
         // Zero velocity during countdown
         this.balls[0].vx = 0; this.balls[0].vy = 0;
         this.balls[1].vx = 0; this.balls[1].vy = 0;
+
+        // Pre-battle cutscene (if enabled)
+        if (WB.Cutscene && WB.Cutscene.enabled) {
+            if (WB.Cutscene.startPreBattle(this.balls[0], this.balls[1])) {
+                this.state = 'PRE_BATTLE_CUTSCENE';
+                return;
+            }
+        }
     },
 
     startBattle() {
@@ -168,7 +183,7 @@ WB.Game = {
             ball.vy = (WB.random() - 0.5) * 22;
             // Launch particles from each ball
             if (this.particles) {
-                this.particles.emit(ball.x, ball.y, 12, ball.color, {
+                this.particles.emit(ball.x, ball.y, 6, ball.color, {
                     speed: 5, life: 15, size: 2.5
                 });
             }
@@ -199,6 +214,10 @@ WB.Game = {
             case 'RESULT':
                 this.drawResult();
                 break;
+            case 'PRE_BATTLE_CUTSCENE':
+            case 'POST_BATTLE_CUTSCENE':
+                if (WB.Cutscene) WB.Cutscene.update();
+                break;
         }
 
         WB.GLText.flush();
@@ -224,36 +243,28 @@ WB.Game = {
         // Play escalating countdown clack at phase transition
         if (this.countdownTimer % 60 === 1 && phase < 4) {
             WB.Audio.countdownClack(phase);
-            // Screen shake escalates: mild on 3, MASSIVE on FIGHT!
             if (phase < 3) {
-                WB.Renderer.triggerShake(4 + phase * 3);
-                // Subtle deformation even during countdown
-                if (WB.GLEffects && phase >= 1) {
-                    WB.GLEffects.triggerChromatic(0.1 + phase * 0.1);
-                }
+                WB.Renderer.triggerShake(2 + phase * 2);
             } else {
-                // FIGHT! — THE BIG MOMENT
-                WB.Renderer.triggerShake(18);
+                // FIGHT!
+                WB.Renderer.triggerShake(10);
                 if (WB.GLEffects) {
                     WB.GLEffects.triggerSuperFlash('#FFD700');
-                    WB.GLEffects.triggerChromatic(0.6);
-                    WB.GLEffects.triggerBarrel(0.3);
+                    WB.GLEffects.triggerChromatic(0.2);
                     WB.GLEffects.triggerArenaPulse('#FFD700');
-                    // Shockwave from arena center
                     const arena = WB.Config.ARENA;
                     WB.GLEffects.triggerShockwave(
                         arena.x + arena.width / 2,
                         arena.y + arena.height / 2,
-                        0.5
+                        0.2
                     );
                 }
-                // FIGHT! explosion particles
                 if (this.particles) {
                     const arena = WB.Config.ARENA;
                     const cx = arena.x + arena.width / 2;
                     const cy = arena.y + arena.height / 2;
-                    this.particles.explode(cx, cy, 25, '#FFD700');
-                    this.particles.spark(cx, cy, 15);
+                    this.particles.explode(cx, cy, 12, '#FFD700');
+                    this.particles.spark(cx, cy, 8);
                 }
             }
         }
@@ -302,9 +313,9 @@ WB.Game = {
                         const wx = Math.max(a.x, Math.min(a.x + a.width, tipX));
                         const wy = Math.max(a.y, Math.min(a.y + a.height, tipY));
                         WB.GLEffects.spawnWallImpact(wx, wy, s * 0.4, ball.color);
-                        if (s >= 3) {
-                            WB.Renderer.triggerShake(1 + s * 0.3);
-                            if (this.particles) this.particles.spark(wx, wy, Math.floor(s * 1.5));
+                        if (s >= 6) {
+                            WB.Renderer.triggerShake(1 + s * 0.2);
+                            if (this.particles) this.particles.spark(wx, wy, Math.floor(s));
                         }
                     }
                 }
@@ -326,33 +337,23 @@ WB.Game = {
                     WB.Physics.resolveCircleCircle(ba, bb);
                     WB.Audio.ballClack(speed);
 
-                    // Ball collision visual effects — CRANKED TO 11/10
+                    // Ball collision visual effects — clean
                     if (WB.GLEffects) {
                         const midX = (ba.x + bb.x) / 2;
                         const midY = (ba.y + bb.y) / 2;
-                        WB.GLEffects.spawnImpact(midX, midY, '#FFF', 25 + speed * 5);
-                        // EVERY collision is impactful — no threshold for basic effects
-                        if (speed >= 2) {
-                            WB.GLEffects.triggerCollisionFlash('#FFF');
-                            WB.Renderer.triggerShake(2 + speed * 0.6);
-                            WB.GLEffects.spawnClashSparks(midX, midY, Math.floor(speed * 2), '#FFF');
-                            WB.GLEffects.triggerChromatic(speed * 0.04);
+                        WB.GLEffects.spawnImpact(midX, midY, '#FFF', 15 + speed * 2);
+                        if (speed >= 6) {
+                            WB.Renderer.triggerShake(1 + speed * 0.3);
                         }
-                        if (speed >= 5) {
-                            WB.GLEffects.triggerHitStop(2 + Math.floor(speed / 5));
-                            WB.GLEffects.triggerShockwave(midX, midY, speed * 0.05);
-                            WB.GLEffects.triggerChromatic(speed * 0.07);
-                            WB.GLEffects.triggerArenaPulse('#FFF');
-                        }
-                        if (speed >= 8) {
-                            WB.GLEffects.triggerBarrel(speed * 0.02);
+                        if (speed >= 10) {
+                            WB.GLEffects.triggerHitStop(2);
                         }
                     }
-                    // Ball collision particles — ALWAYS spark on contact
-                    if (this.particles) {
+                    // Ball collision particles — only on hard hits
+                    if (this.particles && speed >= 6) {
                         const midX = (ba.x + bb.x) / 2;
                         const midY = (ba.y + bb.y) / 2;
-                        this.particles.spark(midX, midY, Math.max(3, Math.floor(speed * 2.5)));
+                        this.particles.spark(midX, midY, Math.max(2, Math.floor(speed)));
                     }
 
                     // Body-contact weapons deal damage (only cross-side)
@@ -426,6 +427,7 @@ WB.Game = {
         }
 
         // 4. Weapon-weapon parry check (cross-side pairs)
+        // Tip-to-tip + line-segment checks, with per-pair cooldown to prevent spam.
         for (let i = 0; i < this.balls.length; i++) {
             const ba = this.balls[i];
             if (!ba.isAlive) continue;
@@ -435,28 +437,36 @@ WB.Game = {
                 const w1 = ba.weapon;
                 const w2 = bb.weapon;
                 if (w1.canParry && w2.canParry && !w1.unparryable && !w2.unparryable) {
-                    const tipDist = WB.Physics.distanceSq(
-                        w1.getTipX(), w1.getTipY(),
-                        w2.getTipX(), w2.getTipY()
-                    );
-                    if (tipDist < 225) {
+                    // Per-weapon cooldown to prevent rapid re-parries
+                    if (w1._parryCd > 0) w1._parryCd--;
+                    if (w2._parryCd > 0) w2._parryCd--;
+                    if (w1._parryCd > 0 || w2._parryCd > 0) continue;
+
+                    const t1x = w1.getTipX(), t1y = w1.getTipY();
+                    const t2x = w2.getTipX(), t2y = w2.getTipY();
+                    const tipDist = WB.Physics.distanceSq(t1x, t1y, t2x, t2y);
+                    // Shaft collision: check if one weapon's outer half crosses the other's tip
+                    const m1x = w1.getMidX(), m1y = w1.getMidY();
+                    const m2x = w2.getMidX(), m2y = w2.getMidY();
+                    const parry = tipDist < 400 ||  // tips within 20px
+                        WB.Physics.lineCircle(m1x, m1y, t1x, t1y, t2x, t2y, 10) ||
+                        WB.Physics.lineCircle(m2x, m2y, t2x, t2y, t1x, t1y, 10);
+                    if (parry) {
                         w1.angle += (WB.random() - 0.3) * Math.PI * 0.4;
                         w2.angle -= (WB.random() - 0.3) * Math.PI * 0.4;
                         w1.cooldown = Math.max(w1.cooldown, 10);
                         w2.cooldown = Math.max(w2.cooldown, 10);
-                        const sparkX = (w1.getTipX() + w2.getTipX()) / 2;
-                        const sparkY = (w1.getTipY() + w2.getTipY()) / 2;
-                        this.particles.spark(sparkX, sparkY, 25);
+                        w1._parryCd = 15;
+                        w2._parryCd = 15;
+                        const sparkX = (t1x + t2x) / 2;
+                        const sparkY = (t1y + t2y) / 2;
+                        this.particles.spark(sparkX, sparkY, 12);
                         WB.Audio.parry();
-                        WB.Renderer.triggerShake(6);
-                        // Parry clash effects — ULTRA CLACKY
+                        WB.Renderer.triggerShake(3);
                         if (WB.GLEffects) {
-                            WB.GLEffects.spawnImpact(sparkX, sparkY, '#FFD700', 50);
-                            WB.GLEffects.spawnClashSparks(sparkX, sparkY, 20, '#FFD700');
-                            WB.GLEffects.triggerHitStop(4);
-                            WB.GLEffects.triggerArenaPulse('#FFD700');
-                            WB.GLEffects.triggerChromatic(0.3);
-                            WB.GLEffects.triggerShockwave(sparkX, sparkY, 0.15);
+                            WB.GLEffects.spawnImpact(sparkX, sparkY, '#FFD700', 30);
+                            WB.GLEffects.spawnClashSparks(sparkX, sparkY, 8, '#FFD700');
+                            WB.GLEffects.triggerHitStop(3);
                         }
                     }
                 }
@@ -542,42 +552,44 @@ WB.Game = {
             const loserSide = this.winner.side === 'left' ? 'right' : 'left';
             WB.Audio.death();
             WB.Audio.victoryFanfare();
-            // MASSIVE victory screen shake + flash
-            WB.Renderer.triggerShake(25);
+            WB.Renderer.triggerShake(12);
             if (WB.GLEffects) {
                 WB.GLEffects.triggerSuperFlash(this.winner.color);
-                WB.GLEffects.triggerHitStop(10);
-                // EXTREME screen deformation on victory
-                WB.GLEffects.triggerShockwave(this.winner.x, this.winner.y, 1.0);
-                WB.GLEffects.triggerChromatic(1.2);
-                WB.GLEffects.triggerBarrel(0.7);
+                WB.GLEffects.triggerHitStop(6);
+                WB.GLEffects.triggerShockwave(this.winner.x, this.winner.y, 0.35);
+                WB.GLEffects.triggerChromatic(0.4);
             }
-            // Explode all dead balls on loser side — MASSIVE explosions
             for (const b of this.balls) {
                 if (b.side === loserSide && !b.isAlive) {
-                    this.particles.explode(b.x, b.y, 40, b.color);
-                    this.particles.spark(b.x, b.y, 25);
+                    this.particles.explode(b.x, b.y, 20, b.color);
+                    this.particles.spark(b.x, b.y, 10);
                 }
             }
-            // Also explode any alive losers (king was killed)
             for (const b of this.balls) {
                 if (b.side === loserSide && b.isAlive) {
                     b.isAlive = false;
-                    this.particles.explode(b.x, b.y, 40, b.color);
-                    this.particles.spark(b.x, b.y, 25);
+                    this.particles.explode(b.x, b.y, 20, b.color);
+                    this.particles.spark(b.x, b.y, 10);
                 }
             }
-            // On draw, explode both sides
             if (this._isDraw) {
                 for (const b of this.balls) {
-                    this.particles.explode(b.x, b.y, 40, b.color);
-                    this.particles.spark(b.x, b.y, 25);
+                    this.particles.explode(b.x, b.y, 20, b.color);
+                    this.particles.spark(b.x, b.y, 10);
                 }
             }
-            // Victory particle burst from winner
-            this.particles.explode(this.winner.x, this.winner.y, 30, this.winner.color);
-            this.particles.spark(this.winner.x, this.winner.y, 20);
+            this.particles.explode(this.winner.x, this.winner.y, 15, this.winner.color);
+            this.particles.spark(this.winner.x, this.winner.y, 10);
+
+            // Post-battle cutscene (if enabled)
+            if (WB.Cutscene && WB.Cutscene.enabled) {
+                if (WB.Cutscene.startPostBattle(this.winner, this._isDraw, this.balls)) {
+                    this.state = 'POST_BATTLE_CUTSCENE';
+                    return;
+                }
+            }
             this.state = 'RESULT';
+            this._resultTimer = 180; // ~3 seconds at 60fps, then auto-return
         }
     },
 
@@ -595,6 +607,28 @@ WB.Game = {
         if (this.winner) {
             WB.Renderer.drawResult(this.winner, this);
         }
+
+        // Auto-return to menu after timer
+        if (this._resultTimer > 0) {
+            this._resultTimer--;
+            if (this._resultTimer <= 0) {
+                this._returnFromResult();
+            }
+        }
+    },
+
+    _returnFromResult() {
+        if (WB.SimUI.isReplaying) {
+            const returnState = WB.SimUI.onReplayEnd();
+            this.state = returnState;
+        } else {
+            this.state = 'MENU';
+        }
+        const wallShift = WB.ArenaModifiers.getModifier('wallshift');
+        if (wallShift && wallShift.restore) wallShift.restore();
+        WB.ArenaModifiers.clear();
+        this._restoreMenuSize();
+        this._playAgainBtn = null;
     }
 };
 

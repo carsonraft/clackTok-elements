@@ -103,7 +103,6 @@ class GunclackerWeapon extends WB.Weapon {
 
         if (isReload && WB.GLEffects) {
             WB.GLEffects.spawnImpact(this.owner.x, this.owner.y, '#FFD700', 30);
-            WB.GLEffects.triggerChromatic(0.1);
         }
     }
 
@@ -140,7 +139,6 @@ class GunclackerWeapon extends WB.Weapon {
         }
         if (WB.GLEffects) {
             WB.GLEffects.spawnImpact(this.owner.x, this.owner.y, '#FFD700', 45);
-            WB.GLEffects.triggerChromatic(0.25);
         }
     }
 
@@ -196,9 +194,8 @@ class GunclackerWeapon extends WB.Weapon {
             WB.Game.particles.spark(this.owner.x, this.owner.y, 20);
         }
         if (WB.GLEffects) {
-            WB.GLEffects.triggerShockwave(this.owner.x, this.owner.y, 0.5);
-            WB.GLEffects.triggerChromatic(0.6);
-            WB.GLEffects.triggerBarrel(0.2);
+            WB.GLEffects.triggerShockwave(this.owner.x, this.owner.y, 0.15);
+            WB.GLEffects.triggerChromatic(0.15);
             WB.GLEffects.triggerSuperFlash('#FFD700');
         }
         // Rapid gunclack burst for the super
@@ -215,7 +212,6 @@ class GunclackerWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, drawAngle);
 
         if (this.superActive) {
-            B.fillCircleGlow(this.reach * 0.6, 0, 12, '#FFD700', 18);
         }
 
         // Gun barrel

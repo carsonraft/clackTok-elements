@@ -133,9 +133,9 @@ class SparkWeapon extends WB.Weapon {
             }
         }
         if (WB.GLEffects) {
-            WB.GLEffects.triggerChromatic(0.4);
+            WB.GLEffects.triggerChromatic(0.1);
         }
-        WB.Renderer.triggerShake(10);
+        WB.Renderer.triggerShake(6);
     }
 
     draw() {
@@ -144,7 +144,6 @@ class SparkWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#FFE333', 12);
         }
 
         // Electric whip — jagged lightning line segments

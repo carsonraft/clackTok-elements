@@ -48,13 +48,6 @@ WB.Renderer = {
             p.draw();
         }
 
-        // Speed lines behind fast balls
-        for (const ball of game.balls) {
-            if (ball.isAlive) {
-                WB.GLEffects.drawSpeedLines(ball);
-            }
-        }
-
         // Draw weapons behind balls, then balls on top
         for (const ball of game.balls) {
             if (ball.isAlive) {
@@ -85,36 +78,62 @@ WB.Renderer = {
         // Arena border — drawn after clearShake so it doesn't shift on bounces
         B.strokeRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#333', 3);
 
-        this.drawTitle(game);
-        this.drawStats(game);
+        // Hide HUD during cutscene (it would render zoomed/panned)
+        if (!WB.Cutscene || !WB.Cutscene.isPlaying) {
+            this.drawTitle(game);
+            this.drawStats(game);
+        }
+    },
+
+    // Pick a stroke color that contrasts with the fill (light bg assumed)
+    _titleStroke(color) {
+        const rgba = WB.GL.parseColor(color);
+        // Relative luminance (approx) — 0=black, 1=white
+        const lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2];
+        // Very dark fills (<0.2) get white stroke to pop off the cream bg
+        // Mid fills (0.2-0.4) get light grey, bright fills get dark stroke
+        if (lum < 0.2) return '#DDD';
+        if (lum < 0.4) return '#999';
+        return '#333';
     },
 
     drawTitle(game) {
         const c = WB.Config;
+        const a = c.ARENA;
         const T = WB.GLText;
-        const B = WB.GLBatch;
+        // Center horizontally on canvas (= arena center since arena is centered)
         const cx = c.CANVAS_WIDTH / 2;
+        // Center vertically in the gap above the arena
+        const titleCenterY = Math.round(a.y / 2);
         const b1 = game.balls[0];
         const b2 = game.balls[1];
         const name1 = WB.Config.WEAPON_NAMES[b1.weaponType] || b1.weaponType;
         const name2 = WB.Config.WEAPON_NAMES[b2.weaponType] || b2.weaponType;
-        const font = 'bold 22px "Courier New", monospace';
+        // Bigger fonts for TikTok readability
+        const fontSize = a.width < 400 ? 22 : 24;
+        const font = `bold ${fontSize}px "Courier New", monospace`;
+        const vsFont = `bold ${fontSize - 8}px "Courier New", monospace`;
+        const pad = 8; // space between name and "vs"
 
-        // Left weapon name (stroke + fill)
-        T.drawTextWithStroke(name1, cx - 24, 48, font, b1.color, '#333', 3, 'right', 'alphabetic');
+        // Measure widths so the whole "Name1 vs Name2" unit is centered
+        const w1 = T.measureText(name1, font);
+        const wVs = T.measureText('vs', vsFont);
+        const w2 = T.measureText(name2, font);
+        const totalW = w1 + pad + wVs + pad + w2;
+        const startX = cx - totalW / 2;
+
+        // Adaptive stroke: dark stroke for bright colors, light stroke for dark colors
+        const stroke1 = this._titleStroke(b1.color);
+        const stroke2 = this._titleStroke(b2.color);
+
+        // Left weapon name (left-aligned from computed start)
+        T.drawTextWithStroke(name1, startX, titleCenterY, font, b1.color, stroke1, 2, 'left', 'middle');
 
         // VS
-        T.drawText('vs', cx, 48, 'bold 16px "Courier New", monospace', '#555', 'center', 'alphabetic');
+        T.drawText('vs', startX + w1 + pad + wVs / 2, titleCenterY, vsFont, '#888', 'center', 'middle');
 
-        // Right weapon name
-        T.drawTextWithStroke(name2, cx + 24, 48, font, b2.color, '#333', 3, 'left', 'alphabetic');
-
-        // Draw small weapon icon shapes next to names
-        T.flush();
-        const nameWidth1 = T.measureText(name1, font);
-        const nameWidth2 = T.measureText(name2, font);
-        this.drawWeaponIcon(b1.weaponType, cx - 22 - nameWidth1 - 18, 40, b1.color);
-        this.drawWeaponIcon(b2.weaponType, cx + 22 + nameWidth2 + 6, 40, b2.color);
+        // Right weapon name (left-aligned after vs)
+        T.drawTextWithStroke(name2, startX + w1 + pad + wVs + pad, titleCenterY, font, b2.color, stroke2, 2, 'left', 'middle');
     },
 
     drawStats(game) {
@@ -122,154 +141,119 @@ WB.Renderer = {
         const B = WB.GLBatch;
         const T = WB.GLText;
 
-        // ── Modern Super Meters ──
-        const meterY = a.y + a.height + 10;
-        const meterH = 18;
-        const meterGap = 8;
-        const meterW = (a.width - meterGap) / 2;
-        const pillR = meterH / 2; // radius for rounded ends
+        // ── Super Meters — vertically stacked, centered under arena ──
+        const meterH = 24;
+        const meterGap = 6;
+        // Fit within arena width: dot on left, 6px inset on right for stroke
+        const dotR = 7;
+        const dotGap = 8;
+        const leftInset = dotR * 2 + dotGap;
+        const rightInset = 6;
+        const meterW = a.width - leftInset - rightInset;
+        const meterX = a.x + leftInset;
+        const pillR = meterH / 2;
+        const hudTop = a.y + a.height + 10;
 
         for (let i = 0; i < 2; i++) {
             const ball = game.balls[i];
             const weapon = ball.weapon;
             const progress = weapon.superActive ? 1 : Math.min(1, weapon.hitCount / weapon.superThreshold);
-            const mx = i === 0 ? a.x : a.x + meterW + meterGap;
-            const mCenterY = meterY + meterH / 2;
+            const my = hudTop + i * (meterH + meterGap);
+            const mCenterY = my + meterH / 2;
 
             // Track background — dark pill shape
-            B.fillCircle(mx + pillR, mCenterY, pillR, '#1A1A2E');
-            B.fillCircle(mx + meterW - pillR, mCenterY, pillR, '#1A1A2E');
-            B.fillRect(mx + pillR, meterY, meterW - pillR * 2, meterH, '#1A1A2E');
-
-            // Inner shadow — slightly lighter inset
-            B.setAlpha(0.3);
-            B.fillCircle(mx + pillR, mCenterY, pillR - 1.5, '#0D0D1A');
-            B.fillCircle(mx + meterW - pillR, mCenterY, pillR - 1.5, '#0D0D1A');
-            B.fillRect(mx + pillR, meterY + 1.5, meterW - pillR * 2, meterH - 3, '#0D0D1A');
-            B.restoreAlpha();
+            B.fillCircle(meterX + pillR, mCenterY, pillR, '#1A1A2E');
+            B.fillCircle(meterX + meterW - pillR, mCenterY, pillR, '#1A1A2E');
+            B.fillRect(meterX + pillR, my, meterW - pillR * 2, meterH, '#1A1A2E');
 
             // Meter fill
             if (progress > 0) {
                 const fillW = meterW * progress;
                 const baseColor = weapon.superActive ? '#FFD700' : ball.color;
 
-                if (i === 0) {
-                    // Left meter fills left→right
-                    const endX = mx + fillW;
-                    B.fillCircle(mx + pillR, mCenterY, pillR - 2, baseColor);
-                    if (fillW > pillR * 2) {
-                        B.fillRect(mx + pillR, meterY + 2, fillW - pillR * 2, meterH - 4, baseColor);
-                        if (fillW >= meterW - 1) {
-                            B.fillCircle(mx + meterW - pillR, mCenterY, pillR - 2, baseColor);
-                        }
-                    }
-
-                    // Highlight stripe (top edge gloss)
-                    B.setAlpha(0.25);
-                    const glossW = Math.min(fillW - 4, meterW - 8);
-                    if (glossW > 0) {
-                        B.fillRect(mx + pillR, meterY + 3, glossW, 3, '#FFF');
-                    }
-                    B.restoreAlpha();
-
-                    // Leading edge glow
-                    if (progress < 1 && progress > 0.05) {
-                        B.setAlpha(0.5);
-                        B.fillCircle(endX, mCenterY, 4, baseColor);
-                        B.restoreAlpha();
-                        B.setAlpha(0.15);
-                        B.fillCircle(endX, mCenterY, 8, baseColor);
-                        B.restoreAlpha();
-                    }
-                } else {
-                    // Right meter fills right→left
-                    const startX = mx + meterW - fillW;
-                    B.fillCircle(mx + meterW - pillR, mCenterY, pillR - 2, baseColor);
-                    if (fillW > pillR * 2) {
-                        B.fillRect(startX + pillR, meterY + 2, fillW - pillR * 2, meterH - 4, baseColor);
-                        if (fillW >= meterW - 1) {
-                            B.fillCircle(mx + pillR, mCenterY, pillR - 2, baseColor);
-                        }
-                    }
-
-                    // Highlight stripe
-                    B.setAlpha(0.25);
-                    const glossW = Math.min(fillW - 4, meterW - 8);
-                    if (glossW > 0) {
-                        B.fillRect(mx + meterW - pillR - glossW, meterY + 3, glossW, 3, '#FFF');
-                    }
-                    B.restoreAlpha();
-
-                    // Leading edge glow
-                    if (progress < 1 && progress > 0.05) {
-                        B.setAlpha(0.5);
-                        B.fillCircle(startX, mCenterY, 4, baseColor);
-                        B.restoreAlpha();
-                        B.setAlpha(0.15);
-                        B.fillCircle(startX, mCenterY, 8, baseColor);
-                        B.restoreAlpha();
+                // Fill left→right for both
+                B.fillCircle(meterX + pillR, mCenterY, pillR - 2, baseColor);
+                if (fillW > pillR * 2) {
+                    B.fillRect(meterX + pillR, my + 2, fillW - pillR * 2, meterH - 4, baseColor);
+                    if (fillW >= meterW - 1) {
+                        B.fillCircle(meterX + meterW - pillR, mCenterY, pillR - 2, baseColor);
                     }
                 }
 
-                // Super active — pulsing golden overlay + outer glow
+                // Highlight stripe
+                B.setAlpha(0.25);
+                const glossW = Math.min(fillW - 4, meterW - 8);
+                if (glossW > 0) {
+                    B.fillRect(meterX + pillR, my + 3, glossW, 3, '#FFF');
+                }
+                B.restoreAlpha();
+
+                // Leading edge glow
+                if (progress < 1 && progress > 0.05) {
+                    const endX = meterX + fillW;
+                    B.setAlpha(0.5);
+                    B.fillCircle(endX, mCenterY, 4, baseColor);
+                    B.restoreAlpha();
+                }
+
+                // Super active — pulsing golden overlay
                 if (weapon.superActive) {
                     const t = Date.now() * 0.005;
                     const pulse = 0.2 + Math.sin(t) * 0.12;
                     B.setAlpha(pulse);
-                    B.fillCircle(mx + pillR, mCenterY, pillR - 2, '#FFF');
-                    B.fillCircle(mx + meterW - pillR, mCenterY, pillR - 2, '#FFF');
-                    B.fillRect(mx + pillR, meterY + 2, meterW - pillR * 2, meterH - 4, '#FFF');
-                    B.restoreAlpha();
-
-                    // Outer glow
-                    B.setAlpha(0.08 + Math.sin(t * 1.3) * 0.04);
-                    B.fillCircle(mx + meterW / 2, mCenterY, meterW / 2, '#FFD700');
+                    B.fillCircle(meterX + pillR, mCenterY, pillR - 2, '#FFF');
+                    B.fillCircle(meterX + meterW - pillR, mCenterY, pillR - 2, '#FFF');
+                    B.fillRect(meterX + pillR, my + 2, meterW - pillR * 2, meterH - 4, '#FFF');
                     B.restoreAlpha();
                 }
             }
 
             // Pill outline
-            B.strokeCircle(mx + pillR, mCenterY, pillR, '#444', 1.5);
-            B.strokeCircle(mx + meterW - pillR, mCenterY, pillR, '#444', 1.5);
-            B.line(mx + pillR, meterY, mx + meterW - pillR, meterY, '#444', 1.5);
-            B.line(mx + pillR, meterY + meterH, mx + meterW - pillR, meterY + meterH, '#444', 1.5);
+            B.strokeCircle(meterX + pillR, mCenterY, pillR, '#444', 1.5);
+            B.strokeCircle(meterX + meterW - pillR, mCenterY, pillR, '#444', 1.5);
+            B.line(meterX + pillR, my, meterX + meterW - pillR, my, '#444', 1.5);
+            B.line(meterX + pillR, my + meterH, meterX + meterW - pillR, my + meterH, '#444', 1.5);
 
-            // Segment dividers (subtle notches)
+            // Segment dividers
             const ticks = weapon.superThreshold;
             for (let t = 1; t < ticks; t++) {
-                const tickX = i === 0
-                    ? mx + (t / ticks) * meterW
-                    : mx + meterW - (t / ticks) * meterW;
+                const tickX = meterX + (t / ticks) * meterW;
                 B.setAlpha(0.2);
-                B.line(tickX, meterY + 3, tickX, meterY + meterH - 3, '#AAA', 1);
+                B.line(tickX, my + 3, tickX, my + meterH - 3, '#AAA', 1);
                 B.restoreAlpha();
             }
+
+            // Ball color dot on the left as identifier
+            const dotCx = a.x + dotR + 2;
+            B.fillCircle(dotCx, mCenterY, dotR, ball.color);
+            B.strokeCircle(dotCx, mCenterY, dotR, '#333', 1.5);
         }
 
         B.flush();
 
         // ── Meter labels ──
-        const labelY = meterY + meterH / 2 + 1;
-        const smallFont = 'bold 9px "Courier New", monospace';
+        const labelFont = 'bold 14px "Courier New", monospace';
 
         for (let i = 0; i < 2; i++) {
             const weapon = game.balls[i].weapon;
-            const mx = i === 0 ? a.x : a.x + meterW + meterGap;
+            const my = hudTop + i * (meterH + meterGap);
+            const mCenterY = my + meterH / 2 + 1;
             const label = weapon.superActive ? 'SUPER!' : `${weapon.hitCount}/${weapon.superThreshold}`;
             const labelColor = weapon.superActive ? '#FFF' : '#CCC';
-            T.drawTextWithStroke(label, mx + meterW / 2, labelY, smallFont,
+            T.drawTextWithStroke(label, meterX + meterW / 2, mCenterY, labelFont,
                 labelColor, '#000', 2, 'center', 'middle');
         }
 
         // ── Scaling stats below meters ──
-        const statY = meterY + meterH + 14;
-        const statFont = 'bold 13px "Courier New", monospace';
+        const bar2Bottom = hudTop + 2 * meterH + meterGap;
+        const statY = bar2Bottom + 18;
+        const statFont = 'bold 16px "Courier New", monospace';
 
         const leftText = game.balls[0].weapon.getScalingDisplay();
-        T.drawTextWithStroke(leftText, a.x + 5, statY, statFont, game.balls[0].color, '#333', 2, 'left', 'alphabetic');
+        T.drawTextWithStroke(leftText, a.x + leftInset, statY, statFont, game.balls[0].color, '#333', 2, 'left', 'alphabetic');
 
         const rightText = game.balls[1].weapon.getScalingDisplay();
-        T.drawTextWithStroke(rightText, a.x + a.width - 5, statY, statFont, game.balls[1].color, '#333', 2, 'right', 'alphabetic');
+        T.drawTextWithStroke(rightText, a.x + a.width - rightInset, statY, statFont, game.balls[1].color, '#333', 2, 'right', 'alphabetic');
     },
 
     drawWeaponIcon(type, x, y, color) {
@@ -679,8 +663,8 @@ WB.Renderer = {
         B.flush();
         T.flush();
 
-        // Dim background — heavy opacity so result is clearly readable
-        B.fillRect(0, 0, c.CANVAS_WIDTH, c.CANVAS_HEIGHT, 'rgba(0,0,0,0.75)');
+        // Dark dim overlay — high opacity for clean content-ready look
+        B.fillRect(0, 0, c.CANVAS_WIDTH, c.CANVAS_HEIGHT, 'rgba(0,0,0,0.85)');
         B.flush();
 
         const cx = c.CANVAS_WIDTH / 2;
@@ -688,35 +672,15 @@ WB.Renderer = {
         const name = WB.Config.WEAPON_NAMES[winner.weaponType] || winner.weaponType;
         const isDraw = game._isDraw;
 
-        // Winner banner
+        // Winner banner — clean white text, no stroke, no stats
         if (isDraw) {
-            T.drawTextWithStroke('DRAW!', cx, cy - 40,
-                'bold 42px "Courier New", monospace', '#AAA', '#333', 4, 'center', 'middle');
+            T.drawText('DRAW!', cx, cy - 20,
+                'bold 48px "Courier New", monospace', '#FFF', 'center', 'middle');
         } else {
-            T.drawTextWithStroke(name.toUpperCase() + ' WINS!', cx, cy - 40,
-                'bold 36px "Courier New", monospace', winner.color, '#333', 4, 'center', 'middle');
+            T.drawText(name.toUpperCase() + ' WINS!', cx, cy - 20,
+                'bold 44px "Courier New", monospace', '#FFF', 'center', 'middle');
         }
 
-        // Stats
-        T.drawText('Hits: ' + winner.weapon.hitCount + '  |  ' + winner.weapon.getScalingDisplay(),
-            cx, cy + 10, '14px "Courier New", monospace', '#FFF', 'center', 'middle');
-
         T.flush();
-
-        // Play again button
-        const btnW = 180;
-        const btnH = 46;
-        const btnX = cx - btnW / 2;
-        const btnY = cy + 50;
-
-        B.fillRect(btnX, btnY, btnW, btnH, winner.color);
-        B.strokeRect(btnX, btnY, btnW, btnH, '#333', 2);
-        B.flush();
-
-        T.drawText('PLAY AGAIN', cx, btnY + btnH / 2,
-            'bold 18px "Courier New", monospace', '#FFF', 'center', 'middle');
-
-        // Store button bounds for click detection
-        game._playAgainBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
     }
 };

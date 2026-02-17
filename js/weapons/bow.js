@@ -73,7 +73,6 @@ class BowWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(r + 12, 0, 24, '#F0D264', 15);
         }
 
         // Bow body (curved wooden arc) — strokeArc approximated via strokeCircle partial

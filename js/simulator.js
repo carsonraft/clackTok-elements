@@ -25,6 +25,8 @@ WB.Simulator = {
 
         // Clear arena modifiers from any previous sim
         if (WB.ArenaModifiers) WB.ArenaModifiers.clear();
+        // Reset gravity angle (Set's super shifts it)
+        WB.Config.GRAVITY_ANGLE = Math.PI / 2;
 
         // Set up excitement tracker
         const excitement = new WB.Excitement();
@@ -99,6 +101,9 @@ WB.Simulator = {
             if (wallShift) wallShift.restore();
             WB.ArenaModifiers.clear();
         }
+
+        // Reset gravity angle (Set's super may have shifted it)
+        WB.Config.GRAVITY_ANGLE = Math.PI / 2;
 
         // Restore real modules
         WB.Game = realGame;
@@ -200,8 +205,8 @@ WB.Simulator = {
                     WB.Physics.separateCircles(ba, bb);
                     WB.Physics.resolveCircleCircle(ba, bb);
                     // Ball collision hit stop (matches rendered battle)
-                    if (speed >= 5) {
-                        WB.GLEffects.triggerHitStop(2 + Math.floor(speed / 5));
+                    if (speed >= 10) {
+                        WB.GLEffects.triggerHitStop(2);
                     }
                     // Body-contact weapons (only cross-side)
                     if (ba.side !== bb.side) {
@@ -264,6 +269,7 @@ WB.Simulator = {
         }
 
         // 4. Weapon-weapon parry (cross-side pairs)
+        // Tip-to-tip + shaft checks, with per-pair cooldown
         for (let i = 0; i < game.balls.length; i++) {
             const ba = game.balls[i];
             if (!ba.isAlive) continue;
@@ -273,17 +279,25 @@ WB.Simulator = {
                 const w1 = ba.weapon;
                 const w2 = bb.weapon;
                 if (w1.canParry && w2.canParry && !w1.unparryable && !w2.unparryable) {
-                    const tipDist = WB.Physics.distanceSq(
-                        w1.getTipX(), w1.getTipY(),
-                        w2.getTipX(), w2.getTipY()
-                    );
-                    if (tipDist < 225) {
+                    if (w1._parryCd > 0) w1._parryCd--;
+                    if (w2._parryCd > 0) w2._parryCd--;
+                    if (w1._parryCd > 0 || w2._parryCd > 0) continue;
+                    const t1x = w1.getTipX(), t1y = w1.getTipY();
+                    const t2x = w2.getTipX(), t2y = w2.getTipY();
+                    const tipDist = WB.Physics.distanceSq(t1x, t1y, t2x, t2y);
+                    const m1x = w1.getMidX(), m1y = w1.getMidY();
+                    const m2x = w2.getMidX(), m2y = w2.getMidY();
+                    const parry = tipDist < 400 ||
+                        WB.Physics.lineCircle(m1x, m1y, t1x, t1y, t2x, t2y, 10) ||
+                        WB.Physics.lineCircle(m2x, m2y, t2x, t2y, t1x, t1y, 10);
+                    if (parry) {
                         w1.angle += (WB.random() - 0.3) * Math.PI * 0.4;
                         w2.angle -= (WB.random() - 0.3) * Math.PI * 0.4;
                         w1.cooldown = Math.max(w1.cooldown, 10);
                         w2.cooldown = Math.max(w2.cooldown, 10);
-                        // Parry hit stop (matches rendered battle)
-                        WB.GLEffects.triggerHitStop(4);
+                        w1._parryCd = 15;
+                        w2._parryCd = 15;
+                        WB.GLEffects.triggerHitStop(3);
                     }
                 }
             }

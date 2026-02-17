@@ -30,7 +30,6 @@ class SwordWeapon extends WB.Weapon {
 
         if (this.superActive) {
             // Glow effect for super mode
-            B.fillCircleGlow(0, 0, this.reach, '#FF6464', 15);
         }
 
         // Handle (brown)

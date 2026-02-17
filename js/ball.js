@@ -22,7 +22,6 @@ WB.Ball = class {
         this.invulnerable = false;
         this.frameCount = 0;
         this.damageFlash = 0;
-        this.trail = [];
 
         // Per-ball overrides (used by god weapons)
         this.maxSpeed = WB.Config.BALL_MAX_SPEED;
@@ -38,27 +37,22 @@ WB.Ball = class {
             weaponReversed: 0,   // frames remaining
             slowFactor: 1,       // Poseidon: velocity multiplier (1=normal, 0.5=half speed)
             slowTimer: 0,        // frames remaining
+            venomStacks: 0,      // Wadjet: permanent speed reduction (3% per stack)
         };
     }
 
     update() {
         this.frameCount++;
 
-        // Trail frequency scales with speed — faster = more afterimages
-        const trailSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        const trailInterval = trailSpeed > 7 ? 1 : trailSpeed > 4 ? 2 : 3;
-        const maxTrail = trailSpeed > 7 ? 14 : trailSpeed > 4 ? 10 : 8;
-        if (this.frameCount % trailInterval === 0) {
-            this.trail.push({ x: this.x, y: this.y, speed: trailSpeed });
-            if (this.trail.length > maxTrail) this.trail.shift();
-        }
-
         this.x += this.vx;
         this.y += this.vy;
         if (WB.Config.GRAVITY_MODE) {
             const grav = WB.Config.GRAVITY * this.gravityMultiplier;
-            // Movement inversion: gravity goes wrong direction
-            this.vy += this.debuffs.movementInverted > 0 ? -grav : grav;
+            const dir = this.debuffs.movementInverted > 0 ? -1 : 1;
+            // Gravity angle support (Set's super shifts GRAVITY_ANGLE)
+            const ga = WB.Config.GRAVITY_ANGLE;
+            this.vx += Math.cos(ga) * grav * dir;
+            this.vy += Math.sin(ga) * grav * dir;
         }
         this.vx *= WB.Config.BALL_FRICTION;
         this.vy *= WB.Config.BALL_FRICTION;
@@ -67,6 +61,13 @@ WB.Ball = class {
         if (this.debuffs.slowTimer > 0) {
             this.vx *= this.debuffs.slowFactor;
             this.vy *= this.debuffs.slowFactor;
+        }
+
+        // Wadjet venom stacks — permanent speed reduction (4% per stack, max 80% reduction)
+        if (this.debuffs.venomStacks > 0) {
+            const venomMult = Math.max(0.2, 1 - this.debuffs.venomStacks * 0.04);
+            this.vx *= venomMult;
+            this.vy *= venomMult;
         }
 
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
@@ -89,15 +90,12 @@ WB.Ball = class {
                 if (this.y - this.radius <= a.y) wy = a.y;
                 else if (this.y + this.radius >= a.y + a.height) wy = a.y + a.height;
                 WB.GLEffects.spawnWallImpact(wx, wy, s, this.color);
-                // Wall bounces — lowered thresholds for more clackiness
-                if (s >= 4) {
+                if (s >= 7) {
                     WB.GLEffects.triggerHitStop(2);
-                    WB.Renderer.triggerShake(3 + s * 0.6);
-                    WB.GLEffects.triggerChromatic(s * 0.04);
+                    WB.Renderer.triggerShake(2 + s * 0.3);
                 }
-                if (s >= 6) {
-                    WB.GLEffects.triggerShockwave(wx, wy, s * 0.025);
-                    WB.GLEffects.triggerArenaPulse(this.color);
+                if (s >= 10) {
+                    WB.GLEffects.triggerShockwave(wx, wy, s * 0.015);
                 }
             }
         }
@@ -168,20 +166,6 @@ WB.Ball = class {
         const B = WB.GLBatch;
         const T = WB.GLText;
 
-        // Trail — intensity scales with speed
-        for (let i = 0; i < this.trail.length; i++) {
-            const t = this.trail[i];
-            const speedFactor = Math.min(1, (t.speed || 3) / 8);
-            const alpha = (i / this.trail.length) * (0.1 + speedFactor * 0.2);
-            const scale = 0.85 + (i / this.trail.length) * 0.1;
-            B.setAlpha(alpha);
-            B.fillCircle(t.x, t.y, this.radius * scale, this.color);
-            B.restoreAlpha();
-        }
-
-        // Shadow
-        B.fillCircle(this.x + 2, this.y + 2, this.radius, 'rgba(0,0,0,0.15)');
-
         // Ball body
         const fillColor = this.damageFlash > 0 ? '#FFF' : this.color;
         B.fillCircle(this.x, this.y, this.radius, fillColor);
@@ -193,15 +177,14 @@ WB.Ball = class {
             B.fillCircle(this.x, this.y, this.radius - 2, `rgba(0, 200, 0, ${poisonAlpha})`);
         }
 
-        // Super glow
+        // Super indicator
         if (this.weapon.superActive) {
-            B.fillCircleGlow(this.x, this.y, this.radius + 2, this.color, 15);
             B.strokeCircle(this.x, this.y, this.radius + 2, this.color, 2);
         }
 
         B.flush();
 
-        // HP text
+        // HP text — stays as font rendering for crispness
         const fontSize = Math.max(12, Math.floor(this.radius * 0.7));
         const font = `bold ${fontSize}px "Courier New", monospace`;
         const hpText = Math.ceil(this.hp).toString();

@@ -63,7 +63,7 @@ All font sizes MUST be one of: `[10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 26, 28,
 Using a size not in this list will render invisible text.
 
 ### Cache Busting
-All `<script>` tags use `?v=N` query params. **Currently at `?v=9`**. When modifying any JS file, bump this number in BOTH `index.html` and `sim-balance.html` to avoid stale browser cache.
+All `<script>` tags use `?v=N` query params. **Currently at `?v=10`**. When modifying any JS file, bump this number in BOTH `index.html` and `sim-balance.html` to avoid stale browser cache.
 
 ## Weapon System
 
@@ -224,12 +224,15 @@ This balance was achieved through **7 rounds of iterative simulation**, totaling
 | Poseidon | 38.4% | 38.6% | 47.3% | 45.3% | 49.7% | 43.9% |
 | Hades | 44.3% | 27.2% | 59.3% | 47.1% | 48.1% | 52.5% |
 
-## Visual System Notes
-- **Particles**: Global reduction applied (emit x0.5, explode x0.4, spark x0.4, cap 300)
-- **Wall effects**: Reduced wall impact visuals, impact rings, collision flash
-- **Zeus super**: Was causing visual overload — golden blob covering everything. Fixed by reducing bolt count and flash.
+## Visual System Notes (v10 — Clean Aesthetic Overhaul)
+- **Balls**: Flat colored circles (no 3D shading), thin outline, HP text. No trails, shadows, or glow auras.
+- **Particles**: Global reduction (emit x0.3, explode x0.25, spark x0.25, cap 150). Short lifespans.
+- **Normal hits**: Only damage number + small impact ring + 3-8 particles. No screen effects.
+- **Big moments only**: Screen shake/chromatic/shockwave reserved for supers (25%), victories (35%), and combo 8+.
+- **Removed entirely**: Speed lines, collision flash overlay, ball trails, ball shadows, barrel distortion from most triggers, weapon glow auras (fillCircleGlow).
+- **Screen deformations in weapons**: Only on super activation, at ~25% of original intensity.
 - **Hazard rendering**: Uses ring outlines + faint fill (not solid circles)
-- **Font sizes**: All UI fonts bumped 2-4px from original. Battle fonts also increased.
+- **Font sizes**: All UI fonts bumped 2-4px from original. Damage numbers at 20px base (was 18).
 
 ## Known Issues / Watch Items
 - **Inferno (fire) elemental** hard-counters ALL pantheon gods (0-3% win rates) — cross-pack balance not yet addressed

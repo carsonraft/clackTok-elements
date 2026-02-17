@@ -112,7 +112,6 @@ class WaterWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#3388DD', 12);
         }
 
         // Wave staff — trident-like shape

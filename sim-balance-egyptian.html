@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pantheon Balance Report</title>
+    <title>Egyptian Pantheon Balance Report</title>
     <style>
         body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; padding: 20px; }
-        h1 { color: #DAA520; text-align: center; }
+        h1 { color: #C9A84C; text-align: center; }
         h2 { color: #87CEEB; border-bottom: 1px solid #333; padding-bottom: 4px; }
         .progress { color: #888; font-size: 13px; }
         table { border-collapse: collapse; width: 100%; margin: 10px 0 30px; }
         th, td { padding: 6px 10px; text-align: center; border: 1px solid #333; font-size: 13px; }
-        th { background: #222244; color: #DAA520; }
+        th { background: #222244; color: #C9A84C; }
         td { background: #16213e; }
         .good { color: #4ade80; }
         .ok { color: #facc15; }
@@ -26,13 +26,13 @@
     </style>
 </head>
 <body>
-    <h1>Pantheon Balance Report</h1>
+    <h1>Egyptian Pantheon Balance Report</h1>
     <div id="output"><span class="progress">Loading game scripts...</span></div>
 
     <!-- Stub canvas for WebGL init -->
     <canvas id="gameCanvas" style="display:none"></canvas>
 
-    <!-- WebGL rendering (exact same as index.html) -->
+    <!-- WebGL rendering -->
     <script src="js/webgl/gl-context.js?v=28"></script>
     <script src="js/webgl/gl-batch.js?v=28"></script>
     <script src="js/webgl/gl-text.js?v=28"></script>
@@ -79,7 +79,7 @@
     <script src="js/weapons/metal.js?v=28"></script>
     <script src="js/weapons/gravity.js?v=28"></script>
 
-    <!-- Pantheon weapons -->
+    <!-- Greek Pantheon weapons -->
     <script src="js/weapons/zeus.js?v=28"></script>
     <script src="js/weapons/poseidon.js?v=28"></script>
     <script src="js/weapons/hephaestus.js?v=28"></script>
@@ -116,22 +116,18 @@
     <script src="js/main.js?v=28"></script>
 
     <script>
-    // Wait for all scripts to load, then run analysis
     window.addEventListener('load', function() {
         var out = document.getElementById('output');
-        var gods = ['zeus', 'poseidon', 'hephaestus', 'artemis', 'apollo', 'ares', 'hermes', 'hades', 'athena', 'dionysus'];
+        var gods = ['thoth', 'ra', 'sekhmet', 'sobek', 'set', 'anubis', 'horus', 'khnum', 'wadjet', 'osiris'];
         var SIMS_PER_MATCHUP = 200;
 
-        // Initialize canvas stub so WB.Game doesn't crash
         if (!WB.Game) {
             WB.Game = { state: 'MENU', balls: [], projectiles: [], hazards: [],
                 particles: { particles: [], emit: function(){}, explode: function(){}, spark: function(){}, update: function(){}, draw: function(){} } };
         }
 
-        // CRITICAL: Always use SMALL (index 0) for balance sims regardless of game default
-        // All 63k+ balance battles were calibrated on SMALL (340x540)
+        // CRITICAL: Always use SMALL (index 0) for balance sims
         var preset = WB.Config.STAGE_PRESETS[0];
-        // Compute arena position matching main.js _applyStageSize()
         var sidePad = 20;
         var cw = preset.width + sidePad * 2;
         var titleH = 60, hudH = 106;
@@ -144,11 +140,9 @@
         WB.Config.ARENA.y = titleH + topExtra;
         WB.Config.ARENA.width = preset.width;
         WB.Config.ARENA.height = preset.height;
-        // Also apply friction to match game defaults
         WB.Config.BALL_FRICTION = WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].value;
         out.textContent = 'Arena: ' + preset.label + ' (' + preset.width + 'x' + preset.height + ') | Friction: ' + WB.Config.BALL_FRICTION + '\nRunning ' + (gods.length * (gods.length - 1) / 2) + ' matchups x ' + SIMS_PER_MATCHUP + ' battles each...\n';
 
-        // Run all matchups async to not freeze the page
         setTimeout(function() {
             var winRates = {};
             var matchups = {};
@@ -205,10 +199,8 @@
                 }
             }
 
-            // BUILD REPORT using safe DOM methods
             out.textContent = '';
 
-            // Helper: create element with text
             function el(tag, text, className) {
                 var e = document.createElement(tag);
                 if (text) e.textContent = text;
@@ -409,16 +401,16 @@
                 out.appendChild(allGood);
             }
 
-            // 5. CROSS-PACK SAMPLE
-            out.appendChild(el('h2', 'Cross-Pack: Pantheon vs Elemental (sample)'));
-            var elementals = ['fire', 'ice', 'spark', 'gravity', 'poison'];
+            // 5. CROSS-PACK: Egyptian vs Greek
+            out.appendChild(el('h2', 'Cross-Pack: Egyptian vs Greek Pantheon (sample)'));
+            var greeks = ['zeus', 'poseidon', 'hephaestus', 'artemis', 'apollo', 'ares', 'hermes', 'hades', 'athena', 'dionysus'];
             var ctable = document.createElement('table');
             ctable.className = 'matchup-grid';
             var cheader = document.createElement('tr');
             cheader.appendChild(document.createElement('th'));
-            elementals.forEach(function(e) {
+            greeks.forEach(function(g) {
                 var th = document.createElement('th');
-                th.appendChild(colorSpan(WB.Config.WEAPON_NAMES[e] || e, WB.Config.COLORS[e], false));
+                th.appendChild(colorSpan((WB.Config.WEAPON_NAMES[g] || g).substring(0, 5), WB.Config.COLORS[g], false));
                 cheader.appendChild(th);
             });
             ctable.appendChild(cheader);
@@ -430,13 +422,13 @@
                 clabel.appendChild(colorSpan(WB.Config.WEAPON_NAMES[god] || god, WB.Config.COLORS[god], true));
                 crow.appendChild(clabel);
 
-                elementals.forEach(function(elem) {
+                greeks.forEach(function(greek) {
                     var lw = 0;
                     var crossSims = 30;
                     for (var s = 0; s < crossSims; s++) {
                         var seed = Math.floor(Math.random() * 2147483647);
                         try {
-                            var r = WB.Simulator.runBattle(god, elem, seed);
+                            var r = WB.Simulator.runBattle(god, greek, seed);
                             if (r.winner === 'left') lw++;
                         } catch (e) { /* skip */ }
                     }
@@ -453,7 +445,7 @@
             });
             out.appendChild(ctable);
 
-            var footer = el('p', 'Simulation complete. ' + SIMS_PER_MATCHUP + ' battles per pantheon matchup, 30 per cross-pack matchup.');
+            var footer = el('p', 'Simulation complete. ' + SIMS_PER_MATCHUP + ' battles per Egyptian matchup, 30 per cross-pack matchup.');
             footer.style.color = '#666';
             footer.style.textAlign = 'center';
             footer.style.marginTop = '40px';

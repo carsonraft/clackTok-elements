@@ -259,7 +259,7 @@ WB.UI = {
         const pad = 15;
         const toggleH = 22;
         const toggleGap = 4;
-        const count = 5;
+        const count = 6;
         const totalGaps = (count - 1) * toggleGap;
         const toggleW = Math.floor((c.CANVAS_WIDTH - pad * 2 - totalGaps) / count);
         const startX = pad;
@@ -270,6 +270,7 @@ WB.UI = {
             { x: startX + 2 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_BOUNCE', label: 'TIP BNC' },
             { x: startX + 3 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_DMG_BOUNCE', label: 'DMG BNC' },
             { x: startX + 4 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'SUPERS_ENABLED', label: 'SUPERS' },
+            { x: startX + 5 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'CUTSCENE_ENABLED', label: 'SCENES' },
         ];
     },
 

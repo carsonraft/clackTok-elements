@@ -133,7 +133,7 @@ class ShadowWeapon extends WB.Weapon {
             }
         }
         if (WB.GLEffects) {
-            WB.GLEffects.triggerChromatic(0.4);
+            WB.GLEffects.triggerChromatic(0.1);
         }
     }
 
@@ -149,7 +149,6 @@ class ShadowWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#7744CC', 15);
         }
 
         // Shadow blade — dark ethereal edge

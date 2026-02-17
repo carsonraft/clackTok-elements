@@ -68,7 +68,6 @@ class ShurikenWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(r + 12, 0, 14, '#858D08', 12);
         }
 
         // Draw a shuriken star at the tip area

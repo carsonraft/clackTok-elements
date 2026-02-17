@@ -19,14 +19,17 @@ WB.Config = {
     INELASTIC_WALL_RESTITUTION: 0.6,
     GRAVITY_MODE: true,
     GRAVITY: 0.15,
+    GRAVITY_ANGLE: Math.PI / 2,  // radians, PI/2 = straight down (Set's super shifts this)
     WEAPON_WALL_BOUNCE: true,
     WEAPON_WALL_BOUNCE_STRENGTH: 3.0,
     WEAPON_WALL_DMG_BOUNCE: false,
     SUPERS_ENABLED: true,
+    CUTSCENE_ENABLED: false,
     // Stage size presets (index into STAGE_PRESETS)
-    STAGE_SIZE_INDEX: 0,
+    STAGE_SIZE_INDEX: 1,
     STAGE_PRESETS: [
         { label: 'SMALL',  width: 340, height: 540 },
+        { label: 'SQUARE', width: 420, height: 420 },
         { label: 'MEDIUM', width: 500, height: 780 },
         { label: 'LARGE',  width: 500, height: 1200 },
         { label: 'HUGE',   width: 500, height: 1600 },
@@ -45,6 +48,7 @@ WB.Config = {
         classic:   { name: 'Classic',   color: '#888888' },
         elemental: { name: 'Elemental', color: '#5DAA8F' },
         pantheon:  { name: 'Pantheon',  color: '#DAA520' },
+        egyptian:  { name: 'Egyptian',  color: '#C9A84C' },
     },
     COLORS: {
         // Generic weapons
@@ -83,6 +87,17 @@ WB.Config = {
         hermes:      '#87CEEB',
         hades:       '#2E0854',
         dionysus:    '#8B00FF',
+        // Egyptian Pantheon weapons
+        thoth:       '#191970',
+        ra:          '#FFD700',
+        sekhmet:     '#8B0000',
+        sobek:       '#006400',
+        set:         '#C2452D',
+        anubis:      '#1A1A1A',
+        horus:       '#4169E1',
+        khnum:       '#CD853F',
+        wadjet:      '#00A86B',
+        osiris:      '#98FB98',
     },
     WEAPON_NAMES: {
         // Generic weapons
@@ -121,5 +136,16 @@ WB.Config = {
         hermes:      'Hermes',
         hades:       'Hades',
         dionysus:    'Dionysus',
+        // Egyptian Pantheon weapons
+        thoth:       'Thoth',
+        ra:          'Ra',
+        sekhmet:     'Sekhmet',
+        sobek:       'Sobek',
+        set:         'Set',
+        anubis:      'Anubis',
+        horus:       'Horus',
+        khnum:       'Khnum',
+        wadjet:      'Wadjet',
+        osiris:      'Osiris',
     }
 };

@@ -84,13 +84,6 @@ class DionysusWeapon extends WB.Weapon {
                     target.debuffs.madness,
                     '#8B00FF'
                 );
-                // Trippy visual on high madness
-                if (target.debuffs.madness >= 3) {
-                    WB.GLEffects.triggerChromatic(0.1 + target.debuffs.madness * 0.02);
-                }
-                if (target.debuffs.madness >= 6) {
-                    WB.GLEffects.triggerBarrel(0.05);
-                }
             }
         }
 
@@ -143,10 +136,8 @@ class DionysusWeapon extends WB.Weapon {
             }
         }
 
-        // Trippy super activation
         if (WB.GLEffects) {
-            WB.GLEffects.triggerChromatic(0.5);
-            WB.GLEffects.triggerBarrel(0.3);
+            WB.GLEffects.triggerChromatic(0.15);
         }
 
         // Visual burst — grape explosion

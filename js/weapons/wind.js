@@ -119,7 +119,6 @@ class WindWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#AADDCC', 12);
         }
 
         // Wind blade — thin curved sweep

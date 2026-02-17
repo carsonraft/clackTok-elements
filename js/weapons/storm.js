@@ -62,10 +62,9 @@ class StormWeapon extends WB.Weapon {
             WB.Game.particles.explode(cx, cy, 15, '#FFE333');
         }
         if (WB.GLEffects) {
-            WB.GLEffects.spawnImpact(cx, cy, '#7744CC', 60);
-            WB.GLEffects.triggerChromatic(0.3);
+            WB.GLEffects.spawnImpact(cx, cy, '#7744CC', 40);
         }
-        WB.Renderer.triggerShake(8);
+        WB.Renderer.triggerShake(4);
     }
 
     applyScaling() {
@@ -101,9 +100,9 @@ class StormWeapon extends WB.Weapon {
             }
         }
         if (WB.GLEffects) {
-            WB.GLEffects.triggerChromatic(0.6);
+            WB.GLEffects.triggerChromatic(0.15);
         }
-        WB.Renderer.triggerShake(15);
+        WB.Renderer.triggerShake(8);
     }
 
     draw() {
@@ -112,7 +111,6 @@ class StormWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#7744CC', 15);
         }
 
         // Thunder hammer handle

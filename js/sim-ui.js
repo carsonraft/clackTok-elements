@@ -86,12 +86,29 @@ WB.SimUI = {
         if (toggles.BALL_FRICTION !== undefined) WB.Config.BALL_FRICTION = toggles.BALL_FRICTION;
     },
 
+    // Compute arena position exactly matching main.js _applyStageSize()
+    _computeArenaPosition(preset) {
+        const sidePad = 20;
+        const cw = preset.width + sidePad * 2;
+        const titleH = 60;
+        const hudH = 106;
+        const naturalH = titleH + preset.height + hudH;
+        const minH = Math.round(cw * 1.6);
+        const ch = Math.max(naturalH, minH);
+        const extraSpace = ch - titleH - preset.height - hudH;
+        const topExtra = Math.round(extraSpace * 0.4);
+        return { x: sidePad, y: titleH + topExtra };
+    },
+
     // ─── Simulation ─────────────────────────────────────
     runSimulation(weaponLeft, weaponRight) {
         this._simToggles = this._snapshotToggles();
-        // Apply stage size and friction for simulation
+        // Apply stage size and friction for simulation — must match _applyStageSize()
         const preset = WB.Config.STAGE_PRESETS[WB.Config.STAGE_SIZE_INDEX];
         const savedArena = { ...WB.Config.ARENA };
+        const arenaPos = this._computeArenaPosition(preset);
+        WB.Config.ARENA.x = arenaPos.x;
+        WB.Config.ARENA.y = arenaPos.y;
         WB.Config.ARENA.width = preset.width;
         WB.Config.ARENA.height = preset.height;
         WB.Config.BALL_FRICTION = WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].value;
@@ -102,6 +119,8 @@ WB.SimUI = {
             r.toggles = this._simToggles;
         }
         // Restore arena for menu display
+        WB.Config.ARENA.x = savedArena.x;
+        WB.Config.ARENA.y = savedArena.y;
         WB.Config.ARENA.width = savedArena.width;
         WB.Config.ARENA.height = savedArena.height;
         this.scrollOffset = 0;

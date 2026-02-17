@@ -93,9 +93,9 @@ class LightWeapon extends WB.Weapon {
         this.beamDamage += 4;
         // Flash!
         if (WB.GLEffects) {
-            WB.GLEffects.triggerChromatic(0.5);
+            WB.GLEffects.triggerChromatic(0.12);
         }
-        WB.Renderer.triggerShake(6);
+        WB.Renderer.triggerShake(4);
         if (WB.Game && WB.Game.particles) {
             WB.Game.particles.explode(this.owner.x, this.owner.y, 30, '#FFEE88');
         }
@@ -107,7 +107,6 @@ class LightWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(r + 15, 0, 20, '#FFEE88', 15);
         }
 
         // Prism crystal body

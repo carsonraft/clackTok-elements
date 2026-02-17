@@ -202,16 +202,18 @@ WB.GLText = {
         }
         totalW *= scale;
 
-        // Horizontal alignment
+        // Horizontal alignment — snap to integer pixels to avoid bilinear fringing
         let startX = x;
         if (align === 'center') startX = x - totalW / 2;
         else if (align === 'right') startX = x - totalW;
+        startX = Math.round(startX);
 
-        // Vertical alignment
+        // Vertical alignment — snap to integer pixels
         let startY = y;
         if (baseline === 'middle') startY = y - requestedSize * 0.4;
         else if (baseline === 'top') startY = y;
         else if (baseline === 'alphabetic' || !baseline) startY = y - requestedSize * 0.8;
+        startY = Math.round(startY);
 
         // Transform
         let curX = startX;
@@ -234,7 +236,7 @@ WB.GLText = {
 
             this._addGlyphQuad(x0, y0, x1, y1, u0, v0, u1, v1, rgba[0], rgba[1], rgba[2], alpha);
 
-            curX += g.advance * scale;
+            curX += Math.round(g.advance * scale);
         }
     },
 
@@ -251,15 +253,17 @@ WB.GLText = {
         }
     },
 
-    // Convenience: stroke + fill (like Canvas2D pattern)
+    // Convenience: stroke + fill — clean drop shadow + tight outline
     drawTextWithStroke(text, x, y, font, fillColor, strokeColor, strokeWidth, align, baseline) {
-        // Stroke pass
-        const offsets = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-        const sw = (strokeWidth || 2) * 0.5;
-        for (const [ox, oy] of offsets) {
-            this.drawText(text, x + ox * sw, y + oy * sw, font, strokeColor, align, baseline);
-        }
-        // Fill pass
+        const sw = Math.max(1, Math.round((strokeWidth || 2) * 0.5));
+        // Drop shadow for depth (offset down-right)
+        this.drawText(text, x + sw, y + sw, font, strokeColor, align, baseline);
+        // Cardinal outline only (4 dirs, not 8) — avoids muddy diagonal overlap
+        this.drawText(text, x - sw, y, font, strokeColor, align, baseline);
+        this.drawText(text, x + sw, y, font, strokeColor, align, baseline);
+        this.drawText(text, x, y - sw, font, strokeColor, align, baseline);
+        this.drawText(text, x, y + sw, font, strokeColor, align, baseline);
+        // Fill pass on top
         this.drawText(text, x, y, font, fillColor, align, baseline);
     },
 

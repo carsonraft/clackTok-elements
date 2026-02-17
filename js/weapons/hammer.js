@@ -52,7 +52,6 @@ class HammerWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#D24E86', 18);
         }
 
         // Long handle

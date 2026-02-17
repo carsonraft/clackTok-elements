@@ -128,7 +128,7 @@ WB.GLEffects = {
     // ─── Wall Impact ──────────────────────────────────
     // Visual ring + sparks where a ball hits a wall
     spawnWallImpact(x, y, speed, color) {
-        if (speed < 3) return; // higher threshold — fewer wall impacts
+        if (speed < 5) return;
         const intensity = Math.min(1, speed / 10);
         this._wallImpacts.push({
             x, y, color,
@@ -139,7 +139,7 @@ WB.GLEffects = {
         });
         // Small spark at wall contact
         if (WB.Game && WB.Game.particles) {
-            const count = Math.floor(2 + intensity * 4);
+            const count = Math.floor(1 + intensity * 2);
             for (let i = 0; i < count; i++) {
                 WB.Game.particles.emit(x, y, 1, color, {
                     speed: 2 + Math.random() * 3 * intensity,
@@ -248,18 +248,18 @@ WB.GLEffects = {
         const T = WB.GLText;
         const c = WB.Config;
 
-        // Impact rings — clean and readable
+        // Impact rings
         for (const imp of this._impacts) {
-            B.setAlpha(imp.life * 0.45);
-            B.strokeCircle(imp.x, imp.y, imp.radius, imp.color, 2.0 * imp.life);
+            B.setAlpha(imp.life * 0.2);
+            B.strokeCircle(imp.x, imp.y, imp.radius, imp.color, 1.5 * imp.life);
             B.restoreAlpha();
         }
 
         // Arena energy pulse (border glow)
         if (this._arenaPulse > 0) {
             const a = c.ARENA;
-            const pulseAlpha = this._arenaPulse * 0.5;
-            const pulseWidth = 3 + this._arenaPulse * 6;
+            const pulseAlpha = this._arenaPulse * 0.3;
+            const pulseWidth = 2 + this._arenaPulse * 3;
             B.setAlpha(pulseAlpha);
             B.strokeRect(a.x - 2, a.y - 2, a.width + 4, a.height + 4, this._arenaPulseColor, pulseWidth);
             B.restoreAlpha();
@@ -269,31 +269,24 @@ WB.GLEffects = {
 
         // Damage numbers
         for (const dn of this._dmgNumbers) {
-            const size = Math.round(18 * dn.scale);
+            const size = Math.round(20 * dn.scale);
             const font = `bold ${size}px "Courier New", monospace`;
             T.drawTextWithStroke(dn.text, dn.x, dn.y, font, dn.color, '#000', 2, 'center', 'middle');
         }
 
         T.flush();
 
-        // Wall impact rings — subtle
+        // Wall impact rings
         for (const wi of this._wallImpacts) {
-            B.setAlpha(wi.life * 0.35);
-            B.strokeCircle(wi.x, wi.y, wi.radius, wi.color, 1.5 * wi.life);
+            B.setAlpha(wi.life * 0.2);
+            B.strokeCircle(wi.x, wi.y, wi.radius, wi.color, 1.0 * wi.life);
             B.restoreAlpha();
         }
 
-        // Collision flash overlay
-        if (this._collisionFlash > 0) {
-            const rgba = WB.GL.parseColor(this._collisionFlashColor);
-            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._collisionFlash * 0.08})`;
-            B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, flashColor);
-        }
-
-        // Super flash overlay (full screen white flash)
+        // Super flash overlay (full screen flash)
         if (this._superFlash > 0) {
             const rgba = WB.GL.parseColor(this._superFlashColor);
-            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._superFlash * 0.2})`;
+            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._superFlash * 0.1})`;
             B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, flashColor);
             B.flush();
         }
@@ -310,10 +303,8 @@ WB.GLEffects = {
         // Left combo
         if (combo.left >= 2) {
             const scale = 1 + Math.min(combo.left * 0.05, 0.5);
-            const pulse = Math.sin(Date.now() * 0.01) * 0.05 + 1;
-            const size = Math.round(24 * scale * pulse);
+            const size = Math.round(24 * scale);
             const font = `bold ${size}px "Courier New", monospace`;
-            const alpha = Math.min(1, combo.leftTimer / 30);
             const comboColor = combo.left >= 10 ? '#FFD700' : combo.left >= 5 ? '#FF6600' : '#FFF';
             T.drawTextWithStroke(`${combo.left}x`, a.x + 50, a.y + 30, font, comboColor, '#333', 3, 'center', 'alphabetic');
         }
@@ -321,41 +312,15 @@ WB.GLEffects = {
         // Right combo
         if (combo.right >= 2) {
             const scale = 1 + Math.min(combo.right * 0.05, 0.5);
-            const pulse = Math.sin(Date.now() * 0.01) * 0.05 + 1;
-            const size = Math.round(24 * scale * pulse);
+            const size = Math.round(24 * scale);
             const font = `bold ${size}px "Courier New", monospace`;
-            const alpha = Math.min(1, combo.rightTimer / 30);
             const comboColor = combo.right >= 10 ? '#FFD700' : combo.right >= 5 ? '#FF6600' : '#FFF';
             T.drawTextWithStroke(`${combo.right}x`, a.x + a.width - 50, a.y + 30, font, comboColor, '#333', 3, 'center', 'alphabetic');
         }
     },
 
-    // ─── Speed Lines ─────────────────────────────────
-    // Draw radial speed lines behind fast-moving balls
     drawSpeedLines(ball) {
-        if (!ball.isAlive) return;
-        const speed = ball.getSpeed();
-        if (speed < 4) return; // higher threshold — fewer speed lines
-
-        const B = WB.GLBatch;
-        const intensity = Math.min(1, (speed - 4) / 6);
-        const lineCount = Math.floor(2 + intensity * 4); // fewer lines
-        const moveAngle = Math.atan2(ball.vy, ball.vx);
-
-        B.setAlpha(intensity * 0.3);
-        for (let i = 0; i < lineCount; i++) {
-            // Wider spread cone behind the ball
-            const spread = (Math.random() - 0.5) * 1.6;
-            const angle = moveAngle + Math.PI + spread;
-            const len = 20 + Math.random() * 35 * intensity;
-            const startDist = ball.radius + 2 + Math.random() * 10;
-            const sx = ball.x + Math.cos(angle) * startDist;
-            const sy = ball.y + Math.sin(angle) * startDist;
-            const ex = ball.x + Math.cos(angle) * (startDist + len);
-            const ey = ball.y + Math.sin(angle) * (startDist + len);
-            B.line(sx, sy, ex, ey, ball.color, 1.5 + Math.random() * 1.5);
-        }
-        B.restoreAlpha();
+        // Removed — visual noise
     },
 
     // ─── Clash Sparks ────────────────────────────────
@@ -363,7 +328,7 @@ WB.GLEffects = {
     spawnClashSparks(x, y, count, color) {
         const B = WB.GLBatch;
         if (WB.Game && WB.Game.particles) {
-            count = Math.ceil((count || 12) * 0.4);  // reduce clash sparks
+            count = Math.ceil((count || 12) * 0.25);
             const colors = [color || '#FFD700', '#FFF', '#FFA500', '#FF6'];
             for (let i = 0; i < count; i++) {
                 const c = colors[Math.floor(Math.random() * colors.length)];

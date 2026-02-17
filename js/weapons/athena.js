@@ -131,9 +131,8 @@ class AthenaWeapon extends WB.Weapon {
             WB.Audio.parry();
             WB.Renderer.triggerShake(4);
             if (WB.GLEffects) {
-                WB.GLEffects.spawnImpact(proj.x, proj.y, '#C0C0C0', 30);
-                WB.GLEffects.spawnClashSparks(proj.x, proj.y, 8, '#C0C0C0');
-                WB.GLEffects.triggerChromatic(0.15);
+                WB.GLEffects.spawnImpact(proj.x, proj.y, '#C0C0C0', 25);
+                WB.GLEffects.spawnClashSparks(proj.x, proj.y, 4, '#C0C0C0');
             }
             if (WB.Game.particles) {
                 WB.Game.particles.spark(proj.x, proj.y, 6);

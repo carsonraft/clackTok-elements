@@ -137,10 +137,13 @@ WB.Physics = {
     },
 
     // Bounce ball when its melee weapon tip extends outside the arena.
-    // Strength scales with weapon damage when WEAPON_WALL_DMG_BOUNCE is on.
+    // One-shot impulse based on weapon angle — angled hits produce diagonal bounces.
     weaponWallBounce(ball, arena) {
         const weapon = ball.weapon;
         if (!weapon || weapon.reach === 0 || weapon.isRanged) return null;
+
+        // Cooldown: skip if we already bounced recently
+        if (weapon._wbCd > 0) { weapon._wbCd--; return null; }
 
         const tipX = weapon.getTipX();
         const tipY = weapon.getTipY();
@@ -149,18 +152,53 @@ WB.Physics = {
         const top = arena.y;
         const bottom = arena.y + arena.height;
 
-        // Base strength, optionally scaled by weapon damage
+        // Which wall(s) did the tip pass?
+        let hitX = 0, hitY = 0;
+        if (tipX < left) hitX = 1;        // tip past left → bounce right
+        else if (tipX > right) hitX = -1;  // tip past right → bounce left
+        if (tipY < top) hitY = 1;          // tip past top → bounce down
+        else if (tipY > bottom) hitY = -1; // tip past bottom → bounce up
+
+        if (hitX === 0 && hitY === 0) return null;
+
+        // Impulse strength: always scales with weapon damage so fights speed up
+        const baseDmg = weapon.currentDamage || weapon.baseDamage || 5;
         let strength = WB.Config.WEAPON_WALL_BOUNCE_STRENGTH;
         if (WB.Config.WEAPON_WALL_DMG_BOUNCE) {
-            strength = 1.0 + weapon.currentDamage * 0.5;
+            strength = 1.0 + baseDmg * 0.5;
         }
-        let hit = null;
+        // Damage-proportional kick: stronger weapons = harder wall bounces
+        const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        const kick = strength + speed * 0.3 + baseDmg * 0.15;
 
-        if (tipX < left) { ball.vx += strength; hit = 'left'; }
-        else if (tipX > right) { ball.vx -= strength; hit = 'right'; }
-        if (tipY < top) { ball.vy += strength; hit = hit || 'top'; }
-        else if (tipY > bottom) { ball.vy -= strength; hit = hit || 'bottom'; }
+        // Use weapon angle to create diagonal bounces:
+        // The weapon points from ball center toward tip. The bounce should push
+        // the ball OPPOSITE to the weapon direction (away from the wall).
+        const wx = Math.cos(weapon.angle);  // weapon direction x (-1 to 1)
+        const wy = Math.sin(weapon.angle);  // weapon direction y (-1 to 1)
 
-        return hit;
+        // Primary axis: reflect velocity away from wall + kick
+        // Secondary axis: add lateral force based on weapon angle
+        if (hitX !== 0) {
+            // Hit left or right wall
+            ball.vx = hitX * (Math.abs(ball.vx) + kick);
+            // Lateral: weapon angle's Y component pushes ball vertically
+            ball.vy += -wy * kick * 0.6;
+        }
+        if (hitY !== 0) {
+            // Hit top or bottom wall
+            ball.vy = hitY * (Math.abs(ball.vy) + kick);
+            // Lateral: weapon angle's X component pushes ball horizontally
+            ball.vx += -wx * kick * 0.6;
+        }
+
+        // Cooldown: ~quarter rotation before next wall bounce
+        const framesPerRev = Math.abs(weapon.rotationSpeed) > 0.001
+            ? (Math.PI * 2) / Math.abs(weapon.rotationSpeed)
+            : 60;
+        weapon._wbCd = Math.max(8, Math.round(framesPerRev * 0.25));
+
+        return hitX !== 0 ? (hitX > 0 ? 'left' : 'right')
+             : (hitY > 0 ? 'top' : 'bottom');
     }
 };

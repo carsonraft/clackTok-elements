@@ -104,18 +104,16 @@ class HadesWeapon extends WB.Weapon {
         }
 
         // Pulse visual effects
-        WB.Renderer.triggerShake(3);
+        WB.Renderer.triggerShake(2);
         if (WB.GLEffects) {
-            WB.GLEffects.spawnImpact(this.owner.x, this.owner.y, '#2E0854', 40);
-            WB.GLEffects.triggerChromatic(0.1);
+            WB.GLEffects.spawnImpact(this.owner.x, this.owner.y, '#2E0854', 30);
         }
         if (WB.Game && WB.Game.particles) {
-            // Ring of particles expanding outward
-            for (let i = 0; i < 12; i++) {
-                const angle = (i / 12) * Math.PI * 2;
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
                 const px = this.owner.x + Math.cos(angle) * (this.pulseRadius * 0.5);
                 const py = this.owner.y + Math.sin(angle) * (this.pulseRadius * 0.5);
-                WB.Game.particles.emit(px, py, 2, '#6A0DAD');
+                WB.Game.particles.emit(px, py, 1, '#6A0DAD');
             }
         }
     }

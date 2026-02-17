@@ -51,49 +51,34 @@ WB.Weapon = class {
         this._onHitEffects(target, this.currentDamage, this.owner.color);
     }
 
-    // Reusable hit effects — call from custom onHit() in subclasses
-    // so they get combo tracking, particles, screen deformation, etc.
+    // Reusable hit effects — minimal for normal hits, escalates on high combos
     _onHitEffects(target, dmg, color, comboOverride) {
-        // Track combo + escalating clack burst
-        if (WB.GLEffects) {
-            WB.GLEffects.incrementCombo(this.owner.side);
-            const combo = comboOverride !== undefined ? comboOverride : WB.GLEffects.getCombo(this.owner.side);
-            if (combo >= 2) {
-                WB.Audio.comboClack(combo);
-            }
+        if (!WB.GLEffects) return;
 
-            // Particle count scales with combo — MORE particles
-            const particleCount = 10 + Math.min(combo * 3, 24);
-            if (WB.Game && WB.Game.particles) {
-                WB.Game.particles.emit(target.x, target.y, particleCount, color);
-            }
+        // Track combo
+        WB.GLEffects.incrementCombo(this.owner.side);
+        const combo = comboOverride !== undefined ? comboOverride : WB.GLEffects.getCombo(this.owner.side);
+        if (combo >= 2) {
+            WB.Audio.comboClack(combo);
+        }
 
-            const impactSize = 35 + dmg * 4 + combo * 4;
-            WB.GLEffects.spawnImpact(target.x, target.y, color, impactSize);
-            WB.GLEffects.spawnDamageNumber(target.x, target.y, dmg, color);
+        // Always: damage number + small impact ring
+        WB.GLEffects.spawnDamageNumber(target.x, target.y, dmg, color);
+        WB.GLEffects.spawnImpact(target.x, target.y, color, 20 + dmg * 2);
 
-            // Arena pulse on EVERY hit — lower threshold
-            if (dmg >= 3 || combo >= 2) {
-                WB.GLEffects.triggerArenaPulse(color);
-            }
-            // Hit stop on moderate hits
-            if (dmg >= 4 || combo >= 3) {
-                WB.GLEffects.triggerHitStop(2 + Math.min(Math.floor(combo / 2), 4));
-            }
-            // Clash sparks earlier
-            if (combo >= 3) {
-                WB.GLEffects.spawnClashSparks(target.x, target.y, combo * 2, color);
-            }
-            // Screen deformation — lower thresholds, stronger effects
-            if (dmg >= 2 || combo >= 2) {
-                WB.GLEffects.triggerChromatic(0.15 + combo * 0.06);
-            }
-            if (dmg >= 4 || combo >= 4) {
-                WB.GLEffects.triggerShockwave(target.x, target.y, 0.12 + combo * 0.04);
-            }
-            if (combo >= 6) {
-                WB.GLEffects.triggerBarrel(0.08 + combo * 0.025);
-            }
+        // Small particle burst
+        if (WB.Game && WB.Game.particles) {
+            WB.Game.particles.emit(target.x, target.y, 3 + Math.min(combo, 5), color);
+        }
+
+        // Only high combos get extra effects
+        if (combo >= 5) {
+            WB.GLEffects.triggerHitStop(2);
+            WB.GLEffects.spawnClashSparks(target.x, target.y, combo, color);
+        }
+        if (combo >= 8) {
+            WB.GLEffects.triggerChromatic(0.1);
+            WB.GLEffects.triggerArenaPulse(color);
         }
     }
 
@@ -111,20 +96,17 @@ WB.Weapon = class {
                 WB.Game._excitement.recordSuper();
             }
             if (WB.Game && WB.Game.particles) {
-                WB.Game.particles.explode(this.owner.x, this.owner.y, 35, this.owner.color);
-                WB.Game.particles.spark(this.owner.x, this.owner.y, 20);
+                WB.Game.particles.explode(this.owner.x, this.owner.y, 15, this.owner.color);
+                WB.Game.particles.spark(this.owner.x, this.owner.y, 8);
             }
-            // ULTRA super activation effects — cranked to 11
-            WB.Renderer.triggerShake(18);
+            WB.Renderer.triggerShake(8);
             if (WB.GLEffects) {
                 WB.GLEffects.triggerSuperFlash(this.owner.color);
-                WB.GLEffects.spawnImpact(this.owner.x, this.owner.y, this.owner.color, 100);
+                WB.GLEffects.spawnImpact(this.owner.x, this.owner.y, this.owner.color, 50);
                 WB.GLEffects.triggerArenaPulse(this.owner.color);
-                WB.GLEffects.triggerHitStop(7);
-                // EXTREME screen deformation on super activation
-                WB.GLEffects.triggerShockwave(this.owner.x, this.owner.y, 0.8);
-                WB.GLEffects.triggerChromatic(1.0);
-                WB.GLEffects.triggerBarrel(0.5);
+                WB.GLEffects.triggerHitStop(4);
+                WB.GLEffects.triggerShockwave(this.owner.x, this.owner.y, 0.2);
+                WB.GLEffects.triggerChromatic(0.25);
             }
         }
     }

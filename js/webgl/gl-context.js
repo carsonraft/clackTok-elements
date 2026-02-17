@@ -104,6 +104,8 @@ WB.GL = {
     resize(w, h) {
         this.width = w;
         this.height = h;
+        this.canvas.width = w;
+        this.canvas.height = h;
         // Update projection matrix
         this.projMatrix[0] = 2 / w;
         this.projMatrix[4] = -2 / h;
@@ -285,7 +287,7 @@ WB.GL = {
 
                     // Only apply 3D shading to balls large enough (r > 12px)
                     // Small circles (particles, dots) stay flat
-                    if (v_radius > 12.0 && alpha > 0.0) {
+                    if (v_radius > 9999.0 && alpha > 0.0) {
                         // Normalized position within circle [-1, 1]
                         vec2 nPos = v_uv * (v_radius + 1.5) / v_radius;
                         float r2 = dot(nPos, nPos);

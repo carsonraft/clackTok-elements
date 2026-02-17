@@ -16,6 +16,9 @@ WB.Projectile = class {
         this.piercing = config.piercing || false;
         this.homing = config.homing || 0;          // 0 = no homing, 0.01-0.15 = gentle curve
         this.damageFalloff = config.damageFalloff || 0; // damage multiplier lost per bounce (e.g. 0.5 = 50% per bounce)
+        this.gravityAffected = config.gravityAffected || false; // Wadjet venom globs arc with gravity
+        this.onMiss = config.onMiss || null; // callback(x, y) when projectile dies without hitting
+        this._hasHit = false;
         this.alive = true;
         this.trail = [];
         this._hitTargets = new Set();
@@ -23,10 +26,16 @@ WB.Projectile = class {
 
     update() {
         this.trail.push({ x: this.x, y: this.y });
-        if (this.trail.length > 8) this.trail.shift();
+        if (this.trail.length > 4) this.trail.shift();
 
         this.x += this.vx;
         this.y += this.vy;
+        // Gravity-affected projectiles (Wadjet venom globs) arc downward
+        if (this.gravityAffected && WB.Config.GRAVITY_MODE) {
+            const ga = WB.Config.GRAVITY_ANGLE;
+            this.vx += Math.cos(ga) * WB.Config.GRAVITY;
+            this.vy += Math.sin(ga) * WB.Config.GRAVITY;
+        }
         this.lifespan--;
         if (this.lifespan <= 0) this.alive = false;
 
@@ -96,20 +105,20 @@ WB.Projectile = class {
         if (bounced && this.damageFalloff > 0) {
             this.damage = Math.max(0.5, this.damage * (1 - this.damageFalloff));
         }
-        // CLACKY projectile bounce effects!
         if (bounced) {
             const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
             WB.Audio.wallClack(spd);
             if (WB.GLEffects) {
                 WB.GLEffects.spawnWallImpact(bounceX, bounceY, spd, this.color);
-                if (spd >= 4) {
-                    WB.Renderer.triggerShake(1 + spd * 0.3);
-                    WB.GLEffects.triggerChromatic(spd * 0.02);
-                }
             }
             if (WB.Game && WB.Game.particles) {
-                WB.Game.particles.emit(bounceX, bounceY, 4, this.color);
+                WB.Game.particles.emit(bounceX, bounceY, 2, this.color);
             }
+        }
+
+        // Fire miss callback when projectile dies without hitting (Wadjet puddles)
+        if (!this.alive && !this._hasHit && this.onMiss) {
+            this.onMiss(this.x, this.y);
         }
     }
 
@@ -147,8 +156,8 @@ WB.Projectile = class {
             if (this.ownerWeapon && this.ownerWeapon.onProjectileHit) {
                 this.ownerWeapon.onProjectileHit(this, target);
             }
-            // Extra screen shake on projectile hit
-            WB.Renderer.triggerShake(2 + this.damage * 0.3);
+            WB.Renderer.triggerShake(1 + this.damage * 0.15);
+            this._hasHit = true;
             return true;
         }
         return false;
@@ -157,18 +166,15 @@ WB.Projectile = class {
     draw() {
         const B = WB.GLBatch;
 
-        // Trail — longer and brighter for more visual impact
+        // Trail
         for (let i = 0; i < this.trail.length; i++) {
             const t = this.trail[i];
-            const alpha = (i / this.trail.length) * 0.5;
+            const alpha = (i / this.trail.length) * 0.3;
             const scale = 0.5 + (i / this.trail.length) * 0.4;
             B.setAlpha(alpha);
             B.fillCircle(t.x, t.y, this.radius * scale, this.color);
             B.restoreAlpha();
         }
-
-        // Shadow
-        B.fillCircle(this.x + 1, this.y + 1, this.radius, 'rgba(0,0,0,0.12)');
 
         // Projectile body
         B.fillCircle(this.x, this.y, this.radius, this.color);

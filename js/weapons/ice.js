@@ -86,7 +86,6 @@ class IceWeapon extends WB.Weapon {
 
         if (this.superActive) {
             // Giant Snowball glow — icy frost aura
-            B.fillCircleGlow(0, 0, this.reach + 10, '#88DDFF', 20);
         }
 
         // Ice crystal blade — jagged icicle shape

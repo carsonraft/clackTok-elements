@@ -102,7 +102,6 @@ class NatureWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#33AA44', 12);
         }
 
         // Vine — organic wavy line

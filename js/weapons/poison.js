@@ -94,7 +94,6 @@ class PoisonWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#66CC33', 12);
         }
 
         // Barbed vine / stinger

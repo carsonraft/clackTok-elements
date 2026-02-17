@@ -85,15 +85,6 @@ class ClackerWeapon extends WB.Weapon {
         // Screen shake proportional to intensity
         WB.Renderer.triggerShake(2 + intensity * 4);
 
-        // Clack effects
-        if (WB.GLEffects) {
-            if (intensity >= 0.5) {
-                WB.GLEffects.triggerChromatic(intensity * 0.15);
-            }
-            if (intensity >= 0.8) {
-                WB.GLEffects.triggerShockwave(this.owner.x, this.owner.y, intensity * 0.1);
-            }
-        }
     }
 
     onHit(target) {
@@ -154,7 +145,6 @@ class ClackerWeapon extends WB.Weapon {
 
         // Super glow
         if (this.superActive) {
-            B.fillCircleGlow(this.reach - 4, 0, 12, '#FFD700', 20);
         }
 
         // Chain/string from ball to pendulum

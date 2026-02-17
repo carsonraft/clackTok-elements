@@ -97,7 +97,6 @@ class MetalWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         if (this.superActive) {
-            B.fillCircleGlow(0, 0, this.reach, '#AABBCC', 12);
         }
 
         // Mace / flail handle

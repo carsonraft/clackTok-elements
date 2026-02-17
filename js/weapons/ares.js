@@ -151,7 +151,7 @@ class AresWeapon extends WB.Weapon {
 
             // Rage sparks
             if (Date.now() % 100 < 30) {
-                const sparkAngle = WB.random() * Math.PI * 2;
+                const sparkAngle = Math.random() * Math.PI * 2;
                 B.setAlpha(0.4);
                 B.fillCircle(
                     this.owner.x + Math.cos(sparkAngle) * (r + 4),
