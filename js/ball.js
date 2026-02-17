@@ -165,44 +165,94 @@ WB.Ball = class {
     draw() {
         const B = WB.GLBatch;
         const T = WB.GLText;
+        // DPR-aware stroke widths — compensate for loss of bilinear blur on HiDPI
+        const hiDpi = WB.GL.dpr >= 1.5;
+        const outlineW = hiDpi ? 3 : 2.5;
+        const debuffW = hiDpi ? 2.5 : 2;
+        const markW = hiDpi ? 2 : 1.5;
 
         // Ball body
         const fillColor = this.damageFlash > 0 ? '#FFF' : this.color;
         B.fillCircle(this.x, this.y, this.radius, fillColor);
-        B.strokeCircle(this.x, this.y, this.radius, '#333', 2.5);
+        B.strokeCircle(this.x, this.y, this.radius, '#333', outlineW);
 
         // Poison visual
         if (this.poisonStacks > 0) {
             const poisonAlpha = Math.min(0.3, this.poisonStacks * 0.05);
-            B.fillCircle(this.x, this.y, this.radius - 2, `rgba(0, 200, 0, ${poisonAlpha})`);
+            B.setAlpha(poisonAlpha);
+            B.fillCircle(this.x, this.y, this.radius - 2, '#00C800');
+            B.restoreAlpha();
+        }
+
+        // ─── Debuff indicators on victim ─────────────────
+        const d = this.debuffs;
+
+        // Venom stacks (Wadjet) — green edge tint, scales with stacks
+        if (d.venomStacks > 0) {
+            const venomAlpha = Math.min(0.25, d.venomStacks * 0.03);
+            B.setAlpha(venomAlpha);
+            B.strokeCircle(this.x, this.y, this.radius - 1, '#00A86B', debuffW);
+            B.restoreAlpha();
+        }
+
+        // Burn DOT (Apollo) — orange flicker overlay
+        if (d.burn.length > 0) {
+            const burnPulse = Math.sin(this.frameCount * 0.2) * 0.08;
+            B.setAlpha(0.15 + burnPulse);
+            B.fillCircle(this.x, this.y, this.radius - 2, '#FF8C00');
+            B.restoreAlpha();
+        }
+
+        // Slow (Poseidon) — blue tint ring
+        if (d.slowTimer > 0) {
+            B.setAlpha(0.2);
+            B.strokeCircle(this.x, this.y, this.radius + 1, '#4169E1', debuffW);
+            B.restoreAlpha();
+        }
+
+        // Forge marks (Hephaestus) — orange tick marks around circumference
+        if (d.forgeMarks > 0) {
+            const marks = Math.min(10, d.forgeMarks);
+            B.setAlpha(0.3);
+            for (let i = 0; i < marks; i++) {
+                const a = (i / marks) * Math.PI * 2;
+                const ix = this.x + Math.cos(a) * (this.radius + 1);
+                const iy = this.y + Math.sin(a) * (this.radius + 1);
+                const ox = this.x + Math.cos(a) * (this.radius + 4);
+                const oy = this.y + Math.sin(a) * (this.radius + 4);
+                B.line(ix, iy, ox, oy, '#FF8C00', markW);
+            }
+            B.restoreAlpha();
         }
 
         // Super indicator
         if (this.weapon.superActive) {
-            B.strokeCircle(this.x, this.y, this.radius + 2, this.color, 2);
+            B.strokeCircle(this.x, this.y, this.radius + 2, this.color, debuffW);
         }
 
         B.flush();
 
-        // HP text — stays as font rendering for crispness
+        // HP text — lightweight 2-pass (shadow + fill) for per-frame efficiency
         const fontSize = Math.max(12, Math.floor(this.radius * 0.7));
         const font = `bold ${fontSize}px "Courier New", monospace`;
         const hpText = Math.ceil(this.hp).toString();
-        T.drawTextWithStroke(hpText, this.x, this.y, font, '#FFF', '#333', 3, 'center', 'middle');
+        T.drawTextLite(hpText, this.x, this.y, font, '#FFF', '#333', 'center', 'middle');
     }
 
     drawDead() {
         const B = WB.GLBatch;
+        const hiDpi = WB.GL.dpr >= 1.5;
+        const lw = hiDpi ? 2.5 : 2;
 
         B.setAlpha(0.3);
         B.fillCircle(this.x, this.y, this.radius, '#888');
-        B.strokeCircle(this.x, this.y, this.radius, '#555', 2);
+        B.strokeCircle(this.x, this.y, this.radius, '#555', lw);
 
         // X eyes
-        B.line(this.x - 8, this.y - 6, this.x - 2, this.y, '#333', 2);
-        B.line(this.x - 2, this.y - 6, this.x - 8, this.y, '#333', 2);
-        B.line(this.x + 2, this.y - 6, this.x + 8, this.y, '#333', 2);
-        B.line(this.x + 8, this.y - 6, this.x + 2, this.y, '#333', 2);
+        B.line(this.x - 8, this.y - 6, this.x - 2, this.y, '#333', lw);
+        B.line(this.x - 2, this.y - 6, this.x - 8, this.y, '#333', lw);
+        B.line(this.x + 2, this.y - 6, this.x + 8, this.y, '#333', lw);
+        B.line(this.x + 8, this.y - 6, this.x + 2, this.y, '#333', lw);
         B.restoreAlpha();
     }
 };

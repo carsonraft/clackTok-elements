@@ -19,6 +19,7 @@ class HammerWeapon extends WB.Weapon {
     }
 
     update() {
+        if (this._deflectReverse > 0) this._deflectReverse--;
         if (this.accelerating) {
             this.currentSpeed += 0.0012;
             if (this.currentSpeed >= this.maxRotationSpeed) {
@@ -31,7 +32,7 @@ class HammerWeapon extends WB.Weapon {
             }
         }
         this.rotationSpeed = this.currentSpeed;
-        this.angle += this.rotationSpeed;
+        this.angle += this.rotationSpeed * this.getDir();
         if (this.cooldown > 0) this.cooldown--;
     }
 

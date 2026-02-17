@@ -22,6 +22,7 @@ class SawbladeWeapon extends WB.Weapon {
     }
 
     update() {
+        if (this._deflectReverse > 0) this._deflectReverse--;
         const dir = this.superActive ? -1 : 1;
         this.orbitAngle += this.orbitSpeed * dir;
         this.sawSpinAngle += 0.2;

@@ -18,6 +18,7 @@ WB.Weapon = class {
         this.canParry = config.canParry !== false;
         this.unparryable = false;
         this.isRanged = config.isRanged || false;
+        this._deflectReverse = 0; // frames of reversed spin from parry/deflection
     }
 
     // Weapon tip position
@@ -28,10 +29,17 @@ WB.Weapon = class {
     getMidX() { return this.owner.x + Math.cos(this.angle) * this.reach * 0.6; }
     getMidY() { return this.owner.y + Math.sin(this.angle) * this.reach * 0.6; }
 
+    // Rotation direction: reversed by Dionysus madness OR parry deflection
+    getDir() {
+        const madness = this.owner.debuffs && this.owner.debuffs.weaponReversed > 0;
+        const deflected = this._deflectReverse > 0;
+        // XOR: if both are active they cancel out (double-negative = forward)
+        return (madness !== deflected) ? -1 : 1;
+    }
+
     update() {
-        // Dionysus madness debuff: reverse weapon rotation direction
-        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-        this.angle += this.rotationSpeed * dir;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         if (this.cooldown > 0) this.cooldown--;
     }
 

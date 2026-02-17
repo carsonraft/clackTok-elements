@@ -259,7 +259,7 @@ WB.UI = {
         const pad = 15;
         const toggleH = 22;
         const toggleGap = 4;
-        const count = 6;
+        const count = 7;
         const totalGaps = (count - 1) * toggleGap;
         const toggleW = Math.floor((c.CANVAS_WIDTH - pad * 2 - totalGaps) / count);
         const startX = pad;
@@ -271,6 +271,7 @@ WB.UI = {
             { x: startX + 3 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'WEAPON_WALL_DMG_BOUNCE', label: 'DMG BNC' },
             { x: startX + 4 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'SUPERS_ENABLED', label: 'SUPERS' },
             { x: startX + 5 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'CUTSCENE_ENABLED', label: 'SCENES' },
+            { x: startX + 6 * (toggleW + toggleGap), y, w: toggleW, h: toggleH, key: 'MOTION_BLUR_ENABLED', label: 'MBLUR' },
         ];
     },
 
@@ -301,6 +302,7 @@ WB.UI = {
         const layout = this._getLayout();
         const B = WB.GLBatch;
         const T = WB.GLText;
+        const hiDpi = WB.GL.dpr >= 1.5;
 
         // Background
         B.fillRect(0, 0, c.CANVAS_WIDTH, c.CANVAS_HEIGHT, '#FFF8E7');
@@ -324,7 +326,7 @@ WB.UI = {
         for (const tab of packTabs) {
             const isActive = this.selectedPack === tab.pack;
             B.fillRect(tab.x, tab.y, tab.w, tab.h, isActive ? tab.color : '#E8E0D0');
-            B.strokeRect(tab.x, tab.y, tab.w, tab.h, isActive ? '#333' : '#C8B8A0', isActive ? 1.5 : 1);
+            B.strokeRect(tab.x, tab.y, tab.w, tab.h, isActive ? '#333' : '#C8B8A0', isActive ? (hiDpi ? 2 : 1.5) : (hiDpi ? 1.5 : 1));
             B.flush();
             T.drawText(tab.label, tab.x + tab.w / 2, tab.y + tab.h / 2,
                 'bold 11px "Courier New", monospace', isActive ? '#FFF' : '#999', 'center', 'middle');
@@ -394,7 +396,7 @@ WB.UI = {
 
         const rBtn = layout.randomBtn;
         B.fillRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#AAA');
-        B.strokeRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#888', 1.5);
+        B.strokeRect(rBtn.x, rBtn.y, rBtn.w, rBtn.h, '#888', hiDpi ? 2 : 1.5);
         B.flush();
         T.drawText('RANDOM', rBtn.x + rBtn.w / 2, rBtn.y + rBtn.h / 2,
             'bold 12px "Courier New", monospace', '#FFF', 'center', 'middle');
@@ -423,16 +425,17 @@ WB.UI = {
 
         // Row 4: FIGHT + SIMULATE
         if (this.selectedLeft && this.selectedRight) {
+            const btnBorder = hiDpi ? 3 : 2.5;
             const fBtn = layout.fightBtn;
             B.fillRect(fBtn.x, fBtn.y, fBtn.w, fBtn.h, '#E85D75');
-            B.strokeRect(fBtn.x, fBtn.y, fBtn.w, fBtn.h, '#333', 2.5);
+            B.strokeRect(fBtn.x, fBtn.y, fBtn.w, fBtn.h, '#333', btnBorder);
             B.flush();
             T.drawText('FIGHT!', fBtn.x + fBtn.w / 2, fBtn.y + fBtn.h / 2,
                 'bold 20px "Courier New", monospace', '#FFF', 'center', 'middle');
 
             const sBtn = layout.simBtn;
             B.fillRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, '#6BB5E0');
-            B.strokeRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, '#333', 2.5);
+            B.strokeRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, '#333', btnBorder);
             B.flush();
             T.drawText('SIMULATE', sBtn.x + sBtn.w / 2, sBtn.y + sBtn.h / 2,
                 'bold 16px "Courier New", monospace', '#FFF', 'center', 'middle');
@@ -489,8 +492,9 @@ WB.UI = {
             // Button background
             B.fillRect(btn.x, btn.y, btn.w, btn.h, isSelected ? color : '#EDEDED');
 
-            // Border
-            B.strokeRect(btn.x, btn.y, btn.w, btn.h, isSelected ? '#333' : '#CCC', isSelected ? 2.5 : 1.5);
+            // Border — thicker on HiDPI
+            const hiDpi = WB.GL.dpr >= 1.5;
+            B.strokeRect(btn.x, btn.y, btn.w, btn.h, isSelected ? '#333' : '#CCC', isSelected ? (hiDpi ? 3 : 2.5) : (hiDpi ? 2 : 1.5));
 
             // Icon (centered in compact buttons)
             B.flush();
@@ -504,9 +508,9 @@ WB.UI = {
         const B = WB.GLBatch;
         const T = WB.GLText;
 
-        // Small preview ball
+        // Small preview ball — thicker outline on HiDPI
         B.fillCircle(x, y, 14, color);
-        B.strokeCircle(x, y, 14, '#333', 1.5);
+        B.strokeCircle(x, y, 14, '#333', WB.GL.dpr >= 1.5 ? 2 : 1.5);
         B.flush();
 
         T.drawText('100', x, y + 3, 'bold 11px "Courier New", monospace', '#FFF', 'center', 'alphabetic');

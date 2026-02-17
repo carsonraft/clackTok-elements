@@ -83,47 +83,49 @@ class AnubisWeapon extends WB.Weapon {
         const B = WB.GLBatch;
         const r = this.owner.radius;
 
-        // Death aura — intensifies as HP drops
+        // Death aura intensity: 0 at full HP, 1 at 0 HP
         const hpFrac = this.owner.hp / this.owner.maxHp;
-        const auraIntensity = Math.max(0, 1 - hpFrac); // 0 at full HP, 1 at 0 HP
+        const auraIntensity = Math.max(0, 1 - hpFrac);
 
-        if (auraIntensity > 0.1) {
+        // At low HP (>50% intensity), show a dark halo — death is coming
+        if (auraIntensity > 0.5) {
             const pulse = Math.sin(this.visualTimer * 0.06) * 0.03;
-            B.setAlpha(auraIntensity * 0.15 + pulse);
-            B.fillCircle(this.owner.x, this.owner.y, r + 6 + auraIntensity * 8, '#1A1A1A');
-            B.restoreAlpha();
-
-            // Gold death ring
-            B.setAlpha(auraIntensity * 0.2 + pulse);
-            B.strokeCircle(this.owner.x, this.owner.y, r + 4 + auraIntensity * 6, '#DAA520', 1.5);
+            B.setAlpha((auraIntensity - 0.5) * 0.3 + pulse);
+            B.strokeCircle(this.owner.x, this.owner.y, r + 4, '#1A1A1A', 2);
             B.restoreAlpha();
         }
 
-        // Super: pulsing dark aura showing the drain
+        // Super: pulsing dark aura showing the drain — more visible
         if (this.superActive) {
             const drainPulse = Math.sin(this.visualTimer * 0.1) * 0.08;
-            B.setAlpha(0.12 + drainPulse);
-            B.strokeCircle(this.owner.x, this.owner.y, r + 12, '#DAA520', 2);
+            B.setAlpha(0.2 + drainPulse);
+            B.strokeCircle(this.owner.x, this.owner.y, r + 8, '#DAA520', 2);
             B.restoreAlpha();
         }
 
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
-        // Crook staff — long curved staff
+        // Crook staff — wider, more visible
         // Shaft
-        B.fillRect(r - 2, -3, this.reach - r + 4, 6, '#3D2B1F');
-        B.line(r, 0, this.reach, 0, '#5C4033', 2);
+        B.fillRect(r - 2, -4, this.reach - r + 4, 8, '#3D2B1F');
+        B.line(r, 0, this.reach, 0, '#5C4033', 2.5);
 
-        // Crook hook at tip — curved gold hook
+        // Crook hook at tip — gold intensifies, hook GROWS with auraIntensity
+        const gldR = Math.round(139 + (255 - 139) * auraIntensity);
+        const gldG = Math.round(115 + (215 - 115) * auraIntensity);
+        const gldB = Math.round(0 + (0) * auraIntensity);
+        const hookGold = `rgb(${gldR},${gldG},${gldB})`;
+        // Hook scale: 0.8→1.2 with auraIntensity
+        const hookScale = 0.8 + auraIntensity * 0.4;
         const hookX = this.reach;
-        B.fillCircle(hookX, -4, 5, '#DAA520');
-        B.fillCircle(hookX - 3, -8, 4, '#DAA520');
-        B.fillCircle(hookX - 7, -9, 3, '#B8860B');
-        B.strokeCircle(hookX - 2, -6, 7, '#8B6914', 1.5);
+        B.fillCircle(hookX, -5 * hookScale, 7 * hookScale, hookGold);
+        B.fillCircle(hookX - 4 * hookScale, -10 * hookScale, 5.5 * hookScale, hookGold);
+        B.fillCircle(hookX - 9 * hookScale, -11 * hookScale, 4 * hookScale, '#B8860B');
+        B.strokeCircle(hookX - 3 * hookScale, -7 * hookScale, 9 * hookScale, '#8B6914', 2);
 
-        // Gold bands on shaft
-        B.fillRect(r + 10, -4, 4, 8, '#DAA520');
-        B.fillRect(r + 25, -4, 3, 8, '#B8860B');
+        // Gold bands on shaft — wider
+        B.fillRect(r + 10, -5, 5, 10, hookGold);
+        B.fillRect(r + 25, -4.5, 4, 9, '#B8860B');
 
         B.popTransform();
     }

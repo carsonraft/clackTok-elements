@@ -100,6 +100,7 @@ class ArtemisWeapon extends WB.Weapon {
                 lifespan: 90,          // balanced lifespan (85 too short, 100 too long)
                 bounces: 0,            // no bounces — small arena makes bounces OP
                 color: '#C0C0C0',
+                shape: 'arrow',
                 homing: this.homingStrength,
             }));
         }

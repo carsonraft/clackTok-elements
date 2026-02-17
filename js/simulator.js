@@ -297,6 +297,9 @@ WB.Simulator = {
                         w2.cooldown = Math.max(w2.cooldown, 10);
                         w1._parryCd = 15;
                         w2._parryCd = 15;
+                        // Reverse both weapons' spin direction on clash
+                        w1._deflectReverse = 30;
+                        w2._deflectReverse = 30;
                         WB.GLEffects.triggerHitStop(3);
                     }
                 }

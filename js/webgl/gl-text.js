@@ -20,19 +20,21 @@ WB.GLText = {
         this.gl = gl;
         this._generateAtlas();
         this._initBuffers();
+        this._buildNearestSizeMap();
     },
 
     _generateAtlas() {
         const gl = this.gl;
+        const dpr = WB.GL.dpr;
         const chars = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~★✕▶▲▼';
         const padding = 2;
 
-        // Calculate atlas size
+        // Calculate atlas size in LOGICAL pixels
         // Each size gets a row (or multiple rows)
         const offCanvas = document.createElement('canvas');
         const offCtx = offCanvas.getContext('2d');
 
-        // Measure all glyphs to determine atlas dimensions
+        // Measure all glyphs to determine atlas dimensions (logical space)
         let totalHeight = 0;
         let maxRowWidth = 0;
         const sizeLayouts = [];
@@ -50,7 +52,7 @@ WB.GLText = {
             totalHeight += rowHeight;
         }
 
-        // Power of 2 dimensions
+        // Power of 2 dimensions (logical)
         const atlasW = Math.min(4096, this._nextPow2(Math.min(maxRowWidth, 2048)));
         // Recalculate with wrapping
         totalHeight = 0;
@@ -60,11 +62,17 @@ WB.GLText = {
         }
         const atlasH = this._nextPow2(totalHeight + 10);
 
-        offCanvas.width = atlasW;
-        offCanvas.height = atlasH;
-        offCtx.clearRect(0, 0, atlasW, atlasH);
+        // Canvas backing store at DPR-scaled resolution for crisp text
+        const devAtlasW = Math.round(atlasW * dpr);
+        const devAtlasH = Math.round(atlasH * dpr);
+        offCanvas.width = devAtlasW;
+        offCanvas.height = devAtlasH;
+        offCtx.clearRect(0, 0, devAtlasW, devAtlasH);
+        // Scale the 2D context so all fillText calls render at device resolution
+        // but coordinates stay in logical pixel space
+        offCtx.scale(dpr, dpr);
 
-        // Render glyphs
+        // Render glyphs (coordinates in logical space, rendered at device resolution)
         let curY = 0;
         for (const layout of sizeLayouts) {
             const size = layout.size;
@@ -86,6 +94,7 @@ WB.GLText = {
 
                 offCtx.fillText(ch, curX, curY + padding);
 
+                // Glyph metadata in logical pixels — UV computation stays correct
                 this._glyphs[size][ch] = {
                     x: curX,
                     y: curY + padding,
@@ -99,26 +108,28 @@ WB.GLText = {
             curY += layout.rowHeight;
         }
 
-        // Upload to WebGL texture
+        // Upload to WebGL texture at device pixel resolution
         this._atlas = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this._atlas);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, atlasW, atlasH, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, devAtlasW, devAtlasH, 0, gl.RED, gl.UNSIGNED_BYTE, null);
 
-        // Extract red channel from canvas
-        const imgData = offCtx.getImageData(0, 0, atlasW, atlasH);
-        const redChannel = new Uint8Array(atlasW * atlasH);
+        // Extract red channel from DPR-scaled canvas
+        const imgData = offCtx.getImageData(0, 0, devAtlasW, devAtlasH);
+        const redChannel = new Uint8Array(devAtlasW * devAtlasH);
         for (let i = 0; i < redChannel.length; i++) {
             // Use alpha channel since we drew white text
             redChannel[i] = imgData.data[i * 4 + 3];
         }
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, atlasW, atlasH, gl.RED, gl.UNSIGNED_BYTE, redChannel);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, devAtlasW, devAtlasH, gl.RED, gl.UNSIGNED_BYTE, redChannel);
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+        // Store LOGICAL atlas dimensions for UV computation
+        // UV = glyph.x / atlasWidth — both in logical space = correct [0,1] range
         this._atlasWidth = atlasW;
         this._atlasHeight = atlasH;
     },
@@ -148,14 +159,24 @@ WB.GLText = {
 
     // ─── Public API ──────────────────────────────────────────
 
+    // Caches for hot-path font lookups
+    _fontSizeCache: {},      // font string → parsed pixel size
+    _nearestSizeMap: null,   // pixel size (1-80) → nearest atlas size
+
     // Parse font string like 'bold 18px "Courier New", monospace' → size number
     _parseFontSize(fontStr) {
+        const cached = this._fontSizeCache[fontStr];
+        if (cached !== undefined) return cached;
         const m = fontStr.match(/(\d+)px/);
-        return m ? parseInt(m[1]) : 14;
+        const size = m ? parseInt(m[1]) : 14;
+        this._fontSizeCache[fontStr] = size;
+        return size;
     },
 
-    // Find nearest available atlas size
+    // Find nearest available atlas size (O(1) via pre-computed map)
     _nearestSize(target) {
+        if (this._nearestSizeMap) return this._nearestSizeMap[target] || this._sizes[0];
+        // Fallback linear scan (before init completes)
         let best = this._sizes[0];
         let bestDiff = Infinity;
         for (const s of this._sizes) {
@@ -166,6 +187,19 @@ WB.GLText = {
             }
         }
         return best;
+    },
+
+    // Build the pre-computed nearest size lookup table
+    _buildNearestSizeMap() {
+        this._nearestSizeMap = {};
+        for (let px = 1; px <= 80; px++) {
+            let best = this._sizes[0], bestDiff = Infinity;
+            for (const s of this._sizes) {
+                const diff = Math.abs(s - px);
+                if (diff < bestDiff) { bestDiff = diff; best = s; }
+            }
+            this._nearestSizeMap[px] = best;
+        }
     },
 
     measureText(text, font) {
@@ -254,8 +288,10 @@ WB.GLText = {
     },
 
     // Convenience: stroke + fill — clean drop shadow + tight outline
+    // Stroke width scales with DPR for consistent visual weight on HiDPI
     drawTextWithStroke(text, x, y, font, fillColor, strokeColor, strokeWidth, align, baseline) {
-        const sw = Math.max(1, Math.round((strokeWidth || 2) * 0.5));
+        const dprScale = WB.GL.dpr >= 1.5 ? 1.5 : 1;
+        const sw = Math.max(1, Math.round((strokeWidth || 2) * 0.5 * dprScale));
         // Drop shadow for depth (offset down-right)
         this.drawText(text, x + sw, y + sw, font, strokeColor, align, baseline);
         // Cardinal outline only (4 dirs, not 8) — avoids muddy diagonal overlap
@@ -264,6 +300,15 @@ WB.GLText = {
         this.drawText(text, x, y - sw, font, strokeColor, align, baseline);
         this.drawText(text, x, y + sw, font, strokeColor, align, baseline);
         // Fill pass on top
+        this.drawText(text, x, y, font, fillColor, align, baseline);
+    },
+
+    // Lightweight 2-pass text for transient elements (damage numbers, HP, combos)
+    // Uses shadow + fill only (no cardinal outlines) — 67% fewer drawText calls
+    // Shadow offset scales with DPR so it's visible on HiDPI screens
+    drawTextLite(text, x, y, font, fillColor, shadowColor, align, baseline) {
+        const off = WB.GL.dpr >= 1.5 ? 2 : 1;
+        this.drawText(text, x + off, y + off, font, shadowColor, align, baseline);
         this.drawText(text, x, y, font, fillColor, align, baseline);
     },
 

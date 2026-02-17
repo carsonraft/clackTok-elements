@@ -23,6 +23,7 @@ class SobekWeapon extends WB.Weapon {
     }
 
     update() {
+        if (this._deflectReverse > 0) this._deflectReverse--;
         // Track toward nearest enemy (slow pursuit)
         if (WB.Game && WB.Game.balls) {
             let closest = null, closestDist = Infinity;
@@ -37,8 +38,7 @@ class SobekWeapon extends WB.Weapon {
                 let diff = targetAngle - this.angle;
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 while (diff < -Math.PI) diff += Math.PI * 2;
-                const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-                this.angle += Math.sign(diff) * Math.min(Math.abs(diff), this.rotationSpeed) * dir;
+                this.angle += Math.sign(diff) * Math.min(Math.abs(diff), this.rotationSpeed) * this.getDir();
             }
         }
 
@@ -107,58 +107,81 @@ class SobekWeapon extends WB.Weapon {
         const B = WB.GLBatch;
         const r = this.owner.radius;
 
+        // Pressure ratio 0→1 (pressure ranges 0–10)
+        const pRatio = Math.min(1, this.pressure / 10);
+
         // Pressure shake — ball visibly vibrates as pressure builds
         const shakeMag = Math.min(3, this.pressure * 0.05);
         const shakeX = shakeMag > 0.2 ? (Math.sin(this.visualTimer * 0.7) * shakeMag) : 0;
         const shakeY = shakeMag > 0.2 ? (Math.cos(this.visualTimer * 0.9) * shakeMag) : 0;
 
-        // Pressure indicator ring — grows with pressure
-        if (this.pressure > 2) {
-            const pressureAlpha = Math.min(0.25, this.pressure * 0.01);
-            const pulse = Math.sin(this.visualTimer * 0.1) * 0.03;
-            B.setAlpha(pressureAlpha + pulse);
-            B.strokeCircle(this.owner.x + shakeX, this.owner.y + shakeY, r + 3 + this.pressure * 0.1, '#228B22', 1.5);
-            B.restoreAlpha();
-        }
-
         B.pushTransform(this.owner.x + shakeX, this.owner.y + shakeY, this.angle);
 
         // Jaw — two lines that open/close
         const jawLength = this.reach;
-        const jawOpenAngle = this.jawOpen > 0 ? 0.3 * (this.jawOpen / 15) : 0.05; // slight gap normally
+        // Jaw gape WIDENS with pressure (idle gap grows from 0.05 to 0.25)
+        const baseGape = 0.05 + pRatio * 0.2;
+        const jawOpenAngle = this.jawOpen > 0 ? 0.3 * (this.jawOpen / 15) : baseGape;
 
-        // Upper jaw
+        // Tooth color: cream → red as pressure builds
+        const tR = Math.round(238 + (255 - 238) * pRatio);
+        const tG = Math.round(238 - 238 * pRatio * 0.7);
+        const tB_val = Math.round(204 - 204 * pRatio * 0.7);
+        const toothColor = `rgb(${tR},${tG},${tB_val})`;
+
+        // Tooth height grows with pressure (1.0 → 1.5 at max)
+        const toothScale = 1 + pRatio * 0.5;
+
+        // Upper jaw — filled polygon for thick, readable shape
         const ujx = jawLength * 0.9;
         const ujy = -jawOpenAngle * jawLength * 0.3;
-        B.line(r * 0.5, -3, ujx, ujy - 4, '#006400', 3);
-        // Upper teeth
+        B.fillPolygon([
+            [r * 0.5, -1], [r * 0.5, -7],
+            [ujx, ujy - 8], [ujx, ujy - 1]
+        ], '#006400');
+        B.strokePolygon([
+            [r * 0.5, -1], [r * 0.5, -7],
+            [ujx, ujy - 8], [ujx, ujy - 1]
+        ], '#004400', 1.5);
+        // Upper teeth — wider base, taller with pressure
         for (let i = 0; i < 4; i++) {
             const t = 0.3 + i * 0.17;
             const tx = r * 0.5 + (ujx - r * 0.5) * t;
             const ty = -3 + (ujy - 4 + 3) * t;
-            B.fillTriangle(tx, ty, tx - 2, ty - 5, tx + 2, ty - 5, '#EEEECC');
+            const th = 7 * toothScale;
+            B.fillTriangle(tx, ty, tx - 3.5, ty - th, tx + 3.5, ty - th, toothColor);
         }
 
-        // Lower jaw
+        // Lower jaw — filled polygon
         const ljx = jawLength * 0.9;
         const ljy = jawOpenAngle * jawLength * 0.3;
-        B.line(r * 0.5, 3, ljx, ljy + 4, '#006400', 3);
-        // Lower teeth
+        B.fillPolygon([
+            [r * 0.5, 1], [r * 0.5, 7],
+            [ljx, ljy + 8], [ljx, ljy + 1]
+        ], '#006400');
+        B.strokePolygon([
+            [r * 0.5, 1], [r * 0.5, 7],
+            [ljx, ljy + 8], [ljx, ljy + 1]
+        ], '#004400', 1.5);
+        // Lower teeth — wider base, taller with pressure
         for (let i = 0; i < 4; i++) {
             const t = 0.3 + i * 0.17;
             const tx = r * 0.5 + (ljx - r * 0.5) * t;
             const ty = 3 + (ljy + 4 - 3) * t;
-            B.fillTriangle(tx, ty, tx - 2, ty + 5, tx + 2, ty + 5, '#EEEECC');
+            const th = 7 * toothScale;
+            B.fillTriangle(tx, ty, tx - 3.5, ty + th, tx + 3.5, ty + th, toothColor);
         }
 
-        // Snout ridge
-        B.line(r * 0.3, 0, jawLength * 0.4, 0, '#004400', 2);
+        // Snout ridge + nostrils
+        B.line(r * 0.3, 0, jawLength * 0.4, 0, '#004400', 3);
+        B.fillCircle(jawLength * 0.35, -2, 2, '#003300');
+        B.fillCircle(jawLength * 0.35, 2, 2, '#003300');
 
         B.popTransform();
 
         // Super: scales pattern on ball
         if (this.superActive) {
-            B.setAlpha(0.1);
+            B.setAlpha(0.15);
             for (let i = 0; i < 6; i++) {
                 const a = i * Math.PI / 3 + this.visualTimer * 0.005;
                 const sx = this.owner.x + Math.cos(a) * r * 0.6;

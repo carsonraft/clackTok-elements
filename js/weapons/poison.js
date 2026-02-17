@@ -65,6 +65,7 @@ class PoisonWeapon extends WB.Weapon {
                     lifespan: 100,
                     bounces: 1,
                     color: '#66CC33',
+                    shape: 'spiked',
                     piercing: false,
                 }));
             }

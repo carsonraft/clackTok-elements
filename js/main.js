@@ -39,12 +39,13 @@ WB.Game = {
             }
         }, { passive: false });
 
-        // Click handler
+        // Click handler — map CSS click position to logical game coordinates
         this.canvas.addEventListener('click', (e) => {
             WB.Audio.resume(); // Resume audio context on first click
             const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const scaleY = this.canvas.height / rect.height;
+            // Use logical dimensions (not canvas.width which is DPR-scaled)
+            const scaleX = WB.Config.CANVAS_WIDTH / rect.width;
+            const scaleY = WB.Config.CANVAS_HEIGHT / rect.height;
             const mx = (e.clientX - rect.left) * scaleX;
             const my = (e.clientY - rect.top) * scaleY;
             this.handleClick(mx, my);
@@ -147,6 +148,7 @@ WB.Game = {
         this.winner = null;
         this._excitement = new WB.Excitement();
         WB.ArenaModifiers.clear();
+        if (WB.GL) WB.GL.clearMotionBlurHistory();
 
         // Apply selected stage size & friction
         this._applyStageSize();
@@ -177,6 +179,7 @@ WB.Game = {
 
     startBattle() {
         this.state = 'BATTLE';
+        if (WB.GL) WB.GL.clearMotionBlurHistory();
         // Give balls initial random velocity - EXPLOSIVE START
         for (const ball of this.balls) {
             ball.vx = (WB.random() - 0.5) * 22;
@@ -458,6 +461,9 @@ WB.Game = {
                         w2.cooldown = Math.max(w2.cooldown, 10);
                         w1._parryCd = 15;
                         w2._parryCd = 15;
+                        // Reverse both weapons' spin direction on clash
+                        w1._deflectReverse = 30;
+                        w2._deflectReverse = 30;
                         const sparkX = (t1x + t2x) / 2;
                         const sparkY = (t1y + t2y) / 2;
                         this.particles.spark(sparkX, sparkY, 12);
@@ -473,7 +479,10 @@ WB.Game = {
             }
         }
 
-        // 5. Update and check projectiles
+        // 5. Update and check projectiles (cap at 40 to prevent FPS drops)
+        if (this.projectiles.length > 40) {
+            this.projectiles.splice(0, this.projectiles.length - 40);
+        }
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const proj = this.projectiles[i];
             proj.update();
@@ -618,6 +627,7 @@ WB.Game = {
     },
 
     _returnFromResult() {
+        if (WB.GL) WB.GL.clearMotionBlurHistory();
         if (WB.SimUI.isReplaying) {
             const returnState = WB.SimUI.onReplayEnd();
             this.state = returnState;

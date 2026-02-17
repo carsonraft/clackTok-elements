@@ -33,6 +33,21 @@ WB.Renderer = {
         // Arena background
         B.fillRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#FFFDF5');
 
+        // ── Enable scissor to clip all arena content to arena bounds ──
+        // This prevents weapons, projectiles, and effects from rendering
+        // outside the arena rect (especially melee weapons near walls).
+        B.flush(); // flush arena background before enabling scissor
+        const gl = WB.GL.gl;
+        const dpr = WB.GL.dpr;
+        // WebGL scissor uses bottom-left origin (y-flipped) in DEVICE pixels
+        gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(
+            Math.round(c.ARENA.x * dpr),
+            Math.round((c.CANVAS_HEIGHT - c.ARENA.y - c.ARENA.height) * dpr),
+            Math.round(c.ARENA.width * dpr),
+            Math.round(c.ARENA.height * dpr)
+        );
+
         // Draw arena modifiers (behind everything else — flood water, wall shift tint)
         WB.ArenaModifiers.draw();
 
@@ -71,12 +86,17 @@ WB.Renderer = {
         // Draw fancy effects on top of everything
         WB.GLEffects.draw();
 
+        // ── Disable scissor before HUD layer ──
+        B.flush(); // flush all clipped content
+        gl.disable(gl.SCISSOR_TEST);
+
         // ── HUD layer (immune to shake / screen effects) ──
-        B.flush();
         WB.GLEffects.clearShake();
 
         // Arena border — drawn after clearShake so it doesn't shift on bounces
-        B.strokeRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#333', 3);
+        // Slightly thicker on HiDPI for visual weight (3→3.5 compensates for crisp edge)
+        const borderW = WB.GL.dpr >= 1.5 ? 3.5 : 3;
+        B.strokeRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#333', borderW);
 
         // Hide HUD during cutscene (it would render zoomed/panned)
         if (!WB.Cutscene || !WB.Cutscene.isPlaying) {
@@ -142,6 +162,18 @@ WB.Renderer = {
         const T = WB.GLText;
 
         // ── Super Meters — vertically stacked, centered under arena ──
+        // Hide entirely when supers are disabled (bars become meaningless)
+        if (!WB.Config.SUPERS_ENABLED) {
+            // Still show the scaling stats at a simpler position
+            const statY = a.y + a.height + 28;
+            const statFont = 'bold 16px "Courier New", monospace';
+            const leftText = game.balls[0].weapon.getScalingDisplay();
+            T.drawTextWithStroke(leftText, a.x + 22, statY, statFont, game.balls[0].color, '#333', 2, 'left', 'alphabetic');
+            const rightText = game.balls[1].weapon.getScalingDisplay();
+            T.drawTextWithStroke(rightText, a.x + a.width - 6, statY, statFont, game.balls[1].color, '#333', 2, 'right', 'alphabetic');
+            return;
+        }
+
         const meterH = 24;
         const meterGap = 6;
         // Fit within arena width: dot on left, 6px inset on right for stroke
@@ -208,25 +240,27 @@ WB.Renderer = {
                 }
             }
 
-            // Pill outline
-            B.strokeCircle(meterX + pillR, mCenterY, pillR, '#444', 1.5);
-            B.strokeCircle(meterX + meterW - pillR, mCenterY, pillR, '#444', 1.5);
-            B.line(meterX + pillR, my, meterX + meterW - pillR, my, '#444', 1.5);
-            B.line(meterX + pillR, my + meterH, meterX + meterW - pillR, my + meterH, '#444', 1.5);
+            // Pill outline — slightly thicker on HiDPI
+            const pillStroke = WB.GL.dpr >= 1.5 ? 2 : 1.5;
+            B.strokeCircle(meterX + pillR, mCenterY, pillR, '#444', pillStroke);
+            B.strokeCircle(meterX + meterW - pillR, mCenterY, pillR, '#444', pillStroke);
+            B.line(meterX + pillR, my, meterX + meterW - pillR, my, '#444', pillStroke);
+            B.line(meterX + pillR, my + meterH, meterX + meterW - pillR, my + meterH, '#444', pillStroke);
 
             // Segment dividers
             const ticks = weapon.superThreshold;
+            const tickW = WB.GL.dpr >= 1.5 ? 1.5 : 1;
             for (let t = 1; t < ticks; t++) {
                 const tickX = meterX + (t / ticks) * meterW;
                 B.setAlpha(0.2);
-                B.line(tickX, my + 3, tickX, my + meterH - 3, '#AAA', 1);
+                B.line(tickX, my + 3, tickX, my + meterH - 3, '#AAA', tickW);
                 B.restoreAlpha();
             }
 
             // Ball color dot on the left as identifier
             const dotCx = a.x + dotR + 2;
             B.fillCircle(dotCx, mCenterY, dotR, ball.color);
-            B.strokeCircle(dotCx, mCenterY, dotR, '#333', 1.5);
+            B.strokeCircle(dotCx, mCenterY, dotR, '#333', pillStroke);
         }
 
         B.flush();

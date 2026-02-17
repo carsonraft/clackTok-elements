@@ -45,6 +45,7 @@ class LightWeapon extends WB.Weapon {
             lifespan: 100,
             bounces: 1,
             color: '#FFEE88',
+            shape: 'sparkle',
             piercing: true,
         }));
         WB.Audio.projectileFire();
@@ -83,6 +84,7 @@ class LightWeapon extends WB.Weapon {
                     lifespan: 150,
                     bounces: 3,
                     color: '#FFEE88',
+                    shape: 'sparkle',
                     piercing: true,
                 }));
             }

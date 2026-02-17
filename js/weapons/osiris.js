@@ -27,8 +27,8 @@ class OsirisWeapon extends WB.Weapon {
     }
 
     update() {
-        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-        this.angle += this.rotationSpeed * dir;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         this.flailAngle = this.angle + Math.PI;
         if (this.cooldown > 0) this.cooldown--;
         this.visualTimer++;
@@ -146,7 +146,7 @@ class OsirisWeapon extends WB.Weapon {
                 const y1 = this.owner.y + Math.sin(a) * r * 0.7;
                 const x2 = this.owner.x + Math.cos(a + 0.8) * r * 0.9;
                 const y2 = this.owner.y + Math.sin(a + 0.8) * r * 0.9;
-                B.line(x1, y1, x2, y2, '#FFFFFF', 1.5);
+                B.line(x1, y1, x2, y2, '#FFFFFF', 2);
             }
             B.restoreAlpha();
         }
@@ -164,27 +164,27 @@ class OsirisWeapon extends WB.Weapon {
 
         // Crook (short/heavy side)
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        // Shaft
-        B.fillRect(r - 2, -3, this.reach - r + 2, 6, '#5C4033');
-        // Crook hook
-        B.fillCircle(this.reach, -3, 4, '#98FB98');
-        B.fillCircle(this.reach - 3, -6, 3, '#7CDB7C');
-        B.strokeCircle(this.reach - 1, -4, 5, '#4A854A', 1);
+        // Shaft — wider
+        B.fillRect(r - 2, -4, this.reach - r + 2, 8, '#5C4033');
+        // Crook hook — larger circles
+        B.fillCircle(this.reach, -4, 6, '#98FB98');
+        B.fillCircle(this.reach - 4, -8, 4.5, '#7CDB7C');
+        B.strokeCircle(this.reach - 2, -5, 7, '#4A854A', 1.5);
         B.popTransform();
 
         // Flail (long/light side)
         B.pushTransform(this.owner.x, this.owner.y, this.flailAngle);
-        // Chain segments
+        // Chain segments — bigger links
         const chainSegs = 5;
         const segLen = (this.flailReach - r) / chainSegs;
         for (let i = 0; i < chainSegs; i++) {
             const sx = r + i * segLen;
-            B.fillCircle(sx + segLen * 0.5, 0, 2, '#AAAAAA');
+            B.fillCircle(sx + segLen * 0.5, 0, 3, '#AAAAAA');
         }
-        B.line(r, 0, this.flailReach - 8, 0, '#888888', 1.5);
-        // Flail head
-        B.fillCircle(this.flailReach - 4, 0, 6, '#C0C0C0');
-        B.strokeCircle(this.flailReach - 4, 0, 6, '#888888', 1);
+        B.line(r, 0, this.flailReach - 8, 0, '#888888', 2.5);
+        // Flail head — bigger
+        B.fillCircle(this.flailReach - 4, 0, 8, '#C0C0C0');
+        B.strokeCircle(this.flailReach - 4, 0, 8, '#888888', 1.5);
         B.popTransform();
 
         // Super indicator

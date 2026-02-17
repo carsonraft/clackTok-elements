@@ -98,7 +98,7 @@ class RaWeapon extends WB.Weapon {
         // Sun corona — rays that pulse with the cycle
         const rayCount = 8;
         const rayLen = 6 + phase * 10;
-        const rayAlpha = 0.05 + phase * 0.2;
+        const rayAlpha = 0.15 + phase * 0.2;
 
         B.setAlpha(rayAlpha);
         for (let i = 0; i < rayCount; i++) {
@@ -107,7 +107,7 @@ class RaWeapon extends WB.Weapon {
             const y1 = this.owner.y + Math.sin(a) * (r + 2);
             const x2 = this.owner.x + Math.cos(a) * (r + 2 + rayLen);
             const y2 = this.owner.y + Math.sin(a) * (r + 2 + rayLen);
-            B.line(x1, y1, x2, y2, '#FFD700', 1.5 + phase);
+            B.line(x1, y1, x2, y2, '#FFD700', 2.5 + phase * 1.5);
         }
         B.restoreAlpha();
 
@@ -117,15 +117,15 @@ class RaWeapon extends WB.Weapon {
         const diskColor = this._lerpColor('#666666', '#FFD700', phase);
         const diskR = 8;
 
-        // Disk body at reach
-        B.fillCircle(this.reach - 2, 0, diskR, diskColor);
-        B.strokeCircle(this.reach - 2, 0, diskR, '#B8860B', 1.5);
+        // Disk body at reach — slightly larger
+        B.fillCircle(this.reach - 2, 0, diskR + 1, diskColor);
+        B.strokeCircle(this.reach - 2, 0, diskR + 1, '#B8860B', 2);
 
-        // Center eye
-        B.fillCircle(this.reach - 2, 0, 3, '#FFA500');
+        // Center eye — bigger
+        B.fillCircle(this.reach - 2, 0, 4, '#FFA500');
 
-        // Shaft connecting ball to disk
-        B.fillRect(r - 2, -2, this.reach - r - diskR, 4, '#B8860B');
+        // Shaft connecting ball to disk — wider
+        B.fillRect(r - 2, -3, this.reach - r - diskR, 6, '#B8860B');
 
         // Phase glow on disk
         if (phase > 0.3) {

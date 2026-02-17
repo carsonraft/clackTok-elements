@@ -4,15 +4,20 @@ window.WB = window.WB || {};
 WB.GL = {
     gl: null,
     canvas: null,
-    width: 0,
-    height: 0,
-    programs: {},      // compiled shader programs
-    projMatrix: null,  // Float32Array(9) for 3x3 ortho projection
+    width: 0,            // logical width (game coordinates)
+    height: 0,           // logical height (game coordinates)
+    dpr: 1,              // device pixel ratio (capped at 2x)
+    programs: {},        // compiled shader programs
+    projMatrix: null,    // Float32Array(9) for 3x3 ortho projection
     // Post-processing
     _fbo: null,
     _fboTexture: null,
     _ppQuadVAO: null,
     _ppQuadVBO: null,
+    // Motion blur (accumulation buffer)
+    _historyFbo: null,
+    _historyTexture: null,
+    _historyPrimed: false,
     // Deformation parameters
     _deform: {
         chromaticAberration: 0,  // 0-1 intensity
@@ -23,8 +28,18 @@ WB.GL = {
 
     init(canvas) {
         this.canvas = canvas;
+        // Detect device pixel ratio — cap at 2x to avoid 3x perf hit on ultra-high DPI
+        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        // Store logical dimensions (game coordinate space)
         this.width = canvas.width;
         this.height = canvas.height;
+        // Scale canvas backing store to device pixels for crisp rendering
+        const dpr = this.dpr;
+        canvas.width = Math.round(this.width * dpr);
+        canvas.height = Math.round(this.height * dpr);
+        canvas.style.width = this.width + 'px';
+        canvas.style.height = this.height + 'px';
+
         const gl = canvas.getContext('webgl2', {
             alpha: false,
             antialias: true,
@@ -43,7 +58,7 @@ WB.GL = {
         // Compile shader programs
         this._compilePrograms();
 
-        // Build orthographic projection (maps pixel coords → clip space)
+        // Build orthographic projection (maps LOGICAL pixel coords → clip space)
         // x: [0, width] → [-1, 1]
         // y: [0, height] → [1, -1]  (flipped so y-down like Canvas 2D)
         this.projMatrix = new Float32Array([
@@ -64,10 +79,13 @@ WB.GL = {
     },
 
     _initPostProcess(gl) {
-        // Create FBO texture
+        // Create FBO texture at device pixel resolution for crisp rendering
+        const dpr = this.dpr;
+        const devW = Math.round(this.width * dpr);
+        const devH = Math.round(this.height * dpr);
         this._fboTexture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this._fboTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, devW, devH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -79,6 +97,21 @@ WB.GL = {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this._fboTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.bindTexture(gl.TEXTURE_2D, null);
+
+        // Motion blur history texture + FBO (same size as scene FBO)
+        this._historyTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this._historyTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, devW, devH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        this._historyFbo = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this._historyFbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this._historyTexture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        this._historyPrimed = false;
 
         // Create fullscreen quad VAO for post-process pass
         const quadVerts = new Float32Array([
@@ -102,27 +135,41 @@ WB.GL = {
     },
 
     resize(w, h) {
-        this.width = w;
-        this.height = h;
-        this.canvas.width = w;
-        this.canvas.height = h;
-        // Update projection matrix
+        const dpr = this.dpr;
+        this.width = w;    // logical (game coordinates)
+        this.height = h;   // logical (game coordinates)
+        // Canvas backing store at device pixel resolution
+        this.canvas.width = Math.round(w * dpr);
+        this.canvas.height = Math.round(h * dpr);
+        // CSS size stays at logical pixels (browser handles display scaling)
+        this.canvas.style.width = w + 'px';
+        this.canvas.style.height = h + 'px';
+        // Projection matrix uses logical coords — all game draw calls unchanged
         this.projMatrix[0] = 2 / w;
         this.projMatrix[4] = -2 / h;
-        // Resize FBO texture
+        // Resize FBO texture to device pixels
         const gl = this.gl;
+        const devW = Math.round(w * dpr);
+        const devH = Math.round(h * dpr);
         gl.bindTexture(gl.TEXTURE_2D, this._fboTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, devW, devH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        // Resize motion blur history texture
+        if (this._historyTexture) {
+            gl.bindTexture(gl.TEXTURE_2D, this._historyTexture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, devW, devH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            this._historyPrimed = false;
+        }
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
     beginFrame() {
         const gl = this.gl;
+        const dpr = this.dpr;
         this._deform.time += 1 / 60;
 
-        // Render to FBO
+        // Render to FBO at device pixel resolution
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
-        gl.viewport(0, 0, this.width, this.height);
+        gl.viewport(0, 0, Math.round(this.width * dpr), Math.round(this.height * dpr));
         gl.clearColor(1, 0.973, 0.906, 1); // #FFF8E7
         gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -133,11 +180,18 @@ WB.GL = {
 
     endFrame() {
         const gl = this.gl;
+        const dpr = this.dpr;
+        const devW = Math.round(this.width * dpr);
+        const devH = Math.round(this.height * dpr);
         WB.GLBatch.flush();
 
-        // Switch to default framebuffer and draw post-processed result
+        // Compute effective motion blur
+        const motionBlur = WB.Config.MOTION_BLUR_ENABLED ? (WB.Config.MOTION_BLUR_STRENGTH || 0.25) : 0;
+        const useMotionBlur = motionBlur > 0.001 && this._historyPrimed;
+
+        // Switch to default framebuffer at device pixel resolution
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, this.width, this.height);
+        gl.viewport(0, 0, devW, devH);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         // Check if any deformation is active
@@ -152,41 +206,96 @@ WB.GL = {
         gl.bindTexture(gl.TEXTURE_2D, this._fboTexture);
         gl.uniform1i(prog._unis['u_scene'], 2);
 
-        // Uniforms
-        gl.uniform1f(prog._unis['u_time'], d.time);
-        gl.uniform2f(prog._unis['u_resolution'], this.width, this.height);
-        gl.uniform1f(prog._unis['u_chromatic'], d.chromaticAberration);
-        gl.uniform1f(prog._unis['u_barrel'], d.barrelDistort);
-
-        // Shockwave data (max 4 active)
-        const maxShocks = 4;
-        const shockData = new Float32Array(maxShocks * 4); // x, y, time, intensity
-        const count = Math.min(d.shockwaves.length, maxShocks);
-        for (let i = 0; i < count; i++) {
-            const sw = d.shockwaves[i];
-            shockData[i * 4 + 0] = sw.x / this.width;
-            shockData[i * 4 + 1] = 1.0 - sw.y / this.height; // flip Y
-            shockData[i * 4 + 2] = sw.time;
-            shockData[i * 4 + 3] = sw.intensity;
+        // Motion blur: bind history texture
+        gl.uniform1f(prog._unis['u_motionBlur'], useMotionBlur ? motionBlur : 0);
+        if (useMotionBlur) {
+            gl.activeTexture(gl.TEXTURE3);
+            gl.bindTexture(gl.TEXTURE_2D, this._historyTexture);
+            gl.uniform1i(prog._unis['u_history'], 3);
         }
-        gl.uniform1i(prog._unis['u_shockCount'], count);
-        gl.uniform4fv(prog._unis['u_shockwaves[0]'], shockData);
 
-        // Draw fullscreen quad
+        if (hasDeform) {
+            // Full uniform setup only when effects are active
+            gl.uniform1f(prog._unis['u_time'], d.time);
+            gl.uniform2f(prog._unis['u_resolution'], devW, devH);
+            gl.uniform1f(prog._unis['u_chromatic'], d.chromaticAberration);
+            gl.uniform1f(prog._unis['u_barrel'], d.barrelDistort);
+
+            // Shockwave data (max 4 active)
+            const maxShocks = 4;
+            const shockData = new Float32Array(maxShocks * 4);
+            const count = Math.min(d.shockwaves.length, maxShocks);
+            for (let i = 0; i < count; i++) {
+                const sw = d.shockwaves[i];
+                shockData[i * 4 + 0] = sw.x / this.width;
+                shockData[i * 4 + 1] = 1.0 - sw.y / this.height;
+                shockData[i * 4 + 2] = sw.time;
+                shockData[i * 4 + 3] = sw.intensity;
+            }
+            gl.uniform1i(prog._unis['u_shockCount'], count);
+            gl.uniform4fv(prog._unis['u_shockwaves[0]'], shockData);
+        } else {
+            // Fast path: zero out deformation uniforms (shader passthrough)
+            gl.uniform1f(prog._unis['u_chromatic'], 0);
+            gl.uniform1f(prog._unis['u_barrel'], 0);
+            gl.uniform1i(prog._unis['u_shockCount'], 0);
+        }
+
+        // Draw fullscreen quad (post-process + motion blur blend to screen)
         gl.bindVertexArray(this._ppQuadVAO);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         gl.bindVertexArray(null);
 
-        // Decay deformation params
-        d.chromaticAberration *= 0.92;
-        d.barrelDistort *= 0.9;
+        // ─── Motion blur: copy scene into history texture via hardware blending ───
+        if (motionBlur > 0.001) {
+            // Unbind history texture from TEXTURE3 to break the feedback loop
+            // (WebGL flags an error if any bound texture is also a framebuffer attachment)
+            gl.activeTexture(gl.TEXTURE3);
+            gl.bindTexture(gl.TEXTURE_2D, null);
 
-        // Update and prune shockwaves
-        for (let i = d.shockwaves.length - 1; i >= 0; i--) {
-            d.shockwaves[i].time += d.shockwaves[i].speed;
-            d.shockwaves[i].intensity *= 0.94;
-            if (d.shockwaves[i].intensity < 0.005 || d.shockwaves[i].time > 2.0) {
-                d.shockwaves.splice(i, 1);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this._historyFbo);
+            gl.viewport(0, 0, devW, devH);
+
+            if (!this._historyPrimed) {
+                // First frame: copy scene directly (no blend with empty texture)
+                gl.disable(gl.BLEND);
+            } else {
+                // Blend: newHistory = scene * (1-blur) + oldHistory * blur
+                // CONSTANT_ALPHA uses the alpha from blendColor
+                gl.blendColor(0, 0, 0, 1 - motionBlur);
+                gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
+            }
+
+            // Zero out deformation uniforms so shader acts as passthrough for scene → history copy
+            gl.uniform1f(prog._unis['u_chromatic'], 0);
+            gl.uniform1f(prog._unis['u_barrel'], 0);
+            gl.uniform1i(prog._unis['u_shockCount'], 0);
+            gl.uniform1f(prog._unis['u_motionBlur'], 0);
+
+            // Scene texture is still bound on TEXTURE2
+            gl.bindVertexArray(this._ppQuadVAO);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            gl.bindVertexArray(null);
+
+            // Restore standard blend state
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            if (!this._historyPrimed) gl.enable(gl.BLEND);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            this._historyPrimed = true;
+        }
+
+        // Decay deformation params
+        if (hasDeform) {
+            d.chromaticAberration *= 0.92;
+            d.barrelDistort *= 0.9;
+
+            // Update and prune shockwaves
+            for (let i = d.shockwaves.length - 1; i >= 0; i--) {
+                d.shockwaves[i].time += d.shockwaves[i].speed;
+                d.shockwaves[i].intensity *= 0.94;
+                if (d.shockwaves[i].intensity < 0.005 || d.shockwaves[i].time > 2.0) {
+                    d.shockwaves.splice(i, 1);
+                }
             }
         }
     },
@@ -208,6 +317,11 @@ WB.GL = {
 
     triggerBarrelDistort(intensity) {
         this._deform.barrelDistort = Math.max(this._deform.barrelDistort, intensity || 0.3);
+    },
+
+    // Reset motion blur history (call on state transitions to prevent ghosting)
+    clearMotionBlurHistory() {
+        this._historyPrimed = false;
     },
 
     // ─── Shader Compilation ─────────────────────────────────
@@ -356,10 +470,12 @@ WB.GL = {
             precision highp float;
             in vec2 v_uv;
             uniform sampler2D u_scene;
+            uniform sampler2D u_history;
             uniform float u_time;
             uniform vec2 u_resolution;
             uniform float u_chromatic;
             uniform float u_barrel;
+            uniform float u_motionBlur;
             uniform int u_shockCount;
             uniform vec4 u_shockwaves[4]; // xy=center, z=time, w=intensity
             out vec4 fragColor;
@@ -402,16 +518,26 @@ WB.GL = {
                     uv += dir * ring * intensity * 0.04;
                 }
 
-                // Chromatic aberration
+                // Sample current frame (with deformations applied via distorted uv)
+                vec4 currentColor;
                 if (u_chromatic > 0.001) {
                     vec2 cc = uv - 0.5;
                     float aberr = u_chromatic * 0.008;
                     float r = texture(u_scene, uv + cc * aberr).r;
                     float g = texture(u_scene, uv).g;
                     float b = texture(u_scene, uv - cc * aberr).b;
-                    fragColor = vec4(r, g, b, 1.0);
+                    currentColor = vec4(r, g, b, 1.0);
                 } else {
-                    fragColor = texture(u_scene, uv);
+                    currentColor = texture(u_scene, uv);
+                }
+
+                // Motion blur: blend current frame with history (accumulation buffer)
+                // History is sampled at undistorted v_uv — deformations already baked in
+                if (u_motionBlur > 0.001) {
+                    vec4 historyColor = texture(u_history, v_uv);
+                    fragColor = mix(currentColor, historyColor, u_motionBlur);
+                } else {
+                    fragColor = currentColor;
                 }
             }`
         );

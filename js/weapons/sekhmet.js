@@ -22,8 +22,8 @@ class SekhmetWeapon extends WB.Weapon {
     }
 
     update() {
-        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-        this.angle += this.rotationSpeed * dir;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         this.claw2Angle = this.angle + Math.PI;
         if (this.cooldown > 0) this.cooldown--;
         this.visualTimer++;
@@ -129,47 +129,49 @@ class SekhmetWeapon extends WB.Weapon {
         const B = WB.GLBatch;
         const r = this.owner.radius;
 
+        // Frenzy ratio 0→1 based on hit count (ramps over ~20 hits)
+        const frenzy = Math.min(1, this.hitCount / 20);
+
         // Draw claw 1
-        this._drawClaw(B, r, this.angle);
+        this._drawClaw(B, r, this.angle, frenzy);
         // Draw claw 2
-        this._drawClaw(B, r, this.claw2Angle);
+        this._drawClaw(B, r, this.claw2Angle, frenzy);
 
-        // Frenzy aura — intensifies with hit count
-        const frenzy = Math.min(1, this.hitCount / 30);
-        if (frenzy > 0.1) {
-            const pulse = Math.sin(this.visualTimer * 0.08) * 0.04;
-            B.setAlpha(frenzy * 0.1 + pulse);
-            B.strokeCircle(this.owner.x, this.owner.y, r + 3, '#DC143C', 1.5);
-            B.restoreAlpha();
-        }
-
-        // Super: blood ring
+        // Super: blood ring — reach indicator for trail hazards
         if (this.superActive) {
             const superPulse = Math.sin(this.visualTimer * 0.1) * 0.05;
-            B.setAlpha(0.15 + superPulse);
+            B.setAlpha(0.2 + superPulse);
             B.strokeCircle(this.owner.x, this.owner.y, this.reach, '#8B0000', 1.5);
             B.restoreAlpha();
         }
     }
 
-    _drawClaw(B, r, angle) {
+    _drawClaw(B, r, angle, frenzy) {
         B.pushTransform(this.owner.x, this.owner.y, angle);
 
-        // Claw arm
-        B.fillRect(r - 2, -3, this.reach - r - 8, 6, '#5C1010');
+        // Claw arm — wider
+        B.fillRect(r - 2, -4, this.reach - r - 8, 8, '#5C1010');
 
-        // Three claw fingers
+        // Three claw fingers — LENGTH and COLOR scale with frenzy
         const clawBase = this.reach - 12;
-        const clawLen = 14;
+        const clawLen = 14 * (1 + frenzy * 0.5); // grows up to 50% longer
+        // Color shifts: crimson #DC143C → hot white-red #FF6666
+        const cR = Math.round(220 + (255 - 220) * frenzy);
+        const cG = Math.round(20 + (102 - 20) * frenzy);
+        const cB = Math.round(60 + (102 - 60) * frenzy);
+        const clawColor = `rgb(${cR},${cG},${cB})`;
+        // Tip radius grows with frenzy — bigger base
+        const tipRadius = 2.5 + frenzy * 1.5;
+
         for (let i = -1; i <= 1; i++) {
             const spread = i * 0.25;
             const cx1 = clawBase;
             const cy1 = i * 3;
             const cx2 = clawBase + clawLen;
             const cy2 = i * 5 + spread * 8;
-            B.line(cx1, cy1, cx2, cy2, '#DC143C', 2);
-            // Claw tip
-            B.fillCircle(cx2, cy2, 1.5, '#FF4444');
+            B.line(cx1, cy1, cx2, cy2, clawColor, 3 + frenzy * 0.5);
+            // Claw tip — pulses larger at high frenzy
+            B.fillCircle(cx2, cy2, tipRadius, '#FF4444');
         }
 
         B.popTransform();

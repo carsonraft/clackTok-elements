@@ -50,6 +50,7 @@ class WaterWeapon extends WB.Weapon {
                 lifespan: 120,
                 bounces: 1,
                 color: '#3388DD',
+                shape: 'wave',
                 piercing: false,
             }));
         }
@@ -93,6 +94,7 @@ class WaterWeapon extends WB.Weapon {
                     lifespan: 180,
                     bounces: 3,
                     color: '#3388DD',
+                    shape: 'wave',
                     piercing: true,
                 }));
             }

@@ -65,6 +65,7 @@ class ZeusWeapon extends WB.Weapon {
             lifespan: 100,
             bounces: this.boltBounces,
             color: '#FFD700',
+            shape: 'bolt',
             homing: 0.02,           // mild homing — lightning seeks targets
             damageFalloff: 0.25,    // less damage loss per bounce (was 0.35)
         }));

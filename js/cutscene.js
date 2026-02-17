@@ -78,38 +78,44 @@ WB.Cutscene = {
     },
 
     // ── Voice presets (name → { rate, pitch, volume, voiceSearch }) ──
-    // voiceSearch: array of substrings to match against browser voice names
+    // voiceSearch: array of substrings to match against browser voice names.
+    // Priority order: first match wins. macOS novelty voices listed first for variety,
+    // then Google/Microsoft voices for Chrome, then generic fallbacks.
     _voicePresets: {
-        narrator:   { rate: 1.1, pitch: 0.8,  volume: 0.8, voiceSearch: ['Google UK English Male', 'Daniel', 'Alex', 'Microsoft David'] },
-        epic:       { rate: 0.85, pitch: 0.5, volume: 0.9, voiceSearch: ['Google UK English Male', 'Daniel', 'Alex'] },
-        hype:       { rate: 1.4, pitch: 1.2,  volume: 0.9, voiceSearch: ['Google US English', 'Samantha', 'Karen'] },
-        villain:    { rate: 0.9, pitch: 0.3,  volume: 0.85, voiceSearch: ['Google UK English Male', 'Daniel', 'Microsoft David'] },
-        whisper:    { rate: 0.8, pitch: 0.6,  volume: 0.4, voiceSearch: ['Google UK English Female', 'Samantha', 'Fiona'] },
-        robot:      { rate: 1.3, pitch: 0.1,  volume: 0.7, voiceSearch: ['Google US English', 'Alex'] },
-        excited:    { rate: 1.6, pitch: 1.5,  volume: 1.0, voiceSearch: ['Google US English', 'Samantha', 'Karen'] },
-        dramatic:   { rate: 0.7, pitch: 0.4,  volume: 0.9, voiceSearch: ['Google UK English Male', 'Daniel'] },
-        chipmunk:   { rate: 1.8, pitch: 2.0,  volume: 0.8, voiceSearch: ['Google US English', 'Samantha'] },
-        god:        { rate: 0.6, pitch: 0.2,  volume: 1.0, voiceSearch: ['Google UK English Male', 'Daniel', 'Alex'] },
+        narrator:   { rate: 1.0, pitch: 0.9,  volume: 0.85, voiceSearch: ['Daniel', 'Google UK English Male', 'Microsoft David', 'Ralph'] },
+        epic:       { rate: 0.75, pitch: 0.5, volume: 1.0,  voiceSearch: ['Bad News', 'Daniel', 'Google UK English Male', 'Fred'] },
+        hype:       { rate: 1.4, pitch: 1.3,  volume: 1.0,  voiceSearch: ['Good News', 'Superstar', 'Google US English', 'Samantha'] },
+        villain:    { rate: 0.8, pitch: 0.3,  volume: 0.9,  voiceSearch: ['Zarvox', 'Trinoids', 'Google UK English Male', 'Fred'] },
+        whisper:    { rate: 0.7, pitch: 0.7,  volume: 0.3,  voiceSearch: ['Whisper', 'Samantha', 'Google UK English Female', 'Fiona'] },
+        robot:      { rate: 1.2, pitch: 0.1,  volume: 0.8,  voiceSearch: ['Trinoids', 'Zarvox', 'Cellos', 'Google US English'] },
+        excited:    { rate: 1.5, pitch: 1.6,  volume: 1.0,  voiceSearch: ['Superstar', 'Good News', 'Karen', 'Google US English'] },
+        dramatic:   { rate: 0.6, pitch: 0.4,  volume: 0.9,  voiceSearch: ['Cellos', 'Bad News', 'Daniel', 'Google UK English Male'] },
+        chipmunk:   { rate: 1.8, pitch: 2.0,  volume: 0.9,  voiceSearch: ['Bells', 'Bubbles', 'Samantha', 'Google US English'] },
+        god:        { rate: 0.5, pitch: 0.15, volume: 1.0,  voiceSearch: ['Organ', 'Bad News', 'Cellos', 'Daniel'] },
+        jester:     { rate: 1.3, pitch: 1.4,  volume: 0.9,  voiceSearch: ['Jester', 'Boing', 'Good News', 'Google US English'] },
+        grandpa:    { rate: 0.8, pitch: 0.6,  volume: 0.8,  voiceSearch: ['Grandpa', 'Ralph', 'Fred', 'Daniel'] },
     },
 
     // ── Camera presets (shorthand names for common camera moves) ──
+    // NOTE: Balls are 30px radius. At zoom 2x the visible viewport is ~270x480.
+    // Keep zoom ≤ 2.5 to ensure balls remain visible and recognizable.
     _cameraPresets: {
-        // Extreme close-ups
-        'extreme-closeup':  { zoom: 5.0, ease: 0.08 },
-        'closeup':          { zoom: 3.0, ease: 0.06 },
-        'medium':           { zoom: 2.0, ease: 0.05 },
-        'wide':             { zoom: 1.0, ease: 0.04 },
-        'ultra-wide':       { zoom: 0.7, ease: 0.03 },
+        // Framing presets
+        'extreme-closeup':  { zoom: 2.5, ease: 0.08 },    // Tight on one ball
+        'closeup':          { zoom: 2.0, ease: 0.06 },     // Ball fills ~1/4 screen
+        'medium':           { zoom: 1.5, ease: 0.05 },     // Both balls often visible
+        'wide':             { zoom: 1.0, ease: 0.04 },     // Full arena
+        'ultra-wide':       { zoom: 0.75, ease: 0.03 },    // Arena with padding
 
         // Dramatic moves
-        'slam-zoom':        { zoom: 4.0, ease: 0.15 },    // Very fast zoom in
-        'slow-push':        { zoom: 2.5, ease: 0.015 },   // Slow creeping zoom
-        'pull-back':        { zoom: 0.8, ease: 0.03 },    // Slow zoom out past normal
-        'snap-to':          { zoom: 3.0, ease: 1.0 },     // Instant cut (ease=1 = immediate)
+        'slam-zoom':        { zoom: 2.2, ease: 0.18 },     // Fast zoom in (visible ball)
+        'slow-push':        { zoom: 1.8, ease: 0.012 },    // Slow creeping zoom
+        'pull-back':        { zoom: 0.8, ease: 0.03 },     // Slow zoom out past normal
+        'snap-to':          { zoom: 2.0, ease: 1.0 },      // Instant cut (ease=1 = immediate)
 
         // Dutch angles (rotation)
-        'dutch-left':       { rotation: -0.15, ease: 0.05 },
-        'dutch-right':      { rotation: 0.15, ease: 0.05 },
+        'dutch-left':       { rotation: -0.12, ease: 0.05 },
+        'dutch-right':      { rotation: 0.12, ease: 0.05 },
         'level':            { rotation: 0, ease: 0.05 },
     },
 
@@ -725,16 +731,15 @@ WB.Cutscene = {
             const cosR = Math.cos(rot);
             const sinR = Math.sin(rot);
             const proj = WB.GL.projMatrix;
-            // Compose: scale * rotate * translate + shake
+            // Compose: zoom * rotate * (pixel - camera) → NDC
+            // NDC_x uses +proj[6] with negative sign (px=0 → NDC -1)
+            // NDC_y uses +proj[7] with positive sign (py=0 → NDC +1, y flipped)
             proj[0] = (2 * z * cosR) / w;
             proj[1] = (2 * z * sinR) / h;
             proj[3] = -(2 * z * sinR) / w;
             proj[4] = -(2 * z * cosR) / h;
             proj[6] = -(2 * z * (cam.x * cosR - cam.y * sinR)) / w + (2 * sx * z) / w;
-            proj[7] = -(2 * z * (cam.x * sinR + cam.y * cosR)) / h + (2 * sy * z) / h;
-            // Adjust translation for NDC offset
-            proj[6] += 0; // shake already composed above
-            proj[7] += 0;
+            proj[7] = (2 * z * (cam.x * sinR + cam.y * cosR)) / h + (2 * sy * z) / h;
             proj[2] = 0; proj[5] = 0; proj[8] = 1;
         };
 
@@ -752,7 +757,7 @@ WB.Cutscene = {
             proj[3] = -(2 * z * sinR) / w;
             proj[4] = -(2 * z * cosR) / h;
             proj[6] = -(2 * z * (cam.x * cosR - cam.y * sinR)) / w;
-            proj[7] = -(2 * z * (cam.x * sinR + cam.y * cosR)) / h;
+            proj[7] = (2 * z * (cam.x * sinR + cam.y * cosR)) / h;
             proj[2] = 0; proj[5] = 0; proj[8] = 1;
         };
     },
@@ -775,8 +780,10 @@ WB.Cutscene = {
         const s = this._speech;
         if (!s.synth) {
             // Fallback: estimate speech duration from text length
+            // ~150 words/min at normal rate = ~2.5 words/sec → 24 frames/word
+            const words = text.split(/\s+/).length;
             s.isSpeaking = true;
-            s._fallbackTimer = Math.max(60, text.length * 3); // ~3 frames per char
+            s._fallbackTimer = Math.max(180, words * 24);
             return;
         }
         this._cancelSpeech();
@@ -807,8 +814,15 @@ WB.Cutscene = {
         utterance.onerror = () => { s.isSpeaking = false; };
 
         s.isSpeaking = true;
-        // Fallback timeout in case speech stalls (e.g. tab hidden)
-        s._fallbackTimer = Math.max(120, text.length * 4);
+        // Fallback timeout in case speech stalls (e.g. tab hidden, voice hangs).
+        // Must be generous enough for slow voices (rate=0.5 can take 3x longer).
+        // Average English speech ~150 words/min = ~2.5 words/sec.
+        // At rate=0.5, that halves to ~1.25 words/sec.
+        // Estimate: (wordCount / (2.5 * rate)) * 60fps, with generous padding.
+        const wordCount = text.split(/\s+/).length;
+        const rate = utterance.rate || 1.0;
+        const estimatedFrames = Math.ceil((wordCount / (2.5 * rate)) * 60);
+        s._fallbackTimer = Math.max(300, estimatedFrames * 2.5);
         s.synth.speak(utterance);
     },
 
@@ -829,7 +843,9 @@ WB.Cutscene = {
         d.accum = 0;
         d.revealRate = (opts && opts.speed) || 1.5;
         d.isActive = true;
-        d.holdTimer = (opts && opts.hold) || 90;
+        // Default hold: at least 3 seconds (180 frames), or longer for longer text
+        const minHold = Math.max(180, text.length * 3);
+        d.holdTimer = (opts && opts.hold !== undefined) ? opts.hold : minHold;
         d.boxAlpha = 0;
         d.speaker = (opts && opts.speaker) || 'NARRATOR';
     },
@@ -847,8 +863,12 @@ WB.Cutscene = {
                 d.accum -= 1;
             }
         } else {
-            d.holdTimer--;
-            if (d.holdTimer <= -30) {
+            // Don't count down hold timer while speech is still playing —
+            // this ensures the dialogue stays visible until the voice finishes
+            if (!this._speech.isSpeaking) {
+                d.holdTimer--;
+            }
+            if (d.holdTimer <= -30 && !this._speech.isSpeaking) {
                 // Fade out
                 d.boxAlpha = Math.max(0, d.boxAlpha - 0.06);
                 if (d.boxAlpha <= 0) d.isActive = false;
@@ -1000,36 +1020,38 @@ WB.Cutscene = {
 
             // Opening wide shot with dramatic voice
             { type: 'parallel', steps: [
-                { type: 'camera', target: 'arena', zoom: 1.0, ease: 0.05, duration: 120 },
-                { type: 'narrate', text: opening, voice: 'narrator', hold: 20, speed: 1.2 },
+                { type: 'camera', target: 'arena', zoom: 1.0, ease: 0.04, duration: 240 },
+                { type: 'narrate', text: opening, voice: 'dramatic', hold: 60, speed: 1.0 },
             ]},
 
             // Slam zoom to ball 1
             { type: 'parallel', steps: [
-                { type: 'camera', target: 'ball1', preset: 'slam-zoom', duration: 60 },
-                { type: 'effect', name: 'shake', intensity: 3 },
+                { type: 'camera', target: 'ball1', preset: 'slam-zoom', duration: 40 },
+                { type: 'effect', name: 'shake', intensity: 4 },
             ]},
+            // Hold on ball 1 — visible at 2.0x
             { type: 'parallel', steps: [
-                { type: 'camera', target: 'ball1', zoom: 2.8, ease: 0.03, duration: 120 },
+                { type: 'camera', target: 'ball1', zoom: 2.0, ease: 0.03, duration: 240 },
                 { type: 'narrate', text: 'On the left: ' + name1 + '. ' + intro1,
-                  voice: 'narrator', hold: 15, speed: 1.5 },
+                  voice: 'hype', hold: 60, speed: 1.2 },
             ]},
 
             // Slam zoom to ball 2
             { type: 'parallel', steps: [
-                { type: 'camera', target: 'ball2', preset: 'slam-zoom', duration: 60 },
-                { type: 'effect', name: 'shake', intensity: 3 },
+                { type: 'camera', target: 'ball2', preset: 'slam-zoom', duration: 40 },
+                { type: 'effect', name: 'shake', intensity: 4 },
             ]},
+            // Hold on ball 2 — visible at 2.0x
             { type: 'parallel', steps: [
-                { type: 'camera', target: 'ball2', zoom: 2.8, ease: 0.03, duration: 120 },
+                { type: 'camera', target: 'ball2', zoom: 2.0, ease: 0.03, duration: 240 },
                 { type: 'narrate', text: 'On the right: ' + name2 + '. ' + intro2,
-                  voice: 'narrator', hold: 15, speed: 1.5 },
+                  voice: 'villain', hold: 60, speed: 1.2 },
             ]},
 
             // Pull back to arena, drop letterbox
             { type: 'letterbox', active: false },
-            { type: 'camera', target: 'arena', zoom: 1.0, ease: 0.04, duration: 40 },
-            { type: 'wait', frames: 10 },
+            { type: 'camera', target: 'arena', zoom: 1.0, ease: 0.06, duration: 60 },
+            { type: 'wait', frames: 15 },
         ];
     },
 
@@ -1058,15 +1080,15 @@ WB.Cutscene = {
             // Dramatic slam-zoom to winner
             { type: 'parallel', steps: [
                 { type: 'camera', target: 'winner', preset: 'slam-zoom', duration: 30 },
-                { type: 'effect', name: 'shake', intensity: 8 },
-                { type: 'effect', name: 'chromatic', intensity: 0.15 },
+                { type: 'effect', name: 'shake', intensity: 6 },
+                { type: 'effect', name: 'chromatic', intensity: 0.12 },
             ]},
 
-            // Hold on winner with epic voice
+            // Hold on winner with epic voice — visible at 2.0x
             { type: 'parallel', steps: [
-                { type: 'camera', target: 'winner', zoom: 3.5, ease: 0.02, duration: 120 },
+                { type: 'camera', target: 'winner', zoom: 2.0, ease: 0.02, duration: 240 },
                 { type: 'narrate', text: winText + ' ' + quip,
-                  voice: 'epic', hold: 45, speed: 1.3 },
+                  voice: 'epic', hold: 90, speed: 1.0 },
             ]},
 
             // Pull back, drop bars

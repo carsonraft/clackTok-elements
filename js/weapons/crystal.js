@@ -100,6 +100,7 @@ class CrystalWeapon extends WB.Weapon {
                     lifespan: 150,
                     bounces: 3,
                     color: '#CC66FF',
+                    shape: 'hexagon',
                     piercing: true,
                 }));
             }

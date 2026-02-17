@@ -25,6 +25,8 @@ WB.Config = {
     WEAPON_WALL_DMG_BOUNCE: false,
     SUPERS_ENABLED: true,
     CUTSCENE_ENABLED: false,
+    MOTION_BLUR_ENABLED: true,
+    MOTION_BLUR_STRENGTH: 0.25,  // 0=off, 0.5=full 180° shutter, 0.25=subtle cinematic
     // Stage size presets (index into STAGE_PRESETS)
     STAGE_SIZE_INDEX: 1,
     STAGE_PRESETS: [

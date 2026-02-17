@@ -74,6 +74,7 @@ class GunclackerWeapon extends WB.Weapon {
             lifespan: 50,
             bounces: 1,
             color: '#FFD700',
+            shape: 'bullet',
         }));
 
         this.roundsFired++;
@@ -180,6 +181,7 @@ class GunclackerWeapon extends WB.Weapon {
                 lifespan: 55,
                 bounces: 1,
                 color: '#FF4400',
+                shape: 'bullet',
             }));
         }
 

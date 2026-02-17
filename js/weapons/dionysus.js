@@ -29,8 +29,8 @@ class DionysusWeapon extends WB.Weapon {
     }
 
     update() {
-        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-        this.angle += this.rotationSpeed * dir;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         if (this.dualVine) {
             this.vine2Angle = this.angle + Math.PI;
         }

@@ -52,6 +52,7 @@ class ApolloWeapon extends WB.Weapon {
                 lifespan: 90,          // shorter lifespan (was 120)
                 bounces: 0,            // no bounces (was 1) — small arena bounces too strong
                 color: '#FFA500',
+                shape: 'sun-arrow',
                 piercing: this.superActive, // piercing during super
             }));
         }

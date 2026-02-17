@@ -22,7 +22,8 @@ class ShadowWeapon extends WB.Weapon {
     }
 
     update() {
-        this.angle += this.rotationSpeed;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         if (this.cooldown > 0) this.cooldown--;
         this.flickerTimer++;
         this.phaseTimer++;

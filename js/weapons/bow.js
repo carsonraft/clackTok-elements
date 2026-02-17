@@ -47,6 +47,7 @@ class BowWeapon extends WB.Weapon {
                 lifespan: 150,
                 bounces: 0,
                 color: '#F0D264',
+                shape: 'arrow',
             }));
         }
         WB.Audio.projectileFire();

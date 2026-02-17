@@ -25,6 +25,7 @@ class WadjetWeapon extends WB.Weapon {
     }
 
     update() {
+        if (this._deflectReverse > 0) this._deflectReverse--;
         // Aim toward nearest enemy
         if (WB.Game && WB.Game.balls) {
             let closest = null, closestDist = Infinity;
@@ -39,7 +40,7 @@ class WadjetWeapon extends WB.Weapon {
                 let diff = targetAngle - this.angle;
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 while (diff < -Math.PI) diff += Math.PI * 2;
-                this.angle += diff * 0.06;
+                this.angle += diff * 0.06 * this.getDir();
             }
         }
 
@@ -72,6 +73,7 @@ class WadjetWeapon extends WB.Weapon {
             lifespan: 150, // 2.5 seconds
             bounces: 0,
             color: '#00A86B',
+            shape: 'droplet',
             gravityAffected: true,
             onMiss: this.superActive ? function(x, y) { self._spawnPuddle(x, y); } : null,
         }));
@@ -126,7 +128,7 @@ class WadjetWeapon extends WB.Weapon {
 
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
-        // Cobra body — sinuous line
+        // Cobra body — thicker sinuous line
         const segments = 6;
         const segLen = (this.reach - r) / segments;
         let prevX = r;
@@ -134,25 +136,33 @@ class WadjetWeapon extends WB.Weapon {
         for (let i = 1; i <= segments; i++) {
             const x = r + i * segLen;
             const wave = Math.sin(i * 1.2 + this.visualTimer * 0.06) * (2 + i * 0.5);
-            B.line(prevX, prevY, x, wave, '#00A86B', 3 - i * 0.3);
+            B.line(prevX, prevY, x, wave, '#00A86B', 4.5 - i * 0.35);
             prevX = x;
             prevY = wave;
         }
 
-        // Cobra head at tip — hooded shape
+        // Cobra head at tip — larger hooded shape
         const headX = this.reach;
         const headWave = Math.sin(segments * 1.2 + this.visualTimer * 0.06) * (2 + segments * 0.5);
-        B.fillCircle(headX, headWave, 5, '#00A86B');
-        // Hood flare
+        B.fillCircle(headX, headWave, 7, '#00A86B');
+        // Hood flare — much wider with outline
         B.fillTriangle(
-            headX - 3, headWave - 6,
-            headX + 6, headWave,
-            headX - 3, headWave + 6,
+            headX - 5, headWave - 10,
+            headX + 8, headWave,
+            headX - 5, headWave + 10,
             '#008B5C'
         );
-        // Eyes
-        B.fillCircle(headX + 2, headWave - 2, 1.5, '#FFD700');
-        B.fillCircle(headX + 2, headWave + 2, 1.5, '#FFD700');
+        B.strokePolygon([
+            [headX - 5, headWave - 10],
+            [headX + 8, headWave],
+            [headX - 5, headWave + 10]
+        ], '#006B45', 1.5);
+        // Eyes — bigger and brighter
+        B.fillCircle(headX + 3, headWave - 3, 2.5, '#FFD700');
+        B.fillCircle(headX + 3, headWave + 3, 2.5, '#FFD700');
+        // Fangs
+        B.line(headX + 5, headWave + 1, headX + 8, headWave + 5, '#EEEEEE', 2);
+        B.line(headX + 5, headWave - 1, headX + 8, headWave - 5, '#EEEEEE', 2);
 
         B.popTransform();
 
@@ -229,25 +239,28 @@ WB.VenomPuddle = class {
         const B = WB.GLBatch;
         const fadeRatio = Math.min(1, this.lifespan / (this.maxLife * 0.3));
         const pulse = 1 + Math.sin(Date.now() * 0.004) * 0.08;
-        const drawRadius = this.radius * pulse;
+        const drawRadius = this.radius * 1.5 * pulse; // 50% bigger puddle visual
 
-        // Toxic green puddle
-        B.setAlpha(fadeRatio * 0.12);
+        // Toxic green puddle — more visible fill
+        B.setAlpha(fadeRatio * 0.2);
         B.fillCircle(this.x, this.y, drawRadius, this.color);
         B.restoreAlpha();
 
-        B.setAlpha(fadeRatio * 0.3);
+        // Stronger stroke
+        B.setAlpha(fadeRatio * 0.5);
         B.strokeCircle(this.x, this.y, drawRadius, this.color, 1.5);
         B.restoreAlpha();
 
-        // Bubbles
-        B.setAlpha(fadeRatio * 0.2);
-        const bubbleAngle = Date.now() * 0.003;
-        B.fillCircle(
-            this.x + Math.cos(bubbleAngle) * this.radius * 0.4,
-            this.y + Math.sin(bubbleAngle) * this.radius * 0.4,
-            2, '#66FFB2'
-        );
+        // More bubbles (3 orbiting instead of 1)
+        B.setAlpha(fadeRatio * 0.3);
+        for (let i = 0; i < 3; i++) {
+            const bubbleAngle = Date.now() * 0.003 + i * Math.PI * 2 / 3;
+            B.fillCircle(
+                this.x + Math.cos(bubbleAngle) * this.radius * 0.4,
+                this.y + Math.sin(bubbleAngle) * this.radius * 0.4,
+                2, '#66FFB2'
+            );
+        }
         B.restoreAlpha();
     }
 };

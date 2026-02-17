@@ -62,8 +62,8 @@ class AthenaWeapon extends WB.Weapon {
         }
 
         // Weapon rotation (for spear visual)
-        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-        this.angle += this.rotationSpeed * dir;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         if (this.cooldown > 0) this.cooldown--;
         if (this.reflectCooldown > 0) this.reflectCooldown--;
 

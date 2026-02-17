@@ -26,8 +26,8 @@ class SetWeapon extends WB.Weapon {
     }
 
     update() {
-        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-        this.angle += this.rotationSpeed * dir;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         if (this.cooldown > 0) this.cooldown--;
         this.visualTimer++;
 
@@ -115,17 +115,20 @@ class SetWeapon extends WB.Weapon {
         const B = WB.GLBatch;
         const r = this.owner.radius;
 
-        // Chaos aura — sand swirl that intensifies with chaos magnitude
+        // Chaos intensity 0→1 (chaosMagnitude starts at 1, +0.1 per hit)
         const chaosIntensity = Math.min(1, (this.chaosMagnitude - 1) / 3);
+
+        // Sand orbit dots — MORE dots and LARGER as chaos builds
         if (chaosIntensity > 0) {
-            // Swirling sand particles
-            for (let i = 0; i < 3; i++) {
-                const swirl = this.visualTimer * 0.04 + i * Math.PI * 2 / 3;
+            const dotCount = 3 + Math.floor(chaosIntensity * 3); // 3→6
+            const dotRadius = 2 + chaosIntensity * 1.5; // 2→3.5
+            for (let i = 0; i < dotCount; i++) {
+                const swirl = this.visualTimer * 0.04 + i * Math.PI * 2 / dotCount;
                 const swirlR = r + 5 + chaosIntensity * 8;
                 const sx = this.owner.x + Math.cos(swirl) * swirlR;
                 const sy = this.owner.y + Math.sin(swirl) * swirlR;
-                B.setAlpha(0.15 + chaosIntensity * 0.1);
-                B.fillCircle(sx, sy, 2, '#DEB887');
+                B.setAlpha(0.2 + chaosIntensity * 0.15);
+                B.fillCircle(sx, sy, dotRadius, '#DEB887');
                 B.restoreAlpha();
             }
         }
@@ -133,8 +136,19 @@ class SetWeapon extends WB.Weapon {
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
         // Khopesh — curved sword
-        // Handle
-        B.fillRect(r - 2, -4, 12, 8, '#5C3A1E');
+        // Handle — wider
+        B.fillRect(r - 2, -5, 12, 10, '#5C3A1E');
+
+        // Blade color shifts: bronze #B8451D → violent red #FF2200 as chaos builds
+        const blR = Math.round(184 + (255 - 184) * chaosIntensity);
+        const blG = Math.round(69 + (34 - 69) * chaosIntensity);
+        const blB = Math.round(29 + (0 - 29) * chaosIntensity);
+        const bladeColor = `rgb(${blR},${blG},${blB})`;
+        // Stroke also shifts
+        const stR = Math.round(139 + (200 - 139) * chaosIntensity);
+        const stG = Math.round(48 + (20 - 48) * chaosIntensity);
+        const stB = Math.round(21 + (0 - 21) * chaosIntensity);
+        const strokeColor = `rgb(${stR},${stG},${stB})`;
 
         // Curved blade — using a series of points to approximate the sickle shape
         const bladePoints = [];
@@ -153,8 +167,8 @@ class SetWeapon extends WB.Weapon {
             const curve = Math.sin(t * Math.PI) * 4 * (1 - t * 0.3);
             bladePoints.push([x, curve]);
         }
-        B.fillPolygon(bladePoints, '#B8451D');
-        B.strokePolygon(bladePoints, '#8B3015', 1);
+        B.fillPolygon(bladePoints, bladeColor);
+        B.strokePolygon(bladePoints, strokeColor, 1.5);
 
         // Edge highlight
         for (let i = 0; i < curveSegments; i++) {
@@ -164,29 +178,33 @@ class SetWeapon extends WB.Weapon {
             const nx = r + 12 + (i + 1) / curveSegments * (this.reach - r - 12);
             const ncurve = Math.sin((i + 1) / curveSegments * Math.PI) * 10 * (1 - (i + 1) / curveSegments * 0.5);
             B.setAlpha(0.3);
-            B.line(x, -curve, nx, -ncurve, '#FF6B4A', 1);
+            B.line(x, -curve, nx, -ncurve, '#FF6B4A', 1.5);
             B.restoreAlpha();
         }
 
         B.popTransform();
 
-        // Super: gravity distortion indicator
+        // Super: gravity distortion indicator — VISIBLE arrow showing gravity direction
         if (this.superActive) {
-            // Show current gravity direction as a subtle arrow
             const ga = WB.Config.GRAVITY_ANGLE;
-            const arrowLen = 15;
-            const ax = this.owner.x + Math.cos(ga) * (r + 8);
-            const ay = this.owner.y + Math.sin(ga) * (r + 8);
+            const arrowLen = 18;
+            const ax = this.owner.x + Math.cos(ga) * (r + 6);
+            const ay = this.owner.y + Math.sin(ga) * (r + 6);
             const aex = ax + Math.cos(ga) * arrowLen;
             const aey = ay + Math.sin(ga) * arrowLen;
-            B.setAlpha(0.2);
-            B.line(ax, ay, aex, aey, '#DEB887', 2);
-            B.fillCircle(aex, aey, 3, '#DEB887');
-            B.restoreAlpha();
-
-            const pulse = Math.sin(this.visualTimer * 0.08) * 0.04;
-            B.setAlpha(0.1 + pulse);
-            B.strokeCircle(this.owner.x, this.owner.y, r + 10, '#C2452D', 2);
+            // Arrow shaft — prominent red
+            B.setAlpha(0.5);
+            B.line(ax, ay, aex, aey, '#FF4444', 2.5);
+            // Arrowhead triangle
+            const headSize = 5;
+            const perpX = -Math.sin(ga) * headSize;
+            const perpY = Math.cos(ga) * headSize;
+            B.fillTriangle(
+                aex + Math.cos(ga) * headSize, aey + Math.sin(ga) * headSize,
+                aex + perpX, aey + perpY,
+                aex - perpX, aey - perpY,
+                '#FF4444'
+            );
             B.restoreAlpha();
         }
     }

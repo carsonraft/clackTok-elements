@@ -103,27 +103,39 @@ class KhnumWeapon extends WB.Weapon {
             for (let i = 0; i < rings; i++) {
                 const ringR = r * (0.3 + i * 0.15);
                 B.setAlpha(0.08);
-                B.strokeCircle(this.owner.x, this.owner.y, ringR, '#8B6914', 1);
+                B.strokeCircle(this.owner.x, this.owner.y, ringR, '#8B6914', 1.5);
                 B.restoreAlpha();
             }
         }
 
-        // Ram horns — two curved arcs on the sides
+        // Ram horns — two curved arcs on the sides, with dark outlines
         const hornSize = Math.min(r * 0.6, 12 + massMult * 3);
-        B.setAlpha(0.7);
-        // Left horn
+        // Dark outline behind horns for contrast
+        B.setAlpha(0.85);
         B.drawQuadratic(
             this.owner.x - r * 0.7, this.owner.y - r * 0.3,
             this.owner.x - r - hornSize, this.owner.y - hornSize * 0.8,
             this.owner.x - r * 0.5, this.owner.y - r * 0.8,
-            '#B8860B', 2.5
+            '#3D2200', 5
         );
-        // Right horn
         B.drawQuadratic(
             this.owner.x + r * 0.7, this.owner.y - r * 0.3,
             this.owner.x + r + hornSize, this.owner.y - hornSize * 0.8,
             this.owner.x + r * 0.5, this.owner.y - r * 0.8,
-            '#B8860B', 2.5
+            '#3D2200', 5
+        );
+        // Main horns — thicker
+        B.drawQuadratic(
+            this.owner.x - r * 0.7, this.owner.y - r * 0.3,
+            this.owner.x - r - hornSize, this.owner.y - hornSize * 0.8,
+            this.owner.x - r * 0.5, this.owner.y - r * 0.8,
+            '#B8860B', 3.5
+        );
+        B.drawQuadratic(
+            this.owner.x + r * 0.7, this.owner.y - r * 0.3,
+            this.owner.x + r + hornSize, this.owner.y - hornSize * 0.8,
+            this.owner.x + r * 0.5, this.owner.y - r * 0.8,
+            '#B8860B', 3.5
         );
         B.restoreAlpha();
 

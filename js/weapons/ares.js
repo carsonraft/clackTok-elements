@@ -22,6 +22,7 @@ class AresWeapon extends WB.Weapon {
     }
 
     update() {
+        if (this._deflectReverse > 0) this._deflectReverse--;
         if (this.berserk) {
             // Berserker mode — no weapon, body slam
             if (this.contactCooldown > 0) this.contactCooldown--;
@@ -45,8 +46,7 @@ class AresWeapon extends WB.Weapon {
             const rageSpeedBonus = Math.min(0.05, this.rage * 0.006); // better rage scaling
             this.rotationSpeed = 0.035 + rageSpeedBonus + this.hitCount * 0.003; // faster spin
 
-            const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-            this.angle += this.rotationSpeed * dir;
+            this.angle += this.rotationSpeed * this.getDir();
             if (this.cooldown > 0) this.cooldown--;
 
             this.scalingStat.value = this.rage;

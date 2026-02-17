@@ -45,8 +45,8 @@ class HephaestusWeapon extends WB.Weapon {
         this.rotationSpeed = this.currentSpeed;
 
         // Use base update for rotation and cooldown
-        const dir = (this.owner.debuffs && this.owner.debuffs.weaponReversed > 0) ? -1 : 1;
-        this.angle += this.rotationSpeed * dir;
+        if (this._deflectReverse > 0) this._deflectReverse--;
+        this.angle += this.rotationSpeed * this.getDir();
         if (this.cooldown > 0) this.cooldown--;
     }
 

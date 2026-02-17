@@ -45,6 +45,7 @@ class ShurikenWeapon extends WB.Weapon {
             bounces: this.bounceCount,
             piercing: this.superActive,
             color: this.superActive ? '#BFCC00' : '#858D08',
+            shape: 'star',
         }));
         WB.Audio.projectileFire();
     }

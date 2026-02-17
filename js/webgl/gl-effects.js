@@ -26,6 +26,8 @@ WB.GLEffects = {
     // Collision flash
     _collisionFlash: 0,
     _collisionFlashColor: '#FFF',
+    // Font string cache for damage numbers (avoids template literal per frame)
+    _dmgFontCache: {},
 
     init() {
         this._impacts = [];
@@ -191,7 +193,10 @@ WB.GLEffects = {
             const imp = this._impacts[i];
             imp.radius += imp.speed;
             imp.life -= 0.07;
-            if (imp.life <= 0) this._impacts.splice(i, 1);
+            if (imp.life <= 0) {
+                this._impacts[i] = this._impacts[this._impacts.length - 1];
+                this._impacts.pop();
+            }
         }
 
         // Update damage numbers
@@ -201,7 +206,10 @@ WB.GLEffects = {
             dn.vy *= 0.97;
             dn.life -= 0.025;
             dn.scale *= 0.98;
-            if (dn.life <= 0) this._dmgNumbers.splice(i, 1);
+            if (dn.life <= 0) {
+                this._dmgNumbers[i] = this._dmgNumbers[this._dmgNumbers.length - 1];
+                this._dmgNumbers.pop();
+            }
         }
 
         // Super flash decay
@@ -238,7 +246,10 @@ WB.GLEffects = {
             const wi = this._wallImpacts[i];
             wi.radius += wi.speed;
             wi.life -= 0.08;
-            if (wi.life <= 0) this._wallImpacts.splice(i, 1);
+            if (wi.life <= 0) {
+                this._wallImpacts[i] = this._wallImpacts[this._wallImpacts.length - 1];
+                this._wallImpacts.pop();
+            }
         }
     },
 
@@ -247,11 +258,14 @@ WB.GLEffects = {
         const B = WB.GLBatch;
         const T = WB.GLText;
         const c = WB.Config;
+        const hiDpi = WB.GL.dpr >= 1.5;
 
-        // Impact rings
-        for (const imp of this._impacts) {
-            B.setAlpha(imp.life * 0.2);
-            B.strokeCircle(imp.x, imp.y, imp.radius, imp.color, 1.5 * imp.life);
+        // Impact rings — thicker on HiDPI for visibility
+        const impactStroke = hiDpi ? 2 : 1.5;
+        for (let i = 0; i < this._impacts.length; i++) {
+            const imp = this._impacts[i];
+            B.setAlpha(imp.life * 0.25);
+            B.strokeCircle(imp.x, imp.y, imp.radius, imp.color, impactStroke * imp.life);
             B.restoreAlpha();
         }
 
@@ -259,7 +273,7 @@ WB.GLEffects = {
         if (this._arenaPulse > 0) {
             const a = c.ARENA;
             const pulseAlpha = this._arenaPulse * 0.3;
-            const pulseWidth = 2 + this._arenaPulse * 3;
+            const pulseWidth = (hiDpi ? 2.5 : 2) + this._arenaPulse * 3;
             B.setAlpha(pulseAlpha);
             B.strokeRect(a.x - 2, a.y - 2, a.width + 4, a.height + 4, this._arenaPulseColor, pulseWidth);
             B.restoreAlpha();
@@ -267,27 +281,35 @@ WB.GLEffects = {
 
         B.flush();
 
-        // Damage numbers
-        for (const dn of this._dmgNumbers) {
+        // Damage numbers — use drawTextLite (2-pass) instead of drawTextWithStroke (6-pass)
+        // drawTextLite shadow offset is now DPR-aware (see gl-text.js)
+        for (let i = 0; i < this._dmgNumbers.length; i++) {
+            const dn = this._dmgNumbers[i];
             const size = Math.round(20 * dn.scale);
-            const font = `bold ${size}px "Courier New", monospace`;
-            T.drawTextWithStroke(dn.text, dn.x, dn.y, font, dn.color, '#000', 2, 'center', 'middle');
+            let font = this._dmgFontCache[size];
+            if (!font) {
+                font = `bold ${size}px "Courier New", monospace`;
+                this._dmgFontCache[size] = font;
+            }
+            T.drawTextLite(dn.text, dn.x, dn.y, font, dn.color, '#000', 'center', 'middle');
         }
 
         T.flush();
 
-        // Wall impact rings
-        for (const wi of this._wallImpacts) {
-            B.setAlpha(wi.life * 0.2);
-            B.strokeCircle(wi.x, wi.y, wi.radius, wi.color, 1.0 * wi.life);
+        // Wall impact rings — thicker on HiDPI
+        const wallStroke = hiDpi ? 1.5 : 1.0;
+        for (let i = 0; i < this._wallImpacts.length; i++) {
+            const wi = this._wallImpacts[i];
+            B.setAlpha(wi.life * 0.25);
+            B.strokeCircle(wi.x, wi.y, wi.radius, wi.color, wallStroke * wi.life);
             B.restoreAlpha();
         }
 
         // Super flash overlay (full screen flash)
         if (this._superFlash > 0) {
-            const rgba = WB.GL.parseColor(this._superFlashColor);
-            const flashColor = `rgba(${Math.round(rgba[0]*255)},${Math.round(rgba[1]*255)},${Math.round(rgba[2]*255)},${this._superFlash * 0.1})`;
-            B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, flashColor);
+            B.setAlpha(this._superFlash * 0.1);
+            B.fillRect(-10, -10, c.CANVAS_WIDTH + 20, c.CANVAS_HEIGHT + 20, this._superFlashColor);
+            B.restoreAlpha();
             B.flush();
         }
 
@@ -306,7 +328,7 @@ WB.GLEffects = {
             const size = Math.round(24 * scale);
             const font = `bold ${size}px "Courier New", monospace`;
             const comboColor = combo.left >= 10 ? '#FFD700' : combo.left >= 5 ? '#FF6600' : '#FFF';
-            T.drawTextWithStroke(`${combo.left}x`, a.x + 50, a.y + 30, font, comboColor, '#333', 3, 'center', 'alphabetic');
+            T.drawTextLite(`${combo.left}x`, a.x + 50, a.y + 30, font, comboColor, '#333', 'center', 'alphabetic');
         }
 
         // Right combo
@@ -315,7 +337,7 @@ WB.GLEffects = {
             const size = Math.round(24 * scale);
             const font = `bold ${size}px "Courier New", monospace`;
             const comboColor = combo.right >= 10 ? '#FFD700' : combo.right >= 5 ? '#FF6600' : '#FFF';
-            T.drawTextWithStroke(`${combo.right}x`, a.x + a.width - 50, a.y + 30, font, comboColor, '#333', 3, 'center', 'alphabetic');
+            T.drawTextLite(`${combo.right}x`, a.x + a.width - 50, a.y + 30, font, comboColor, '#333', 'center', 'alphabetic');
         }
     },
 

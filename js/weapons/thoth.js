@@ -23,6 +23,7 @@ class ThothWeapon extends WB.Weapon {
     }
 
     update() {
+        if (this._deflectReverse > 0) this._deflectReverse--;
         // Rotate to aim at nearest enemy
         if (WB.Game && WB.Game.balls) {
             let closest = null, closestDist = Infinity;
@@ -37,7 +38,7 @@ class ThothWeapon extends WB.Weapon {
                 let diff = targetAngle - this.angle;
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 while (diff < -Math.PI) diff += Math.PI * 2;
-                this.angle += diff * 0.08; // gentle tracking
+                this.angle += diff * 0.08 * this.getDir(); // gentle tracking
             }
         }
 
@@ -67,6 +68,7 @@ class ThothWeapon extends WB.Weapon {
             bounces: this.superActive ? 1 : 0,
             piercing: this.superActive,
             color: '#191970',
+            shape: 'glyph',
         }));
         WB.Audio.projectileFire();
     }
@@ -94,39 +96,52 @@ class ThothWeapon extends WB.Weapon {
         const B = WB.GLBatch;
         const r = this.owner.radius;
 
+        // Speed ratio 0→1 (glyphSpeed goes from 4 to ~14)
+        const speedRatio = Math.min(1, (this.glyphSpeed - 4) / 10);
+
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
 
-        // Ibis staff — long thin staff with glyph at tip
+        // Ibis staff — wider, more visible
         // Shaft
-        B.fillRect(r - 2, -2.5, this.reach - r + 4, 5, '#2F1F4F');
-        B.line(r, 0, this.reach - 5, 0, '#3D2B6B', 1.5);
+        B.fillRect(r - 2, -3.5, this.reach - r + 4, 7, '#2F1F4F');
+        B.line(r, 0, this.reach - 5, 0, '#3D2B6B', 2.5);
 
-        // Glyph orb at tip — deep blue sphere
+        // Glyph orb at tip — larger, color shifts navy→bright purple as speed builds
         const tipX = this.reach;
-        B.fillCircle(tipX, 0, 6, '#191970');
-        B.strokeCircle(tipX, 0, 6, '#4169E1', 1.5);
+        const orbR = Math.round(25 + (106 - 25) * speedRatio);
+        const orbG = Math.round(25 + (90 - 25) * speedRatio);
+        const orbB = Math.round(112 + (205 - 112) * speedRatio);
+        const orbColor = `rgb(${orbR},${orbG},${orbB})`;
+        B.fillCircle(tipX, 0, 8, orbColor);
+        B.strokeCircle(tipX, 0, 8, '#4169E1', 2);
 
-        // Inner glyph symbol — simple crosshair/eye
-        B.line(tipX - 3, 0, tipX + 3, 0, '#6A5ACD', 1);
-        B.line(tipX, -3, tipX, 3, '#6A5ACD', 1);
-        B.fillCircle(tipX, 0, 2, '#7B68EE');
+        // Inner glyph symbol — bolder crosshair/eye
+        B.line(tipX - 4, 0, tipX + 4, 0, '#6A5ACD', 1.5);
+        B.line(tipX, -4, tipX, 4, '#6A5ACD', 1.5);
+        B.fillCircle(tipX, 0, 3, '#7B68EE');
 
-        // Gold bands
-        B.fillRect(r + 8, -3.5, 3, 7, '#DAA520');
+        // Gold bands — wider + second band
+        B.fillRect(r + 8, -4.5, 4, 9, '#DAA520');
+        B.fillRect(r + 20, -3.5, 3, 7, '#B8860B');
 
-        // Speed indicator — glyph orbits faster as speed increases
+        // Speed indicator — MULTIPLE orbiting dots, brighter, bigger with speed
         if (this.hitCount > 0) {
-            const speedRatio = Math.min(1, (this.glyphSpeed - 3) / 11);
+            const dotCount = 1 + Math.floor(speedRatio * 3); // 1→4 dots
             const orbitSpeed = 0.02 + speedRatio * 0.08;
             const orbitAngle = Date.now() * orbitSpeed;
             const orbitR = 8 + speedRatio * 4;
-            B.setAlpha(0.25 + speedRatio * 0.2);
-            B.fillCircle(
-                tipX + Math.cos(orbitAngle) * orbitR,
-                Math.sin(orbitAngle) * orbitR,
-                2, '#4169E1'
-            );
-            B.restoreAlpha();
+            const dotAlpha = 0.4 + speedRatio * 0.4; // 0.4→0.8
+            const dotSize = 2 + speedRatio * 2; // 2→4
+            for (let i = 0; i < dotCount; i++) {
+                const a = orbitAngle + i * Math.PI * 2 / dotCount;
+                B.setAlpha(dotAlpha);
+                B.fillCircle(
+                    tipX + Math.cos(a) * orbitR,
+                    Math.sin(a) * orbitR,
+                    dotSize, '#4169E1'
+                );
+                B.restoreAlpha();
+            }
         }
 
         B.popTransform();
@@ -138,7 +153,7 @@ class ThothWeapon extends WB.Weapon {
                 const a = t + i * Math.PI * 2 / 3;
                 const ox = this.owner.x + Math.cos(a) * (r + 10);
                 const oy = this.owner.y + Math.sin(a) * (r + 10);
-                B.setAlpha(0.2);
+                B.setAlpha(0.3);
                 B.fillCircle(ox, oy, 3, '#4169E1');
                 B.restoreAlpha();
             }
