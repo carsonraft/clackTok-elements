@@ -95,56 +95,39 @@ class ThothWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
         // Speed ratio 0→1 (glyphSpeed goes from 4 to ~14)
         const speedRatio = Math.min(1, (this.glyphSpeed - 4) / 10);
 
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
+        // ── Sprite: Thoth staff ──
+        if (S && S._initialized) {
+            const spriteScale = this.reach * 0.65;
+            S.drawSprite('thoth-staff', this.owner.x, this.owner.y, this.angle,
+                spriteScale, spriteScale, 1.0, 1.0 + speedRatio * 0.4);
+        }
 
-        // Ibis staff — wider, more visible
-        // Shaft
-        B.fillRect(r - 2, -3.5, this.reach - r + 4, 7, '#2F1F4F');
-        B.line(r, 0, this.reach - 5, 0, '#3D2B6B', 2.5);
-
-        // Glyph orb at tip — larger, color shifts navy→bright purple as speed builds
-        const tipX = this.reach;
-        const orbR = Math.round(25 + (106 - 25) * speedRatio);
-        const orbG = Math.round(25 + (90 - 25) * speedRatio);
-        const orbB = Math.round(112 + (205 - 112) * speedRatio);
-        const orbColor = `rgb(${orbR},${orbG},${orbB})`;
-        B.fillCircle(tipX, 0, 8, orbColor);
-        B.strokeCircle(tipX, 0, 8, '#4169E1', 2);
-
-        // Inner glyph symbol — bolder crosshair/eye
-        B.line(tipX - 4, 0, tipX + 4, 0, '#6A5ACD', 1.5);
-        B.line(tipX, -4, tipX, 4, '#6A5ACD', 1.5);
-        B.fillCircle(tipX, 0, 3, '#7B68EE');
-
-        // Gold bands — wider + second band
-        B.fillRect(r + 8, -4.5, 4, 9, '#DAA520');
-        B.fillRect(r + 20, -3.5, 3, 7, '#B8860B');
-
-        // Speed indicator — MULTIPLE orbiting dots, brighter, bigger with speed
+        // Speed indicator — orbiting dots at tip (procedural overlay)
         if (this.hitCount > 0) {
-            const dotCount = 1 + Math.floor(speedRatio * 3); // 1→4 dots
+            const tipX = this.owner.x + Math.cos(this.angle) * this.reach;
+            const tipY = this.owner.y + Math.sin(this.angle) * this.reach;
+            const dotCount = 1 + Math.floor(speedRatio * 3);
             const orbitSpeed = 0.02 + speedRatio * 0.08;
             const orbitAngle = Date.now() * orbitSpeed;
             const orbitR = 8 + speedRatio * 4;
-            const dotAlpha = 0.4 + speedRatio * 0.4; // 0.4→0.8
-            const dotSize = 2 + speedRatio * 2; // 2→4
+            const dotAlpha = 0.4 + speedRatio * 0.4;
+            const dotSize = 2 + speedRatio * 2;
             for (let i = 0; i < dotCount; i++) {
                 const a = orbitAngle + i * Math.PI * 2 / dotCount;
                 B.setAlpha(dotAlpha);
                 B.fillCircle(
                     tipX + Math.cos(a) * orbitR,
-                    Math.sin(a) * orbitR,
+                    tipY + Math.sin(a) * orbitR,
                     dotSize, '#4169E1'
                 );
                 B.restoreAlpha();
             }
         }
-
-        B.popTransform();
 
         // Super indicator — orbiting glyphs around ball
         if (this.superActive) {

@@ -2,7 +2,7 @@ window.WB = window.WB || {};
 
 WB.Game = {
     canvas: null,
-    state: 'MENU', // MENU | COUNTDOWN | BATTLE | RESULT | SIM_RESULTS | BEST_OF | PRE_BATTLE_CUTSCENE | POST_BATTLE_CUTSCENE
+    state: 'MENU', // MENU | COUNTDOWN | BATTLE | RESULT | SIM_RESULTS | BEST_OF | STUDIO | PRE_BATTLE_CUTSCENE | POST_BATTLE_CUTSCENE
     balls: [],
     projectiles: [],
     particles: null,
@@ -11,6 +11,8 @@ WB.Game = {
     winner: null,
     _playAgainBtn: null,
     _resultTimer: 0,
+    _lastFrameTime: 0,       // timestamp of last processed frame
+    _frameInterval: 1000 / 60, // target 60fps (~16.67ms)
 
     init() {
         this.canvas = document.getElementById('gameCanvas');
@@ -26,6 +28,8 @@ WB.Game = {
 
         WB.Audio.init();
         if (WB.Cutscene) WB.Cutscene.init();
+        if (WB.BallImages) WB.BallImages.init();
+        if (WB.WeaponSprites) WB.WeaponSprites.init();
         WB.UI.init();
 
         // Scroll handler for menu + simulation results
@@ -36,6 +40,9 @@ WB.Game = {
             } else if (this.state === 'SIM_RESULTS' || this.state === 'BEST_OF') {
                 e.preventDefault();
                 WB.SimUI.handleScroll(e.deltaY > 0 ? 'down' : 'up');
+            } else if (this.state === 'STUDIO' && WB.Studio) {
+                e.preventDefault();
+                WB.Studio.handleScroll(e.deltaY > 0 ? 'down' : 'up');
             }
         }, { passive: false });
 
@@ -51,7 +58,8 @@ WB.Game = {
             this.handleClick(mx, my);
         });
 
-        this.loop();
+        this._lastFrameTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
     },
 
     handleClick(mx, my) {
@@ -66,6 +74,12 @@ WB.Game = {
                 } else if (result === 'bestof') {
                     WB.SimUI.scrollOffset = 0;
                     this.state = 'BEST_OF';
+                } else if (result === 'studio') {
+                    if (WB.Studio) {
+                        WB.Studio.scrollOffset = 0;
+                        WB.Studio.selectedIndex = -1;
+                        this.state = 'STUDIO';
+                    }
                 }
                 break;
             }
@@ -77,8 +91,29 @@ WB.Game = {
                 WB.SimUI.handleBestOfClick(mx, my);
                 break;
             }
+            case 'STUDIO': {
+                if (WB.Studio) WB.Studio.handleClick(mx, my);
+                break;
+            }
             case 'RESULT': {
-                // Click anywhere to return immediately
+                // Check if clicking the ★ SAVE button
+                if (this._favBtn) {
+                    const btn = this._favBtn;
+                    if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+                        const resultObj = WB.Renderer._buildBattleResult(this);
+                        if (resultObj) {
+                            if (WB.SimUI.isSaved(resultObj)) {
+                                WB.SimUI.removeBestOf(resultObj.seed, resultObj.weaponLeft, resultObj.weaponRight);
+                            } else {
+                                WB.SimUI.saveBestOf(resultObj);
+                            }
+                            // Reset timer so user sees the state change
+                            this._resultTimer = 180;
+                        }
+                        break;
+                    }
+                }
+                // Click elsewhere to return
                 this._returnFromResult();
                 break;
             }
@@ -108,7 +143,6 @@ WB.Game = {
         const hudH = 106;
         const naturalH = titleH + preset.height + hudH;
 
-        // Enforce smartphone aspect ratio (minimum 10:16)
         const minH = Math.round(cw * 1.6);
         const ch = Math.max(naturalH, minH);
 
@@ -147,8 +181,16 @@ WB.Game = {
         this.particles = new WB.ParticleSystem();
         this.winner = null;
         this._excitement = new WB.Excitement();
+        this._excitementScore = 0;
         WB.ArenaModifiers.clear();
         if (WB.GL) WB.GL.clearMotionBlurHistory();
+
+        // Seed live battles for replay (replays are already seeded by SimUI)
+        if (!WB.RNG._seeded) {
+            this._battleSeed = WB.RNG.generateSeed();
+            WB.RNG.seed(this._battleSeed);
+        }
+        this._battleToggles = WB.SimUI._snapshotToggles();
 
         // Apply selected stage size & friction
         this._applyStageSize();
@@ -195,7 +237,17 @@ WB.Game = {
         WB.Audio.ballClack(8);
     },
 
-    loop() {
+    loop(timestamp) {
+        requestAnimationFrame((t) => this.loop(t));
+
+        // ── 60fps frame limiter ──────────────────────────────────
+        // On 120Hz+ displays, requestAnimationFrame fires too fast.
+        // Skip frames that arrive before the 16.67ms budget elapses
+        // so physics/timers stay at the intended 60fps pace.
+        const elapsed = timestamp - this._lastFrameTime;
+        if (elapsed < this._frameInterval * 0.9) return; // 0.9 tolerance for timing jitter
+        this._lastFrameTime = timestamp - (elapsed % this._frameInterval);
+
         WB.GL.beginFrame();
 
         switch (this.state) {
@@ -214,6 +266,9 @@ WB.Game = {
             case 'BEST_OF':
                 WB.SimUI.drawBestOf();
                 break;
+            case 'STUDIO':
+                if (WB.Studio) WB.Studio.draw();
+                break;
             case 'RESULT':
                 this.drawResult();
                 break;
@@ -225,7 +280,6 @@ WB.Game = {
 
         WB.GLText.flush();
         WB.GL.endFrame();
-        requestAnimationFrame(() => this.loop());
     },
 
     updateCountdown() {
@@ -558,6 +612,12 @@ WB.Game = {
         }
 
         if (this.winner) {
+            // Compute excitement score for content pipeline
+            if (this._excitement) {
+                const winnerIdx = this.winner.side === 'left' ? 0 : 1;
+                this._excitementScore = this._excitement.computeScore(winnerIdx, this.balls[0], this.balls[1]);
+            }
+
             const loserSide = this.winner.side === 'left' ? 'right' : 'left';
             WB.Audio.death();
             WB.Audio.victoryFanfare();
@@ -598,7 +658,7 @@ WB.Game = {
                 }
             }
             this.state = 'RESULT';
-            this._resultTimer = 180; // ~3 seconds at 60fps, then auto-return
+            this._resultTimer = 300; // ~5 seconds at 60fps (extra time for save button)
         }
     },
 
@@ -628,9 +688,20 @@ WB.Game = {
 
     _returnFromResult() {
         if (WB.GL) WB.GL.clearMotionBlurHistory();
+        // Unseed RNG after live battles (replays unseed via SimUI.onReplayEnd)
+        if (!WB.SimUI.isReplaying && WB.RNG._seeded) {
+            WB.RNG.unseed();
+        }
         if (WB.SimUI.isReplaying) {
             const returnState = WB.SimUI.onReplayEnd();
             this.state = returnState;
+        } else if (WB.Studio && WB.Studio._isPreview) {
+            WB.Studio._isPreview = false;
+            this.state = 'STUDIO';
+        } else if (WB.Studio && WB.Studio._isRecording) {
+            WB.Studio._isRecording = false;
+            if (WB.Recorder) WB.Recorder.stop();
+            this.state = 'STUDIO';
         } else {
             this.state = 'MENU';
         }

@@ -147,51 +147,22 @@ class HorusWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
         const speed = this.owner.getSpeed();
 
         // Falcon wings — spread based on velocity
         const wingSpread = Math.min(1, speed / 10);
-        const wingLen = 10 + wingSpread * 12;
         const wingFlap = Math.sin(this.visualTimer * 0.15) * (this.isHovering ? 8 : 3);
 
-        B.setAlpha(0.7 + wingSpread * 0.25);
-        // Left wing
-        B.fillTriangle(
-            this.owner.x - r * 0.5, this.owner.y,
-            this.owner.x - r - wingLen, this.owner.y - 6 + wingFlap,
-            this.owner.x - r - wingLen * 0.6, this.owner.y + 4,
-            '#4169E1'
-        );
-        B.fillTriangle(
-            this.owner.x - r * 0.5, this.owner.y + 2,
-            this.owner.x - r - wingLen * 0.8, this.owner.y - 3 + wingFlap,
-            this.owner.x - r - wingLen * 0.4, this.owner.y + 6,
-            '#6495ED'
-        );
-        // Right wing
-        B.fillTriangle(
-            this.owner.x + r * 0.5, this.owner.y,
-            this.owner.x + r + wingLen, this.owner.y - 6 - wingFlap,
-            this.owner.x + r + wingLen * 0.6, this.owner.y + 4,
-            '#4169E1'
-        );
-        B.fillTriangle(
-            this.owner.x + r * 0.5, this.owner.y + 2,
-            this.owner.x + r + wingLen * 0.8, this.owner.y - 3 - wingFlap,
-            this.owner.x + r + wingLen * 0.4, this.owner.y + 6,
-            '#6495ED'
-        );
-        B.restoreAlpha();
+        // ── Main sprite: Horus wings (body contact, no rotation) ──
+        if (S && S._initialized) {
+            const scaleX = 25 + wingSpread * 15;
+            const scaleY = 20 + wingFlap;
+            S.drawSprite('horus-wings', this.owner.x, this.owner.y, 0,
+                scaleX, scaleY, 0.85 + wingSpread * 0.15, 1.0);
+        }
 
-        // Wing edge outlines for definition
-        B.setAlpha(0.35);
-        B.line(this.owner.x - r * 0.5, this.owner.y, this.owner.x - r - wingLen, this.owner.y - 6 + wingFlap, '#1A1A6B', 1.5);
-        B.line(this.owner.x - r - wingLen, this.owner.y - 6 + wingFlap, this.owner.x - r - wingLen * 0.6, this.owner.y + 4, '#1A1A6B', 1.5);
-        B.line(this.owner.x + r * 0.5, this.owner.y, this.owner.x + r + wingLen, this.owner.y - 6 - wingFlap, '#1A1A6B', 1.5);
-        B.line(this.owner.x + r + wingLen, this.owner.y - 6 - wingFlap, this.owner.x + r + wingLen * 0.6, this.owner.y + 4, '#1A1A6B', 1.5);
-        B.restoreAlpha();
-
-        // Eye of Horus mark — bigger
+        // Eye of Horus mark
         B.setAlpha(0.6);
         B.fillCircle(this.owner.x + 5, this.owner.y - 3, 4, '#DAA520');
         B.restoreAlpha();

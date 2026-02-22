@@ -106,6 +106,7 @@ class SobekWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
         // Pressure ratio 0→1 (pressure ranges 0–10)
         const pRatio = Math.min(1, this.pressure / 10);
@@ -115,69 +116,12 @@ class SobekWeapon extends WB.Weapon {
         const shakeX = shakeMag > 0.2 ? (Math.sin(this.visualTimer * 0.7) * shakeMag) : 0;
         const shakeY = shakeMag > 0.2 ? (Math.cos(this.visualTimer * 0.9) * shakeMag) : 0;
 
-        B.pushTransform(this.owner.x + shakeX, this.owner.y + shakeY, this.angle);
-
-        // Jaw — two lines that open/close
-        const jawLength = this.reach;
-        // Jaw gape WIDENS with pressure (idle gap grows from 0.05 to 0.25)
-        const baseGape = 0.05 + pRatio * 0.2;
-        const jawOpenAngle = this.jawOpen > 0 ? 0.3 * (this.jawOpen / 15) : baseGape;
-
-        // Tooth color: cream → red as pressure builds
-        const tR = Math.round(238 + (255 - 238) * pRatio);
-        const tG = Math.round(238 - 238 * pRatio * 0.7);
-        const tB_val = Math.round(204 - 204 * pRatio * 0.7);
-        const toothColor = `rgb(${tR},${tG},${tB_val})`;
-
-        // Tooth height grows with pressure (1.0 → 1.5 at max)
-        const toothScale = 1 + pRatio * 0.5;
-
-        // Upper jaw — filled polygon for thick, readable shape
-        const ujx = jawLength * 0.9;
-        const ujy = -jawOpenAngle * jawLength * 0.3;
-        B.fillPolygon([
-            [r * 0.5, -1], [r * 0.5, -7],
-            [ujx, ujy - 8], [ujx, ujy - 1]
-        ], '#006400');
-        B.strokePolygon([
-            [r * 0.5, -1], [r * 0.5, -7],
-            [ujx, ujy - 8], [ujx, ujy - 1]
-        ], '#004400', 1.5);
-        // Upper teeth — wider base, taller with pressure
-        for (let i = 0; i < 4; i++) {
-            const t = 0.3 + i * 0.17;
-            const tx = r * 0.5 + (ujx - r * 0.5) * t;
-            const ty = -3 + (ujy - 4 + 3) * t;
-            const th = 7 * toothScale;
-            B.fillTriangle(tx, ty, tx - 3.5, ty - th, tx + 3.5, ty - th, toothColor);
+        // ── Sprite: Sobek jaw with pressure shake offset ──
+        if (S && S._initialized) {
+            const spriteScale = 30 * (1 + pRatio * 0.15);
+            S.drawSprite('sobek-jaw', this.owner.x + shakeX, this.owner.y + shakeY,
+                this.angle, spriteScale, spriteScale, 1.0, 1.0 + pRatio * 0.3);
         }
-
-        // Lower jaw — filled polygon
-        const ljx = jawLength * 0.9;
-        const ljy = jawOpenAngle * jawLength * 0.3;
-        B.fillPolygon([
-            [r * 0.5, 1], [r * 0.5, 7],
-            [ljx, ljy + 8], [ljx, ljy + 1]
-        ], '#006400');
-        B.strokePolygon([
-            [r * 0.5, 1], [r * 0.5, 7],
-            [ljx, ljy + 8], [ljx, ljy + 1]
-        ], '#004400', 1.5);
-        // Lower teeth — wider base, taller with pressure
-        for (let i = 0; i < 4; i++) {
-            const t = 0.3 + i * 0.17;
-            const tx = r * 0.5 + (ljx - r * 0.5) * t;
-            const ty = 3 + (ljy + 4 - 3) * t;
-            const th = 7 * toothScale;
-            B.fillTriangle(tx, ty, tx - 3.5, ty + th, tx + 3.5, ty + th, toothColor);
-        }
-
-        // Snout ridge + nostrils
-        B.line(r * 0.3, 0, jawLength * 0.4, 0, '#004400', 3);
-        B.fillCircle(jawLength * 0.35, -2, 2, '#003300');
-        B.fillCircle(jawLength * 0.35, 2, 2, '#003300');
-
-        B.popTransform();
 
         // Super: scales pattern on ball
         if (this.superActive) {

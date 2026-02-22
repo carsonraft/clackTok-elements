@@ -51,6 +51,7 @@ WB.Hazard = class {
                     // Track hit for weapon scaling
                     if (this.ownerWeapon) {
                         this.ownerWeapon.hitCount++;
+                        this.ownerWeapon.totalDamageDealt += this.damage;
                         this.ownerWeapon.applyScaling();
                         this.ownerWeapon.checkSuper();
                     }

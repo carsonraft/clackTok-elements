@@ -125,46 +125,14 @@ class WadjetWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-
-        // Cobra body — thicker sinuous line
-        const segments = 6;
-        const segLen = (this.reach - r) / segments;
-        let prevX = r;
-        let prevY = 0;
-        for (let i = 1; i <= segments; i++) {
-            const x = r + i * segLen;
-            const wave = Math.sin(i * 1.2 + this.visualTimer * 0.06) * (2 + i * 0.5);
-            B.line(prevX, prevY, x, wave, '#00A86B', 4.5 - i * 0.35);
-            prevX = x;
-            prevY = wave;
+        // ── Main sprite: Wadjet cobra ──
+        if (S && S._initialized) {
+            const spriteScale = this.reach * 0.65;
+            S.drawSprite('wadjet-cobra', this.owner.x, this.owner.y, this.angle,
+                spriteScale, spriteScale, 1.0, 1.0);
         }
-
-        // Cobra head at tip — larger hooded shape
-        const headX = this.reach;
-        const headWave = Math.sin(segments * 1.2 + this.visualTimer * 0.06) * (2 + segments * 0.5);
-        B.fillCircle(headX, headWave, 7, '#00A86B');
-        // Hood flare — much wider with outline
-        B.fillTriangle(
-            headX - 5, headWave - 10,
-            headX + 8, headWave,
-            headX - 5, headWave + 10,
-            '#008B5C'
-        );
-        B.strokePolygon([
-            [headX - 5, headWave - 10],
-            [headX + 8, headWave],
-            [headX - 5, headWave + 10]
-        ], '#006B45', 1.5);
-        // Eyes — bigger and brighter
-        B.fillCircle(headX + 3, headWave - 3, 2.5, '#FFD700');
-        B.fillCircle(headX + 3, headWave + 3, 2.5, '#FFD700');
-        // Fangs
-        B.line(headX + 5, headWave + 1, headX + 8, headWave + 5, '#EEEEEE', 2);
-        B.line(headX + 5, headWave - 1, headX + 8, headWave - 5, '#EEEEEE', 2);
-
-        B.popTransform();
 
         // Venom aura
         if (this._totalVenomApplied > 0) {
@@ -237,21 +205,18 @@ WB.VenomPuddle = class {
 
     draw() {
         const B = WB.GLBatch;
+        const S = WB.WeaponSprites;
         const fadeRatio = Math.min(1, this.lifespan / (this.maxLife * 0.3));
         const pulse = 1 + Math.sin(Date.now() * 0.004) * 0.08;
-        const drawRadius = this.radius * 1.5 * pulse; // 50% bigger puddle visual
+        const drawRadius = this.radius * 1.5 * pulse;
 
-        // Toxic green puddle — more visible fill
-        B.setAlpha(fadeRatio * 0.2);
-        B.fillCircle(this.x, this.y, drawRadius, this.color);
-        B.restoreAlpha();
+        // ── Puddle sprite ──
+        if (S && S._initialized) {
+            S.drawSprite('wadjet-puddle', this.x, this.y, 0,
+                drawRadius, drawRadius, fadeRatio * 0.8, 1.0);
+        }
 
-        // Stronger stroke
-        B.setAlpha(fadeRatio * 0.5);
-        B.strokeCircle(this.x, this.y, drawRadius, this.color, 1.5);
-        B.restoreAlpha();
-
-        // More bubbles (3 orbiting instead of 1)
+        // Orbiting bubbles (procedural overlay)
         B.setAlpha(fadeRatio * 0.3);
         for (let i = 0; i < 3; i++) {
             const bubbleAngle = Date.now() * 0.003 + i * Math.PI * 2 / 3;

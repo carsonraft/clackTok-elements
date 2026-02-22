@@ -82,12 +82,13 @@ class AnubisWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
         // Death aura intensity: 0 at full HP, 1 at 0 HP
         const hpFrac = this.owner.hp / this.owner.maxHp;
         const auraIntensity = Math.max(0, 1 - hpFrac);
 
-        // At low HP (>50% intensity), show a dark halo — death is coming
+        // ── Pre-overlay: Dark halo at low HP ──
         if (auraIntensity > 0.5) {
             const pulse = Math.sin(this.visualTimer * 0.06) * 0.03;
             B.setAlpha((auraIntensity - 0.5) * 0.3 + pulse);
@@ -95,7 +96,7 @@ class AnubisWeapon extends WB.Weapon {
             B.restoreAlpha();
         }
 
-        // Super: pulsing dark aura showing the drain — more visible
+        // ── Pre-overlay: Super drain aura ──
         if (this.superActive) {
             const drainPulse = Math.sin(this.visualTimer * 0.1) * 0.08;
             B.setAlpha(0.2 + drainPulse);
@@ -103,31 +104,12 @@ class AnubisWeapon extends WB.Weapon {
             B.restoreAlpha();
         }
 
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-
-        // Crook staff — wider, more visible
-        // Shaft
-        B.fillRect(r - 2, -4, this.reach - r + 4, 8, '#3D2B1F');
-        B.line(r, 0, this.reach, 0, '#5C4033', 2.5);
-
-        // Crook hook at tip — gold intensifies, hook GROWS with auraIntensity
-        const gldR = Math.round(139 + (255 - 139) * auraIntensity);
-        const gldG = Math.round(115 + (215 - 115) * auraIntensity);
-        const gldB = Math.round(0 + (0) * auraIntensity);
-        const hookGold = `rgb(${gldR},${gldG},${gldB})`;
-        // Hook scale: 0.8→1.2 with auraIntensity
-        const hookScale = 0.8 + auraIntensity * 0.4;
-        const hookX = this.reach;
-        B.fillCircle(hookX, -5 * hookScale, 7 * hookScale, hookGold);
-        B.fillCircle(hookX - 4 * hookScale, -10 * hookScale, 5.5 * hookScale, hookGold);
-        B.fillCircle(hookX - 9 * hookScale, -11 * hookScale, 4 * hookScale, '#B8860B');
-        B.strokeCircle(hookX - 3 * hookScale, -7 * hookScale, 9 * hookScale, '#8B6914', 2);
-
-        // Gold bands on shaft — wider
-        B.fillRect(r + 10, -5, 5, 10, hookGold);
-        B.fillRect(r + 25, -4.5, 4, 9, '#B8860B');
-
-        B.popTransform();
+        // ── Main sprite: Anubis crook ──
+        if (S && S._initialized) {
+            const spriteScale = 32 * (0.85 + auraIntensity * 0.35);
+            S.drawSprite('anubis-crook', this.owner.x, this.owner.y, this.angle,
+                spriteScale, spriteScale, 1.0, 0.7 + auraIntensity * 0.8);
+        }
     }
 }
 

@@ -128,14 +128,20 @@ class SekhmetWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
         // Frenzy ratio 0→1 based on hit count (ramps over ~20 hits)
         const frenzy = Math.min(1, this.hitCount / 20);
 
-        // Draw claw 1
-        this._drawClaw(B, r, this.angle, frenzy);
-        // Draw claw 2
-        this._drawClaw(B, r, this.claw2Angle, frenzy);
+        // ── Sprite: Draw claw 1 and claw 2 at opposite angles ──
+        if (S && S._initialized) {
+            const clawScale = 25 * (1 + frenzy * 0.3);
+            const brightness = 1.0 + frenzy * 0.3;
+            S.drawSprite('sekhmet-claws', this.owner.x, this.owner.y, this.angle,
+                clawScale, clawScale, 1.0, brightness);
+            S.drawSprite('sekhmet-claws', this.owner.x, this.owner.y, this.claw2Angle,
+                clawScale, clawScale, 1.0, brightness);
+        }
 
         // Super: blood ring — reach indicator for trail hazards
         if (this.superActive) {
@@ -144,37 +150,6 @@ class SekhmetWeapon extends WB.Weapon {
             B.strokeCircle(this.owner.x, this.owner.y, this.reach, '#8B0000', 1.5);
             B.restoreAlpha();
         }
-    }
-
-    _drawClaw(B, r, angle, frenzy) {
-        B.pushTransform(this.owner.x, this.owner.y, angle);
-
-        // Claw arm — wider
-        B.fillRect(r - 2, -4, this.reach - r - 8, 8, '#5C1010');
-
-        // Three claw fingers — LENGTH and COLOR scale with frenzy
-        const clawBase = this.reach - 12;
-        const clawLen = 14 * (1 + frenzy * 0.5); // grows up to 50% longer
-        // Color shifts: crimson #DC143C → hot white-red #FF6666
-        const cR = Math.round(220 + (255 - 220) * frenzy);
-        const cG = Math.round(20 + (102 - 20) * frenzy);
-        const cB = Math.round(60 + (102 - 60) * frenzy);
-        const clawColor = `rgb(${cR},${cG},${cB})`;
-        // Tip radius grows with frenzy — bigger base
-        const tipRadius = 2.5 + frenzy * 1.5;
-
-        for (let i = -1; i <= 1; i++) {
-            const spread = i * 0.25;
-            const cx1 = clawBase;
-            const cy1 = i * 3;
-            const cx2 = clawBase + clawLen;
-            const cy2 = i * 5 + spread * 8;
-            B.line(cx1, cy1, cx2, cy2, clawColor, 3 + frenzy * 0.5);
-            // Claw tip — pulses larger at high frenzy
-            B.fillCircle(cx2, cy2, tipRadius, '#FF4444');
-        }
-
-        B.popTransform();
     }
 }
 

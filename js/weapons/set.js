@@ -114,14 +114,15 @@ class SetWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
         // Chaos intensity 0→1 (chaosMagnitude starts at 1, +0.1 per hit)
         const chaosIntensity = Math.min(1, (this.chaosMagnitude - 1) / 3);
 
-        // Sand orbit dots — MORE dots and LARGER as chaos builds
+        // ── Pre-overlay: Sand orbit dots (procedural) ──
         if (chaosIntensity > 0) {
-            const dotCount = 3 + Math.floor(chaosIntensity * 3); // 3→6
-            const dotRadius = 2 + chaosIntensity * 1.5; // 2→3.5
+            const dotCount = 3 + Math.floor(chaosIntensity * 3);
+            const dotRadius = 2 + chaosIntensity * 1.5;
             for (let i = 0; i < dotCount; i++) {
                 const swirl = this.visualTimer * 0.04 + i * Math.PI * 2 / dotCount;
                 const swirlR = r + 5 + chaosIntensity * 8;
@@ -133,79 +134,19 @@ class SetWeapon extends WB.Weapon {
             }
         }
 
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-
-        // Khopesh — curved sword
-        // Handle — wider
-        B.fillRect(r - 2, -5, 12, 10, '#5C3A1E');
-
-        // Blade color shifts: bronze #B8451D → violent red #FF2200 as chaos builds
-        const blR = Math.round(184 + (255 - 184) * chaosIntensity);
-        const blG = Math.round(69 + (34 - 69) * chaosIntensity);
-        const blB = Math.round(29 + (0 - 29) * chaosIntensity);
-        const bladeColor = `rgb(${blR},${blG},${blB})`;
-        // Stroke also shifts
-        const stR = Math.round(139 + (200 - 139) * chaosIntensity);
-        const stG = Math.round(48 + (20 - 48) * chaosIntensity);
-        const stB = Math.round(21 + (0 - 21) * chaosIntensity);
-        const strokeColor = `rgb(${stR},${stG},${stB})`;
-
-        // Curved blade — using a series of points to approximate the sickle shape
-        const bladePoints = [];
-        const curveSegments = 8;
-        for (let i = 0; i <= curveSegments; i++) {
-            const t = i / curveSegments;
-            const x = r + 12 + t * (this.reach - r - 12);
-            // Sickle curve — bows outward then hooks inward at tip
-            const curve = Math.sin(t * Math.PI) * 10 * (1 - t * 0.5);
-            bladePoints.push([x, -curve]);
-        }
-        // Return path (thin edge)
-        for (let i = curveSegments; i >= 0; i--) {
-            const t = i / curveSegments;
-            const x = r + 12 + t * (this.reach - r - 12);
-            const curve = Math.sin(t * Math.PI) * 4 * (1 - t * 0.3);
-            bladePoints.push([x, curve]);
-        }
-        B.fillPolygon(bladePoints, bladeColor);
-        B.strokePolygon(bladePoints, strokeColor, 1.5);
-
-        // Edge highlight
-        for (let i = 0; i < curveSegments; i++) {
-            const t = i / curveSegments;
-            const x = r + 12 + t * (this.reach - r - 12);
-            const curve = Math.sin(t * Math.PI) * 10 * (1 - t * 0.5);
-            const nx = r + 12 + (i + 1) / curveSegments * (this.reach - r - 12);
-            const ncurve = Math.sin((i + 1) / curveSegments * Math.PI) * 10 * (1 - (i + 1) / curveSegments * 0.5);
-            B.setAlpha(0.3);
-            B.line(x, -curve, nx, -ncurve, '#FF6B4A', 1.5);
-            B.restoreAlpha();
+        // ── Main sprite: Set khopesh ──
+        if (S && S._initialized) {
+            const spriteScale = this.reach * 0.55;
+            S.drawSprite('set-khopesh', this.owner.x, this.owner.y, this.angle,
+                spriteScale, spriteScale, 1.0, 1.0 + chaosIntensity * 0.4);
         }
 
-        B.popTransform();
-
-        // Super: gravity distortion indicator — VISIBLE arrow showing gravity direction
-        if (this.superActive) {
+        // ── Post-overlay: Super gravity arrow sprite ──
+        if (this.superActive && S && S._initialized) {
             const ga = WB.Config.GRAVITY_ANGLE;
-            const arrowLen = 18;
-            const ax = this.owner.x + Math.cos(ga) * (r + 6);
-            const ay = this.owner.y + Math.sin(ga) * (r + 6);
-            const aex = ax + Math.cos(ga) * arrowLen;
-            const aey = ay + Math.sin(ga) * arrowLen;
-            // Arrow shaft — prominent red
-            B.setAlpha(0.5);
-            B.line(ax, ay, aex, aey, '#FF4444', 2.5);
-            // Arrowhead triangle
-            const headSize = 5;
-            const perpX = -Math.sin(ga) * headSize;
-            const perpY = Math.cos(ga) * headSize;
-            B.fillTriangle(
-                aex + Math.cos(ga) * headSize, aey + Math.sin(ga) * headSize,
-                aex + perpX, aey + perpY,
-                aex - perpX, aey - perpY,
-                '#FF4444'
-            );
-            B.restoreAlpha();
+            const arrowX = this.owner.x + Math.cos(ga) * (r + 16);
+            const arrowY = this.owner.y + Math.sin(ga) * (r + 16);
+            S.drawSprite('set-arrow', arrowX, arrowY, ga, 10, 10, 0.6, 1.2);
         }
     }
 }

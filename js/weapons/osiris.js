@@ -135,8 +135,9 @@ class OsirisWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
-        // Wrapping lines on ball (mummy wraps) — glow brighter as bank fills
+        // ── Pre-overlay: Mummy wraps (procedural) ──
         const bankIntensity = Math.min(1, this.deathBank / 30);
         if (bankIntensity > 0.05) {
             B.setAlpha(0.1 + bankIntensity * 0.2);
@@ -151,7 +152,7 @@ class OsirisWeapon extends WB.Weapon {
             B.restoreAlpha();
         }
 
-        // Death bank visual — purple number above HP
+        // ── Pre-overlay: Death bank number ──
         if (this.deathBank >= 1 && WB.GLText) {
             const bankText = Math.floor(this.deathBank).toString();
             WB.GLText.drawTextWithStroke(
@@ -162,30 +163,19 @@ class OsirisWeapon extends WB.Weapon {
             );
         }
 
-        // Crook (short/heavy side)
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        // Shaft — wider
-        B.fillRect(r - 2, -4, this.reach - r + 2, 8, '#5C4033');
-        // Crook hook — larger circles
-        B.fillCircle(this.reach, -4, 6, '#98FB98');
-        B.fillCircle(this.reach - 4, -8, 4.5, '#7CDB7C');
-        B.strokeCircle(this.reach - 2, -5, 7, '#4A854A', 1.5);
-        B.popTransform();
-
-        // Flail (long/light side)
-        B.pushTransform(this.owner.x, this.owner.y, this.flailAngle);
-        // Chain segments — bigger links
-        const chainSegs = 5;
-        const segLen = (this.flailReach - r) / chainSegs;
-        for (let i = 0; i < chainSegs; i++) {
-            const sx = r + i * segLen;
-            B.fillCircle(sx + segLen * 0.5, 0, 3, '#AAAAAA');
+        // ── Sprite: Crook (short/heavy side) ──
+        if (S && S._initialized) {
+            const crookScale = this.reach * 0.55;
+            S.drawSprite('osiris-crook', this.owner.x, this.owner.y, this.angle,
+                crookScale, crookScale, 1.0, 1.0);
         }
-        B.line(r, 0, this.flailReach - 8, 0, '#888888', 2.5);
-        // Flail head — bigger
-        B.fillCircle(this.flailReach - 4, 0, 8, '#C0C0C0');
-        B.strokeCircle(this.flailReach - 4, 0, 8, '#888888', 1.5);
-        B.popTransform();
+
+        // ── Sprite: Flail (long/light side) ──
+        if (S && S._initialized) {
+            const flailScale = this.flailReach * 0.5;
+            S.drawSprite('osiris-flail', this.owner.x, this.owner.y, this.flailAngle,
+                flailScale, flailScale, 1.0, 1.0);
+        }
 
         // Super indicator
         if (this.superActive) {

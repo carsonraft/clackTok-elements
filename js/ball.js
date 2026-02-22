@@ -174,6 +174,12 @@ WB.Ball = class {
         // Ball body
         const fillColor = this.damageFlash > 0 ? '#FFF' : this.color;
         B.fillCircle(this.x, this.y, this.radius, fillColor);
+
+        // Ball image overlay (flags, faces, logos)
+        if (WB.BallImages && WB.BallImages.hasImage(this.side) && this.damageFlash <= 0) {
+            WB.BallImages.drawCircle(this.x, this.y, this.radius - 2, this.side);
+        }
+
         B.strokeCircle(this.x, this.y, this.radius, '#333', outlineW);
 
         // Poison visual

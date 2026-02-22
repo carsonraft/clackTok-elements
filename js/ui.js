@@ -174,6 +174,13 @@ WB.UI = {
             return 'bestof';
         }
 
+        // Check STUDIO button
+        const stBtn = layout.studioBtn;
+        if (mx >= stBtn.x && mx <= stBtn.x + stBtn.w && my >= stBtn.y && my <= stBtn.y + stBtn.h) {
+            WB.Audio.menuClack();
+            return 'studio';
+        }
+
         return null;
     },
 
@@ -229,6 +236,7 @@ WB.UI = {
             stageSizeBtn:{ x: pad, y: selectorsY, w: selectorW, h: selectorH },
             frictionBtn: { x: pad + (selectorW + 6) * 2, y: selectorsY, w: selectorW, h: selectorH },
             bestOfBtn:   { x: pad, y: bestOfY, w: 100, h: bestOfH },
+            studioBtn:   { x: pad + 106, y: bestOfY, w: 100, h: bestOfH },
         };
     },
 
@@ -441,13 +449,20 @@ WB.UI = {
                 'bold 16px "Courier New", monospace', '#FFF', 'center', 'middle');
         }
 
-        // Row 5: BEST OF
+        // Row 5: BEST OF + STUDIO
         const boBtn = layout.bestOfBtn;
         const savedCount = WB.SimUI.loadBestOf().length;
         B.fillRect(boBtn.x, boBtn.y, boBtn.w, boBtn.h, savedCount > 0 ? '#D4A853' : '#CCC');
         B.strokeRect(boBtn.x, boBtn.y, boBtn.w, boBtn.h, savedCount > 0 ? '#B8860B' : '#AAA', 1);
         B.flush();
         T.drawText(`BEST OF (${savedCount})`, boBtn.x + boBtn.w / 2, boBtn.y + boBtn.h / 2,
+            'bold 11px "Courier New", monospace', '#FFF', 'center', 'middle');
+
+        const stBtn = layout.studioBtn;
+        B.fillRect(stBtn.x, stBtn.y, stBtn.w, stBtn.h, savedCount > 0 ? '#6B48C7' : '#999');
+        B.strokeRect(stBtn.x, stBtn.y, stBtn.w, stBtn.h, savedCount > 0 ? '#4A2E8F' : '#777', 1);
+        B.flush();
+        T.drawText('STUDIO', stBtn.x + stBtn.w / 2, stBtn.y + stBtn.h / 2,
             'bold 11px "Courier New", monospace', '#FFF', 'center', 'middle');
     },
 

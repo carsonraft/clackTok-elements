@@ -133,6 +133,7 @@ WB.Projectile = class {
             target.takeDamage(this.damage);
             if (this.ownerWeapon) {
                 this.ownerWeapon.hitCount++;
+                this.ownerWeapon.totalDamageDealt += this.damage;
                 this.ownerWeapon.applyScaling();
                 this.ownerWeapon.checkSuper();
             }
@@ -328,29 +329,16 @@ WB.Projectile = class {
         B.popTransform();
     }
 
-    // ─── DROPLET: Wadjet venom — teardrop, fat end forward ──
-    // Filled teardrop shape using triangle + circle
+    // ─── DROPLET: Wadjet venom — pixel art sprite from atlas ──
     _drawDroplet(B, r, heading) {
-        const len = r * 2.5;
-        B.pushTransform(this.x, this.y, heading);
-        // Fat front (circle)
-        B.fillCircle(len * 0.15, 0, r * 0.9, this.color);
-        // Tapered tail (triangle narrowing backward)
-        B.fillTriangle(
-            len * 0.15, -r * 0.85,  // top of circle edge
-            len * 0.15, r * 0.85,   // bottom of circle edge
-            -len * 0.5, 0,           // tail point
-            this.color
-        );
-        // Dark outline
-        B.strokeCircle(len * 0.15, 0, r * 0.9, '#222', 1.5);
-        B.line(len * 0.15, -r * 0.85, -len * 0.5, 0, '#222', 1.5);
-        B.line(len * 0.15, r * 0.85, -len * 0.5, 0, '#222', 1.5);
-        // Inner highlight
-        B.setAlpha(0.3);
-        B.fillCircle(len * 0.2, -r * 0.2, r * 0.3, '#FFF');
-        B.restoreAlpha();
-        B.popTransform();
+        const S = WB.WeaponSprites;
+        if (S && S._initialized) {
+            S.drawSprite('wadjet-glob', this.x, this.y, heading, r * 1.5, r * 1.5, 1.0, 1.0);
+        } else {
+            // Fallback: simple circle
+            B.fillCircle(this.x, this.y, r + 1, '#222');
+            B.fillCircle(this.x, this.y, r, this.color);
+        }
     }
 
     // ─── WAVE: Water — crescent/arc shape ───────────────────
@@ -440,36 +428,16 @@ WB.Projectile = class {
         B.fillCircle(this.x, this.y, r * 0.3, this.color);
     }
 
-    // ─── GLYPH: Thoth — rotating diamond with center eye ────
-    // Diamond shape (square rotated 45deg) that spins
+    // ─── GLYPH: Thoth — pixel art sprite from atlas ────
     _drawGlyph(B, r, heading) {
-        const spin = this._age * 0.06;
-        const size = r * 1.4;
-        // Diamond: 4 points (top, right, bottom, left)
-        const points = [];
-        for (let i = 0; i < 4; i++) {
-            const a = spin + (i / 4) * Math.PI * 2 + Math.PI / 4;
-            points.push(this.x + Math.cos(a) * size);
-            points.push(this.y + Math.sin(a) * size);
+        const S = WB.WeaponSprites;
+        if (S && S._initialized) {
+            S.drawSprite('thoth-glyph', this.x, this.y, this._age * 0.06, r * 1.4, r * 1.4, 1.0, 1.0);
+        } else {
+            // Fallback: simple circle
+            B.fillCircle(this.x, this.y, r + 1, '#222');
+            B.fillCircle(this.x, this.y, r, this.color);
         }
-        // Dark shadow (slightly larger diamond)
-        const shadowPts = [];
-        for (let i = 0; i < 4; i++) {
-            const a = spin + (i / 4) * Math.PI * 2 + Math.PI / 4;
-            shadowPts.push(this.x + Math.cos(a) * (size * 1.15));
-            shadowPts.push(this.y + Math.sin(a) * (size * 1.15));
-        }
-        B.fillPolygon(shadowPts, '#222');
-        // Colored diamond
-        B.fillPolygon(points, this.color);
-        // Outline
-        for (let i = 0; i < 4; i++) {
-            const ni = (i + 1) % 4;
-            B.line(points[i*2], points[i*2+1], points[ni*2], points[ni*2+1], '#222', 1.5);
-        }
-        // Center eye dot with dark ring
-        B.fillCircle(this.x, this.y, r * 0.4, '#222');
-        B.fillCircle(this.x, this.y, r * 0.3, '#FFD700');
     }
 
     // ─── HEXAGON: Crystal — faceted gem shape ───────────────

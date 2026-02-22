@@ -63,9 +63,13 @@ WB.Renderer = {
             p.draw();
         }
 
-        // Draw weapons behind balls, then balls on top
+        // Draw non-sprite weapons behind balls (procedural swords, bows, etc.)
+        // Egyptian weapons use sprite-based rendering and must draw AFTER balls
+        const _egyptianTypes = WB.WeaponSprites && WB.WeaponSprites._initialized
+            ? new Set(WB.WeaponRegistry.getTypes('egyptian'))
+            : null;
         for (const ball of game.balls) {
-            if (ball.isAlive) {
+            if (ball.isAlive && !(_egyptianTypes && _egyptianTypes.has(ball.weaponType))) {
                 ball.weapon.draw();
             }
         }
@@ -77,6 +81,15 @@ WB.Renderer = {
                 ball.draw();
             } else {
                 ball.drawDead();
+            }
+        }
+
+        // Draw sprite-based weapons ON TOP of balls (Egyptian pantheon)
+        if (_egyptianTypes) {
+            for (const ball of game.balls) {
+                if (ball.isAlive && _egyptianTypes.has(ball.weaponType)) {
+                    ball.weapon.draw();
+                }
             }
         }
 
@@ -95,8 +108,8 @@ WB.Renderer = {
 
         // Arena border — drawn after clearShake so it doesn't shift on bounces
         // Slightly thicker on HiDPI for visual weight (3→3.5 compensates for crisp edge)
-        const borderW = WB.GL.dpr >= 1.5 ? 3.5 : 3;
-        B.strokeRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#333', borderW);
+        const borderW = WB.GL.dpr >= 1.5 ? 4.5 : 4;
+        B.strokeRect(c.ARENA.x, c.ARENA.y, c.ARENA.width, c.ARENA.height, '#1A1A1A', borderW);
 
         // Hide HUD during cutscene (it would render zoomed/panned)
         if (!WB.Cutscene || !WB.Cutscene.isPlaying) {
@@ -121,38 +134,47 @@ WB.Renderer = {
         const c = WB.Config;
         const a = c.ARENA;
         const T = WB.GLText;
-        // Center horizontally on canvas (= arena center since arena is centered)
+        // Center horizontally on canvas
         const cx = c.CANVAS_WIDTH / 2;
         // Center vertically in the gap above the arena
         const titleCenterY = Math.round(a.y / 2);
         const b1 = game.balls[0];
         const b2 = game.balls[1];
-        const name1 = WB.Config.WEAPON_NAMES[b1.weaponType] || b1.weaponType;
-        const name2 = WB.Config.WEAPON_NAMES[b2.weaponType] || b2.weaponType;
-        // Bigger fonts for TikTok readability
-        const fontSize = a.width < 400 ? 22 : 24;
-        const font = `bold ${fontSize}px "Courier New", monospace`;
-        const vsFont = `bold ${fontSize - 8}px "Courier New", monospace`;
-        const pad = 8; // space between name and "vs"
+        const name1 = (WB.Config.WEAPON_NAMES[b1.weaponType] || b1.weaponType).toUpperCase();
+        const name2 = (WB.Config.WEAPON_NAMES[b2.weaponType] || b2.weaponType).toUpperCase();
 
-        // Measure widths so the whole "Name1 vs Name2" unit is centered
-        const w1 = T.measureText(name1, font);
-        const wVs = T.measureText('vs', vsFont);
-        const w2 = T.measureText(name2, font);
-        const totalW = w1 + pad + wVs + pad + w2;
+        // Bold 32px names — fall back to 24px if they overflow the canvas
+        let fontSize = 32;
+        let font = `bold ${fontSize}px "Courier New", monospace`;
+        const vsFont = 'bold 18px "Courier New", monospace';
+        const pad = 10; // space between name and "VS"
+
+        // Measure at 32px and fall back to 24px if too wide
+        let w1 = T.measureText(name1, font);
+        const wVs = T.measureText('VS', vsFont);
+        let w2 = T.measureText(name2, font);
+        let totalW = w1 + pad + wVs + pad + w2;
+
+        if (totalW > c.CANVAS_WIDTH - 20) {
+            fontSize = 24;
+            font = `bold ${fontSize}px "Courier New", monospace`;
+            w1 = T.measureText(name1, font);
+            w2 = T.measureText(name2, font);
+            totalW = w1 + pad + wVs + pad + w2;
+        }
         const startX = cx - totalW / 2;
 
         // Adaptive stroke: dark stroke for bright colors, light stroke for dark colors
         const stroke1 = this._titleStroke(b1.color);
         const stroke2 = this._titleStroke(b2.color);
 
-        // Left weapon name (left-aligned from computed start)
+        // Left weapon name
         T.drawTextWithStroke(name1, startX, titleCenterY, font, b1.color, stroke1, 2, 'left', 'middle');
 
-        // VS
-        T.drawText('vs', startX + w1 + pad + wVs / 2, titleCenterY, vsFont, '#888', 'center', 'middle');
+        // VS — neutral gray, smaller
+        T.drawText('VS', startX + w1 + pad + wVs / 2, titleCenterY, vsFont, '#777', 'center', 'middle');
 
-        // Right weapon name (left-aligned after vs)
+        // Right weapon name
         T.drawTextWithStroke(name2, startX + w1 + pad + wVs + pad, titleCenterY, font, b2.color, stroke2, 2, 'left', 'middle');
     },
 
@@ -666,6 +688,23 @@ WB.Renderer = {
                 // Leaf
                 B.fillTriangle(3, -2, 6, -4, 5, 0, '#2E8B2E');
                 break;
+
+            // ─── Egyptian weapons ───
+            case 'thoth': case 'ra': case 'sekhmet': case 'sobek': case 'set':
+            case 'anubis': case 'horus': case 'khnum': case 'wadjet': case 'osiris':
+                if (WB.WeaponSprites && WB.WeaponSprites._initialized) {
+                    const iconMap = {
+                        thoth: 'thoth-staff', ra: 'ra-disk', sekhmet: 'sekhmet-claws',
+                        sobek: 'sobek-jaw', set: 'set-khopesh', anubis: 'anubis-crook',
+                        horus: 'horus-wings', khnum: 'khnum-horns', wadjet: 'wadjet-cobra',
+                        osiris: 'osiris-crook'
+                    };
+                    WB.WeaponSprites.drawSprite(iconMap[type], x, y, 0, 10, 10, 1.0, 1.0);
+                } else {
+                    // Fallback: simple colored circle
+                    B.fillCircle(0, 0, 6, color);
+                }
+                break;
         }
         B.popTransform();
     },
@@ -715,6 +754,54 @@ WB.Renderer = {
                 'bold 44px "Courier New", monospace', '#FFF', 'center', 'middle');
         }
 
+        // ★ SAVE / ★ SAVED button — bottom center of result overlay
+        if (game._battleSeed && !WB.SimUI.isReplaying) {
+            const btnW = 140, btnH = 38;
+            const btnX = cx - btnW / 2;
+            const btnY = cy + 50;
+
+            // Build result object for isSaved check
+            const resultObj = this._buildBattleResult(game);
+            const alreadySaved = WB.SimUI.isSaved(resultObj);
+
+            if (alreadySaved) {
+                // Filled gold button
+                B.fillRect(btnX, btnY, btnW, btnH, '#C8A82C');
+                B.strokeRect(btnX, btnY, btnW, btnH, '#FFD700', 2);
+                T.drawText('\u2605 SAVED', cx, btnY + btnH / 2,
+                    'bold 18px "Courier New", monospace', '#1A1A1A', 'center', 'middle');
+            } else {
+                // Outline-only button
+                B.fillRect(btnX, btnY, btnW, btnH, 'rgba(255,255,255,0.08)');
+                B.strokeRect(btnX, btnY, btnW, btnH, '#FFD700', 2);
+                T.drawText('\u2605 SAVE', cx, btnY + btnH / 2,
+                    'bold 18px "Courier New", monospace', '#FFD700', 'center', 'middle');
+            }
+
+            // Store button rect for click handler
+            game._favBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+        } else {
+            game._favBtn = null;
+        }
+
         T.flush();
+    },
+
+    // Build a battle result object from current game state (for save/check)
+    _buildBattleResult(game) {
+        if (!game.balls || game.balls.length < 2) return null;
+        const b1 = game.balls[0];
+        const b2 = game.balls[1];
+        return {
+            seed: game._battleSeed,
+            weaponLeft: b1.weaponType,
+            weaponRight: b2.weaponType,
+            winner: game.winner ? game.winner.side : 'left',
+            winnerWeapon: game.winner ? game.winner.weaponType : b1.weaponType,
+            winnerHp: game.winner ? Math.ceil(game.winner.hp) : 0,
+            score: game._excitementScore || { total: 0, breakdown: {}, meta: {} },
+            frames: game._excitement ? game._excitement.frameCount : 0,
+            toggles: game._battleToggles || null,
+        };
     }
 };

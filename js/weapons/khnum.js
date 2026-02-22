@@ -93,11 +93,12 @@ class KhnumWeapon extends WB.Weapon {
     draw() {
         const B = WB.GLBatch;
         const r = this.owner.radius;
+        const S = WB.WeaponSprites;
 
         // Stone/clay texture overlay — darker ring pattern
         const massMult = this.owner.mass / this.baseMass;
 
-        // Inner stone rings (visible as ball grows)
+        // ── Pre-overlay: Inner stone rings (visible as ball grows) ──
         if (massMult > 1.1) {
             const rings = Math.min(4, Math.floor((massMult - 1) * 5));
             for (let i = 0; i < rings; i++) {
@@ -108,36 +109,12 @@ class KhnumWeapon extends WB.Weapon {
             }
         }
 
-        // Ram horns — two curved arcs on the sides, with dark outlines
-        const hornSize = Math.min(r * 0.6, 12 + massMult * 3);
-        // Dark outline behind horns for contrast
-        B.setAlpha(0.85);
-        B.drawQuadratic(
-            this.owner.x - r * 0.7, this.owner.y - r * 0.3,
-            this.owner.x - r - hornSize, this.owner.y - hornSize * 0.8,
-            this.owner.x - r * 0.5, this.owner.y - r * 0.8,
-            '#3D2200', 5
-        );
-        B.drawQuadratic(
-            this.owner.x + r * 0.7, this.owner.y - r * 0.3,
-            this.owner.x + r + hornSize, this.owner.y - hornSize * 0.8,
-            this.owner.x + r * 0.5, this.owner.y - r * 0.8,
-            '#3D2200', 5
-        );
-        // Main horns — thicker
-        B.drawQuadratic(
-            this.owner.x - r * 0.7, this.owner.y - r * 0.3,
-            this.owner.x - r - hornSize, this.owner.y - hornSize * 0.8,
-            this.owner.x - r * 0.5, this.owner.y - r * 0.8,
-            '#B8860B', 3.5
-        );
-        B.drawQuadratic(
-            this.owner.x + r * 0.7, this.owner.y - r * 0.3,
-            this.owner.x + r + hornSize, this.owner.y - hornSize * 0.8,
-            this.owner.x + r * 0.5, this.owner.y - r * 0.8,
-            '#B8860B', 3.5
-        );
-        B.restoreAlpha();
+        // ── Main sprite: Khnum horns (body contact, no rotation) ──
+        if (S && S._initialized) {
+            const hornScale = 25 + massMult * 6;
+            S.drawSprite('khnum-horns', this.owner.x, this.owner.y, 0,
+                hornScale, hornScale, 0.9, 1.0);
+        }
 
         // Super: stone density overlay
         if (this.superActive) {

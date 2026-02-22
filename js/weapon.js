@@ -11,6 +11,7 @@ WB.Weapon = class {
         this.reach = config.reach != null ? config.reach : 40;
         this.baseReach = this.reach;
         this.hitCount = 0;
+        this.totalDamageDealt = 0;
         this.cooldown = 0;
         this.superActive = false;
         this.superThreshold = config.superThreshold || WB.Config.SUPER_THRESHOLD;
@@ -48,6 +49,7 @@ WB.Weapon = class {
     }
 
     onHit(target) {
+        this.totalDamageDealt += this.currentDamage;
         target.takeDamage(this.currentDamage);
         this.hitCount++;
         this.cooldown = WB.Config.WEAPON_HIT_COOLDOWN;

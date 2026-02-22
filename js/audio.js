@@ -1324,5 +1324,29 @@ WB.Audio = {
         gain.connect(this.masterGain);
         noise.start(t);
         noise.stop(t + 0.05);
+    },
+
+    // ─── Audio Capture for Recording ────────────────────
+    _captureNode: null,
+
+    createCaptureStream() {
+        if (!this.ctx || !this.masterGain) return null;
+        try {
+            this._captureNode = this.ctx.createMediaStreamDestination();
+            this.masterGain.connect(this._captureNode);
+            return this._captureNode.stream;
+        } catch (e) {
+            console.warn('Audio capture not supported:', e);
+            return null;
+        }
+    },
+
+    destroyCaptureStream() {
+        if (this._captureNode && this.masterGain) {
+            try {
+                this.masterGain.disconnect(this._captureNode);
+            } catch (e) { /* already disconnected */ }
+            this._captureNode = null;
+        }
     }
 };
