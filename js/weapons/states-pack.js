@@ -12,17 +12,23 @@ var NO_SUPER = 9999;
 // ═══════════════════════════════════════════════════════════════
 //  HELPER: SVG sprite draw for weapons that have icons
 //  Returns true if sprite was drawn, false if fallback needed.
-//  Offsets sprite center along weapon angle for correct pivot.
+//  Aligns SVG pivot (20,50) with ball edge and tip (90,50) with reach.
+//
+//  SVG layout: 100x100 viewBox, attachment at x=20, tip at x=90.
+//  Math: halfW = (reach - r) / 1.4
+//        center offset from ball = r + 0.6 * halfW
+//  This ensures the visual tip lands exactly at the weapon's hitbox.
 // ═══════════════════════════════════════════════════════════════
 function drawWeaponSprite(weapon, spriteKey) {
     var S = WB.WeaponSprites;
     if (!S || !S.hasSprite(spriteKey)) return false;
     WB.GLBatch.flush(); // Flush batch before switching to sprite shader
-    var offset = weapon.reach * 0.35;
+    var r = weapon.owner.radius;
+    var halfW = (weapon.reach - r) / 1.4;
+    var offset = r + 0.6 * halfW;
     var cx = weapon.owner.x + Math.cos(weapon.angle) * offset;
     var cy = weapon.owner.y + Math.sin(weapon.angle) * offset;
-    var scale = weapon.reach * 0.32;
-    S.drawSprite(spriteKey, cx, cy, weapon.angle, scale, scale, 1.0, 1.0);
+    S.drawSprite(spriteKey, cx, cy, weapon.angle, halfW, halfW, 1.0, 1.0);
     return true;
 }
 
