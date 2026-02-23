@@ -17,6 +17,7 @@ WB.Hazard = class {
         this._hitTimers = new Map();             // target → cooldown frames remaining
         this.vx = config.vx || 0;               // optional drift velocity
         this.vy = config.vy || 0;
+        this.spriteKey = config.spriteKey || null; // optional: render atlas sprite instead of ring
     }
 
     update() {
@@ -72,6 +73,16 @@ WB.Hazard = class {
         const B = WB.GLBatch;
         const fadeRatio = Math.min(1, this.lifespan / (this.maxLife * 0.3)); // fade in last 30%
         const alpha = fadeRatio;
+
+        // Sprite-based hazard (e.g. New York skyscrapers)
+        if (this.spriteKey) {
+            var S = WB.WeaponSprites;
+            if (S && S.hasSprite(this.spriteKey)) {
+                B.flush();
+                S.drawSprite(this.spriteKey, this.x, this.y, 0, this.radius, this.radius, alpha * 0.8, 1.0);
+                return;
+            }
+        }
 
         // Pulsing glow
         const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.1;

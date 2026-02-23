@@ -97,7 +97,8 @@ class AlabamaWeapon extends WB.Weapon {
             vx: Math.cos(angle) * this.rocketSpeed,
             vy: Math.sin(angle) * this.rocketSpeed,
             damage: Math.round(dmg), owner: this.owner, ownerWeapon: this,
-            radius: size, lifespan: 120, bounces: 0, color: '#990000', shape: 'bullet'
+            radius: size, lifespan: 120, bounces: 0, color: '#990000',
+            shape: 'sprite', spriteKey: 'alabama-rocket'
         }));
         WB.Audio.projectileFire();
     }
@@ -108,21 +109,14 @@ class AlabamaWeapon extends WB.Weapon {
     }
     onHit() {} // ranged only
     draw() {
-        if (drawWeaponSprite(this, 'alabama-rocket')) {
-            // Still draw rocket counter overlay
-            if (this.rocketsFired > 0) {
-                var countStr = '' + this.rocketsFired;
-                WB.GLText.drawTextLite(countStr, this.owner.x, this.owner.y - this.owner.radius - 10, '12px Courier New', '#FFF', '#333', 'center');
-            }
-            return;
-        }
+        // Alabama's SVG is used on projectiles (rockets), not the launcher arm
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         // Launcher tube
         B.fillRect(this.owner.radius, -4, 30, 8, '#555');
         B.strokeRect(this.owner.radius, -4, 30, 8, '#333', 1.5);
-        // Rocket counter on ball
         B.popTransform();
+        // Rocket counter on ball
         if (this.rocketsFired > 0) {
             var countStr = '' + this.rocketsFired;
             WB.GLText.drawTextLite(countStr, this.owner.x, this.owner.y - this.owner.radius - 10, '12px Courier New', '#FFF', '#333', 'center');
@@ -271,7 +265,8 @@ class ArkansasWeapon extends WB.Weapon {
                 y: this.owner.y + Math.sin(a) * (this.owner.radius + 6),
                 vx: Math.cos(a) * 6, vy: Math.sin(a) * 6,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 3, lifespan: 90, bounces: 0, color: '#A0522D', shape: 'hexagon',
+                radius: 3, lifespan: 90, bounces: 0, color: '#A0522D',
+                shape: 'sprite', spriteKey: 'arkansas-shard',
                 onMiss: function(x, y) {
                     if (WB.Game && WB.Game.hazards) {
                         WB.Game.hazards.push(new WB.Hazard({
@@ -291,7 +286,7 @@ class ArkansasWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
-        if (drawWeaponSprite(this, 'arkansas-shard')) return;
+        // Arkansas shard SVG is used on projectiles, not the launcher arm
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#8B6914');
@@ -825,7 +820,8 @@ class IdahoWeapon extends WB.Weapon {
                 y: this.owner.y + Math.sin(a) * (this.owner.radius + 5),
                 vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 2, lifespan: 80, bounces: 0, color: '#C5A253'
+                radius: 2, lifespan: 80, bounces: 0, color: '#C5A253',
+                shape: 'sprite', spriteKey: 'idaho-kernel'
             }));
         }
         WB.Audio.projectileFire();
@@ -837,7 +833,7 @@ class IdahoWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
-        if (drawWeaponSprite(this, 'idaho-kernel')) return;
+        // Idaho kernel SVG is used on projectiles, not the launcher arm
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#8B7355');
@@ -1211,7 +1207,8 @@ class MaineWeapon extends WB.Weapon {
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 8),
             vx: Math.cos(angle) * 4, vy: Math.sin(angle) * 4,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: this.clawSize, lifespan: 120, bounces: 0, color: '#003F87'
+            radius: this.clawSize, lifespan: 120, bounces: 0, color: '#003F87',
+            shape: 'sprite', spriteKey: 'maine-claw'
         }));
         WB.Audio.projectileFire();
     }
@@ -1227,7 +1224,7 @@ class MaineWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
-        if (drawWeaponSprite(this, 'maine-claw')) return;
+        // Maine claw SVG is used on projectiles, not the launcher arm
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#8B4513');
@@ -1349,6 +1346,7 @@ class MichiganWeapon extends WB.Weapon {
         this.contactCooldown = 0;
         this.contactCooldownTime = 60;
         this.contactAura = 2;
+        this._gearAge = 0;
         this.scalingStat.value = this.armorPlates;
         // Patch takeDamage for armor
         var self = this;
@@ -1359,7 +1357,7 @@ class MichiganWeapon extends WB.Weapon {
             origTakeDamage(reduced);
         };
     }
-    update() { if (this.contactCooldown > 0) this.contactCooldown--; }
+    update() { this._gearAge++; if (this.contactCooldown > 0) this.contactCooldown--; }
     canHit() { return this.contactCooldown <= 0; }
     onHit(target) {
         var dmg = this.currentDamage;
@@ -1382,6 +1380,14 @@ class MichiganWeapon extends WB.Weapon {
     }
     draw() {
         var B = WB.GLBatch;
+        // Gear sprite centered on ball (body slam — the ball IS the weapon)
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('michigan-gear')) {
+            B.flush();
+            var size = this.owner.radius * 1.4;
+            S.drawSprite('michigan-gear', this.owner.x, this.owner.y, this._gearAge * 0.02, size, size, 0.6, 1.0);
+        }
+        // Armor plate rings on top
         if (this.armorPlates > 0) {
             B.setAlpha(0.15);
             for (var p = 0; p < Math.min(this.armorPlates, 5); p++) {
@@ -1423,7 +1429,8 @@ class MinnesotaWeapon extends WB.Weapon {
             y: this.owner.y + Math.sin(a) * (this.reach + 5),
             vx: Math.cos(a) * 8, vy: Math.sin(a) * 8,
             damage: 1, owner: this.owner, ownerWeapon: this,
-            radius: 3, lifespan: 90, bounces: 2, color: '#222'
+            radius: 3, lifespan: 90, bounces: 2, color: '#222',
+            shape: 'sprite', spriteKey: 'minnesota-puck'
         }));
     }
     applyScaling() {
@@ -1494,7 +1501,14 @@ class MississippiWeapon extends WB.Weapon {
         this.scalingStat.value = this.currentStrength.toFixed(0);
     }
     draw() {
-        if (drawWeaponSprite(this, 'mississippi-paddle')) return;
+        // Paddle wheel sprite centered on ball, spinning with weapon angle
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('mississippi-paddle')) {
+            WB.GLBatch.flush();
+            var size = this.owner.radius * 1.5;
+            S.drawSprite('mississippi-paddle', this.owner.x, this.owner.y, this.angle, size, size, 0.8, 1.0);
+            return;
+        }
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -1929,26 +1943,27 @@ class NewMexicoWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('new-mexico', NewMexicoWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  32. NEW YORK — Projectile (taxi cabs). Heavy, bouncing.
+//  32. NEW YORK — Projectile (Art Deco darts). Heavy, bouncing.
+//  Darts that miss spawn skyscraper terrain hazards (DOT zones).
 //  +5% mass per hit (heavier knockback). Every 4 hits: +1 dmg.
 // ═══════════════════════════════════════════════════════════════
 class NewYorkWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'new-york', baseDamage: 3, rotationSpeed: 0.04, reach: 50, scalingName: 'Taxis', superThreshold: NO_SUPER, isRanged: true });
+        super(owner, { type: 'new-york', baseDamage: 3, rotationSpeed: 0.04, reach: 50, scalingName: 'Towers', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
         this.fireRate = 90;
         this.taxiMass = 1.0;
-        this.taxisFired = 0;
-        this.scalingStat.value = this.taxisFired;
+        this.dartsFired = 0;
+        this.scalingStat.value = this.dartsFired;
     }
     update() {
         super.update();
         this.fireTimer++;
-        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireTaxi(); }
+        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireDart(); }
     }
-    _fireTaxi() {
+    _fireDart() {
         if (!WB.Game || !WB.Game.projectiles) return;
-        this.taxisFired++;
+        this.dartsFired++;
         var angle = this.angle;
         if (WB.Game.balls) {
             for (var i = 0; i < WB.Game.balls.length; i++) {
@@ -1958,12 +1973,25 @@ class NewYorkWeapon extends WB.Weapon {
                 }
             }
         }
+        var self = this;
         WB.Game.projectiles.push(new WB.Projectile({
             x: this.owner.x + Math.cos(angle) * (this.owner.radius + 8),
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 8),
             vx: Math.cos(angle) * 7, vy: Math.sin(angle) * 7,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: 5, lifespan: 100, bounces: 1, color: '#FFD700', shape: 'bullet'
+            radius: 5, lifespan: 100, bounces: 1, color: '#FFD700',
+            shape: 'sprite', spriteKey: 'newyork-dart',
+            onMiss: function(x, y) {
+                // Skyscraper grows where dart lands
+                if (WB.Game && WB.Game.hazards) {
+                    WB.Game.hazards.push(new WB.Hazard({
+                        x: x, y: y, radius: 15, damage: 1, tickRate: 45,
+                        lifespan: 300, color: '#B8860B',
+                        owner: self.owner, ownerWeapon: self,
+                        spriteKey: 'newyork-terrain'
+                    }));
+                }
+            }
         }));
         WB.Audio.projectileFire();
     }
@@ -1978,11 +2006,11 @@ class NewYorkWeapon extends WB.Weapon {
     applyScaling() {
         this.taxiMass = 1.0 + this.hitCount * 0.05;
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 4);
-        this.scalingStat.value = this.taxisFired;
+        this.scalingStat.value = this.dartsFired;
     }
     onHit() {}
     draw() {
-        if (drawWeaponSprite(this, 'newyork-dart')) return;
+        // New York dart SVG is used on projectiles, not the launcher arm
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 28, 6, '#555');
@@ -2143,7 +2171,7 @@ class OhioWeapon extends WB.Weapon {
         this.scalingStat.value = this.scalingRate.toFixed(2);
     }
     draw() {
-        if (drawWeaponSprite(this, 'ohio-football')) return;
+        // Ohio football SVG is icon-only (compound scaling wrench in battle)
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;

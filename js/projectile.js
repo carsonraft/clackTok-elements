@@ -18,7 +18,8 @@ WB.Projectile = class {
         this.damageFalloff = config.damageFalloff || 0; // damage multiplier lost per bounce (e.g. 0.5 = 50% per bounce)
         this.gravityAffected = config.gravityAffected || false; // Wadjet venom globs arc with gravity
         this.onMiss = config.onMiss || null; // callback(x, y) when projectile dies without hitting
-        this.shape = config.shape || null;  // null = circle (default), 'bolt', 'arrow', 'sun-arrow', etc.
+        this.shape = config.shape || null;  // null = circle (default), 'bolt', 'arrow', 'sun-arrow', 'sprite', etc.
+        this.spriteKey = config.spriteKey || null;  // For shape='sprite': key into WB.WeaponSprites atlas
         this._hasHit = false;
         this.alive = true;
         this.trail = [];
@@ -198,6 +199,7 @@ WB.Projectile = class {
             case 'glyph':     this._drawGlyph(B, r, heading); break;
             case 'hexagon':   this._drawHexagon(B, r, heading); break;
             case 'spiked':    this._drawSpiked(B, r, heading); break;
+            case 'sprite':    this._drawSprite(B, r, heading); break;
             default:          this._drawCircle(B, r); break;
         }
     }
@@ -496,6 +498,20 @@ WB.Projectile = class {
             const perpY = Math.sin(a + Math.PI / 2) * spikeW;
             B.line(tipX, tipY, this.x + perpX, this.y + perpY, '#222', 1.5);
             B.line(tipX, tipY, this.x - perpX, this.y - perpY, '#222', 1.5);
+        }
+    }
+
+    // ─── SPRITE: Atlas-based SVG sprite ───────────────────
+    // Renders a WeaponSprites atlas entry oriented along heading
+    _drawSprite(B, r, heading) {
+        const S = WB.WeaponSprites;
+        if (S && S.hasSprite(this.spriteKey)) {
+            B.flush();
+            var size = r * 2.0;
+            S.drawSprite(this.spriteKey, this.x, this.y, heading, size, size, 1.0, 1.0);
+        } else {
+            // Fallback: plain circle
+            this._drawCircle(B, r);
         }
     }
 };

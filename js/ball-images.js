@@ -61,12 +61,14 @@ WB.BallImages = {
         }
 
         // Create a unit quad VAO: positions (-1 to 1) + UVs (0 to 1)
+        // NOTE: projection flips Y (y-down), so pos (-1,-1) = top-left on screen.
+        // UV (0,0) = top of image, so top-left vertex gets V=0 (not V=1).
         const quadData = new Float32Array([
             // pos       uv
-            -1, -1,      0, 1,
-             1, -1,      1, 1,
-            -1,  1,      0, 0,
-             1,  1,      1, 0,
+            -1, -1,      0, 0,
+             1, -1,      1, 0,
+            -1,  1,      0, 1,
+             1,  1,      1, 1,
         ]);
 
         this._vao = gl.createVertexArray();
