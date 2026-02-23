@@ -715,16 +715,30 @@ WB.Renderer = {
                     if (st) { for (var i = 0; i < st.length; i++) this._statesSet[st[i]] = true; }
                 }
                 if (this._statesSet[type]) {
-                    // Colored circle with white star
-                    B.fillCircle(0, 0, 7, color);
-                    B.strokeCircle(0, 0, 7, '#333', 1.5);
-                    var starPts = [];
-                    for (var si = 0; si < 10; si++) {
-                        var sa = (si * Math.PI) / 5 - Math.PI / 2;
-                        var sr = si % 2 === 0 ? 4 : 1.8;
-                        starPts.push([Math.cos(sa) * sr, Math.sin(sa) * sr]);
+                    // Try SVG sprite icon first
+                    var SI = WB.StatesIcons;
+                    var S = WB.WeaponSprites;
+                    var spriteKey = SI && SI.WEAPON_ICON[type];
+                    if (spriteKey && S && S.hasSprite(spriteKey)) {
+                        // Flush batch so sprite draws in correct order
+                        B.flush();
+                        // popTransform before drawing sprite (sprite uses world coords)
+                        B.popTransform();
+                        S.drawSprite(spriteKey, x, y, 0, 10, 10, 1.0, 1.0);
+                        // Re-push so the popTransform at end doesn't underflow
+                        B.pushTranslate(x, y);
+                    } else {
+                        // Fallback: colored circle with white star
+                        B.fillCircle(0, 0, 7, color);
+                        B.strokeCircle(0, 0, 7, '#333', 1.5);
+                        var starPts = [];
+                        for (var si = 0; si < 10; si++) {
+                            var sa = (si * Math.PI) / 5 - Math.PI / 2;
+                            var sr = si % 2 === 0 ? 4 : 1.8;
+                            starPts.push([Math.cos(sa) * sr, Math.sin(sa) * sr]);
+                        }
+                        B.fillPolygon(starPts, '#FFF');
                     }
-                    B.fillPolygon(starPts, '#FFF');
                 }
                 break;
             }

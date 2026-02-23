@@ -10,6 +10,23 @@ window.WB = window.WB || {};
 var NO_SUPER = 9999;
 
 // ═══════════════════════════════════════════════════════════════
+//  HELPER: SVG sprite draw for weapons that have icons
+//  Returns true if sprite was drawn, false if fallback needed.
+//  Offsets sprite center along weapon angle for correct pivot.
+// ═══════════════════════════════════════════════════════════════
+function drawWeaponSprite(weapon, spriteKey) {
+    var S = WB.WeaponSprites;
+    if (!S || !S.hasSprite(spriteKey)) return false;
+    WB.GLBatch.flush(); // Flush batch before switching to sprite shader
+    var offset = weapon.reach * 0.35;
+    var cx = weapon.owner.x + Math.cos(weapon.angle) * offset;
+    var cy = weapon.owner.y + Math.sin(weapon.angle) * offset;
+    var scale = weapon.reach * 0.32;
+    S.drawSprite(spriteKey, cx, cy, weapon.angle, scale, scale, 1.0, 1.0);
+    return true;
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  HELPER: standard melee draw (stick + colored tip)
 // ═══════════════════════════════════════════════════════════════
 function drawMeleeWeapon(weapon, tipShape) {
@@ -85,6 +102,14 @@ class AlabamaWeapon extends WB.Weapon {
     }
     onHit() {} // ranged only
     draw() {
+        if (drawWeaponSprite(this, 'alabama-rocket')) {
+            // Still draw rocket counter overlay
+            if (this.rocketsFired > 0) {
+                var countStr = '' + this.rocketsFired;
+                WB.GLText.drawTextLite(countStr, this.owner.x, this.owner.y - this.owner.radius - 10, '12px Courier New', '#FFF', '#333', 'center');
+            }
+            return;
+        }
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         // Launcher tube
@@ -260,6 +285,7 @@ class ArkansasWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'arkansas-shard')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#8B6914');
@@ -578,6 +604,15 @@ class FloridaWeapon extends WB.Weapon {
     draw() {
         var B = WB.GLBatch;
         var r = this.owner.radius;
+        if (drawWeaponSprite(this, 'florida-jaw')) {
+            // Still draw event indicator ring
+            if (this.eventTimer > 0) {
+                B.setAlpha(0.3);
+                B.strokeCircle(this.owner.x, this.owner.y, r + 8, '#FF6600', 2);
+                B.restoreAlpha();
+            }
+            return;
+        }
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         // Gator jaw — two triangular teeth
         var jawLen = this.reach;
@@ -796,6 +831,7 @@ class IdahoWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'idaho-kernel')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#8B7355');
@@ -845,6 +881,7 @@ class IllinoisWeapon extends WB.Weapon {
         this.scalingStat.value = this.windStrength.toFixed(1);
     }
     draw() {
+        if (drawWeaponSprite(this, 'illinois-cutter')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         // Pizza cutter — circular blade on a stick
@@ -950,6 +987,7 @@ class IowaWeapon extends WB.Weapon {
         this.scalingStat.value = this.stalkCount;
     }
     draw() {
+        if (drawWeaponSprite(this, 'iowa-stalk')) return;
         var B = WB.GLBatch;
         var r = this.owner.radius;
         for (var s = 0; s < this.stalkCount; s++) {
@@ -1008,6 +1046,7 @@ class KansasWeapon extends WB.Weapon {
         this.scalingStat.value = (this.suctionStrength * 100).toFixed(0) + '%';
     }
     draw() {
+        if (drawWeaponSprite(this, 'kansas-funnel')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         // Funnel — cone shape
@@ -1052,6 +1091,7 @@ class KentuckyWeapon extends WB.Weapon {
         this.scalingStat.value = this.hitCount;
     }
     draw() {
+        if (drawWeaponSprite(this, 'kentucky-barrel')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -1181,6 +1221,7 @@ class MaineWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'maine-claw')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#8B4513');
@@ -1216,6 +1257,7 @@ class MarylandWeapon extends WB.Weapon {
         this.scalingStat.value = this.clawSize.toFixed(1);
     }
     draw() {
+        if (drawWeaponSprite(this, 'maryland-claw')) return;
         var B = WB.GLBatch;
         var r = this.owner.radius;
         var cs = this.clawSize;
@@ -1384,6 +1426,7 @@ class MinnesotaWeapon extends WB.Weapon {
         this.scalingStat.value = this.pucksFired;
     }
     draw() {
+        if (drawWeaponSprite(this, 'minnesota-stick')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -1445,6 +1488,7 @@ class MississippiWeapon extends WB.Weapon {
         this.scalingStat.value = this.currentStrength.toFixed(0);
     }
     draw() {
+        if (drawWeaponSprite(this, 'mississippi-paddle')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -1507,6 +1551,7 @@ class MissouriWeapon extends WB.Weapon {
             B.strokeCircle(this.markers[i].x, this.markers[i].y, 8, '#003B6F', 1.5);
             B.restoreAlpha();
         }
+        if (drawWeaponSprite(this, 'missouri-arch')) return;
         // Arch blade weapon
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -1545,6 +1590,7 @@ class MontanaWeapon extends WB.Weapon {
         this.scalingStat.value = this.antlerPoints;
     }
     draw() {
+        if (drawWeaponSprite(this, 'montana-antler')) return;
         var B = WB.GLBatch;
         var r = this.owner.radius;
         // Multiple branching antler points
@@ -1676,6 +1722,11 @@ class NevadaWeapon extends WB.Weapon {
         this.scalingStat.value = this.jackpotCounter + '/9';
     }
     draw() {
+        if (drawWeaponSprite(this, 'nevada-slot')) {
+            // Still draw jackpot counter overlay
+            WB.GLText.drawTextLite(this.jackpotCounter + '/9', this.owner.x, this.owner.y - this.owner.radius - 10, '12px Courier New', '#FFD700', '#333', 'center');
+            return;
+        }
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -1925,6 +1976,7 @@ class NewYorkWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'newyork-dart')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 28, 6, '#555');
@@ -2085,6 +2137,7 @@ class OhioWeapon extends WB.Weapon {
         this.scalingStat.value = this.scalingRate.toFixed(2);
     }
     draw() {
+        if (drawWeaponSprite(this, 'ohio-football')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -2148,7 +2201,7 @@ class OklahomaWeapon extends WB.Weapon {
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.3);
         this.scalingStat.value = Math.round(this.tornadoChance * 100) + '%';
     }
-    draw() { drawMeleeWeapon(this, 'rect'); }
+    draw() { if (drawWeaponSprite(this, 'oklahoma-turbine')) return; drawMeleeWeapon(this, 'rect'); }
 }
 WB.WeaponRegistry.register('oklahoma', OklahomaWeapon, 'states');
 
@@ -2176,6 +2229,7 @@ class OregonWeapon extends WB.Weapon {
         this.scalingStat.value = Math.round(this.reach);
     }
     draw() {
+        if (drawWeaponSprite(this, 'oregon-log')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -2251,6 +2305,7 @@ class PennsylvaniaWeapon extends WB.Weapon {
             B.strokeCircle(ring.x, ring.y, ring.radius, '#002244', 2);
             B.restoreAlpha();
         }
+        if (drawWeaponSprite(this, 'pennsylvania-bell')) return;
         // Bell weapon
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -2302,6 +2357,7 @@ class RhodeIslandWeapon extends WB.Weapon {
         this.scalingStat.value = this.bounceCoeff.toFixed(2);
     }
     draw() {
+        if (drawWeaponSprite(this, 'rhodeisland-anchor')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -2342,6 +2398,7 @@ class SouthCarolinaWeapon extends WB.Weapon {
         this.scalingStat.value = this.sweepArc + '°';
     }
     draw() {
+        if (drawWeaponSprite(this, 'southcarolina-frond')) return;
         var B = WB.GLBatch;
         var r = this.owner.radius;
         var arcRad = this.sweepArc * Math.PI / 180;
@@ -2510,6 +2567,7 @@ class TexasWeapon extends WB.Weapon {
         this.scalingStat.value = this.owner.radius;
     }
     draw() {
+        if (drawWeaponSprite(this, 'texas-spur')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -2563,6 +2621,7 @@ class UtahWeapon extends WB.Weapon {
         this.scalingStat.value = this.crystalCount;
     }
     draw() {
+        if (drawWeaponSprite(this, 'utah-crystal')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -2689,6 +2748,7 @@ class VirginiaWeapon extends WB.Weapon {
         this.scalingStat.value = this.streak;
     }
     draw() {
+        if (drawWeaponSprite(this, 'virginia-saber')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;
@@ -2798,6 +2858,7 @@ class WestVirginiaWeapon extends WB.Weapon {
         this.scalingStat.value = this.pitCount;
     }
     draw() {
+        if (drawWeaponSprite(this, 'westvirginia-pickaxe')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         var r = this.owner.radius;

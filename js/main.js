@@ -34,6 +34,7 @@ WB.Game = {
             WB.BallImages.loadFlags();  // Preload state flag textures
         }
         if (WB.WeaponSprites) WB.WeaponSprites.init();
+        if (WB.StatesIcons) WB.StatesIcons.init();
         WB.UI.init();
 
         // Scroll handler for menu + simulation results
