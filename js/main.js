@@ -13,6 +13,7 @@ WB.Game = {
     _resultTimer: 0,
     _lastFrameTime: 0,       // timestamp of last processed frame
     _frameInterval: 1000 / 60, // target 60fps (~16.67ms)
+    _prerenderActive: false,  // true during offline prerender (pauses rAF loop)
 
     init() {
         this.canvas = document.getElementById('gameCanvas');
@@ -28,7 +29,10 @@ WB.Game = {
 
         WB.Audio.init();
         if (WB.Cutscene) WB.Cutscene.init();
-        if (WB.BallImages) WB.BallImages.init();
+        if (WB.BallImages) {
+            WB.BallImages.init();
+            WB.BallImages.loadFlags();  // Preload state flag textures
+        }
         if (WB.WeaponSprites) WB.WeaponSprites.init();
         WB.UI.init();
 
@@ -63,6 +67,12 @@ WB.Game = {
     },
 
     handleClick(mx, my) {
+        // Click-to-cancel during prerender
+        if (WB.Prerender && WB.Prerender.isActive) {
+            WB.Prerender.cancel();
+            return;
+        }
+
         switch (this.state) {
             case 'MENU': {
                 const result = WB.UI.handleMenuClick(mx, my);
@@ -239,6 +249,9 @@ WB.Game = {
 
     loop(timestamp) {
         requestAnimationFrame((t) => this.loop(t));
+
+        // Prerender drives its own frame loop — skip rAF rendering
+        if (this._prerenderActive) return;
 
         // ── 60fps frame limiter ──────────────────────────────────
         // On 120Hz+ displays, requestAnimationFrame fires too fast.

@@ -7,6 +7,8 @@ window.WB = window.WB || {};
 WB.BallImages = {
     _textures: { left: null, right: null },
     _images: { left: null, right: null },   // HTMLImageElement cache
+    _flagTextures: {},    // weaponType → WebGL texture (state flags)
+    _flagsLoaded: false,
     _program: null,
     _vao: null,
     _vbo: null,
@@ -196,6 +198,123 @@ WB.BallImages = {
         gl.activeTexture(gl.TEXTURE0);
 
         this._textures[side] = tex;
+    },
+
+    // ─── State Flag Textures ──────────────────────────────
+
+    // Load all flag PNGs for the states pack (called once at init)
+    loadFlags() {
+        if (!this._initialized) return;
+        var statesTypes = WB.WeaponRegistry.getTypes('states');
+        if (!statesTypes || statesTypes.length === 0) return;
+
+        var self = this;
+        var loaded = 0;
+        var total = statesTypes.length;
+
+        for (var i = 0; i < statesTypes.length; i++) {
+            (function(type) {
+                var img = new Image();
+                img.onload = function() {
+                    self._createFlagTexture(type, img);
+                    loaded++;
+                    if (loaded >= total) {
+                        self._flagsLoaded = true;
+                        console.log('[BallImages] All ' + total + ' state flags loaded');
+                    }
+                };
+                img.onerror = function() {
+                    console.warn('[BallImages] Failed to load flag for', type);
+                    loaded++;
+                    if (loaded >= total) {
+                        self._flagsLoaded = true;
+                    }
+                };
+                img.src = 'assets/flags/' + type + '.png';
+            })(statesTypes[i]);
+        }
+    },
+
+    _createFlagTexture(type, img) {
+        var gl = WB.GL.gl;
+        if (!gl) return;
+
+        // Delete old texture if reloading
+        if (this._flagTextures[type]) {
+            gl.deleteTexture(this._flagTextures[type]);
+        }
+
+        // Create square canvas, scale-to-fill (same as _createTexture)
+        var size = 256;
+        var canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        var ctx = canvas.getContext('2d');
+
+        var scale = Math.max(size / img.width, size / img.height);
+        var sw = img.width * scale;
+        var sh = img.height * scale;
+        ctx.drawImage(img, (size - sw) / 2, (size - sh) / 2, sw, sh);
+
+        // Create WebGL texture
+        var tex = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+        // Restore TEXTURE0
+        gl.activeTexture(gl.TEXTURE0);
+
+        this._flagTextures[type] = tex;
+    },
+
+    hasFlag(weaponType) {
+        return !!this._flagTextures[weaponType];
+    },
+
+    // Draw a flag texture circle (same pipeline as user images)
+    drawFlagCircle(x, y, radius, weaponType) {
+        if (!this._initialized || !this._flagTextures[weaponType]) return;
+
+        var gl = WB.GL.gl;
+
+        // Flush batch renderer first to maintain draw order
+        WB.GLBatch.flush();
+
+        // Save state
+        var prevProgram = gl.getParameter(gl.CURRENT_PROGRAM);
+
+        gl.useProgram(this._program);
+
+        // Set uniforms
+        gl.uniformMatrix3fv(this._program._unis.u_proj, false, WB.GL.projMatrix);
+        gl.uniform2f(this._program._unis.u_center, x, y);
+        gl.uniform1f(this._program._unis.u_radius, radius);
+        gl.uniform1f(this._program._unis.u_alpha, 1.0);
+
+        // Bind flag texture on TEXTURE1
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, this._flagTextures[weaponType]);
+        gl.uniform1i(this._program._unis.u_image, 1);
+
+        // Enable blending for transparency
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        // Draw
+        gl.bindVertexArray(this._vao);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindVertexArray(null);
+
+        // Restore — re-activate TEXTURE0 for font atlas
+        gl.activeTexture(gl.TEXTURE0);
+
+        // Restore previous program
+        if (prevProgram) gl.useProgram(prevProgram);
     },
 
     // ─── Persistence ─────────────────────────────────────

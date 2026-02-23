@@ -184,6 +184,16 @@ WB.Studio = {
                 'bold 12px "Courier New", monospace', '#FFF', 'center', 'middle');
         }
 
+        // PRERENDER button (gold, full-width)
+        if (WB.Prerender) {
+            const prBtn = this._getPrerenderBtn();
+            B.fillRect(prBtn.x, prBtn.y, prBtn.w, prBtn.h, '#D4A853');
+            B.strokeRect(prBtn.x, prBtn.y, prBtn.w, prBtn.h, '#B08930', 1.5);
+            B.flush();
+            T.drawText('PRERENDER', prBtn.x + prBtn.w / 2, prBtn.y + prBtn.h / 2,
+                'bold 13px "Courier New", monospace', '#1A1A1A', 'center', 'middle');
+        }
+
         // DELETE button (smaller, red outline)
         const delBtn = this._getDeleteBtn();
         B.fillRect(delBtn.x, delBtn.y, delBtn.w, delBtn.h, 'rgba(204,51,51,0.08)');
@@ -269,6 +279,16 @@ WB.Studio = {
                 WB.Audio.menuClack();
                 this._startRecording(battle);
                 return;
+            }
+
+            // PRERENDER
+            if (WB.Prerender) {
+                const prBtn = this._getPrerenderBtn();
+                if (this._hitTest(mx, my, prBtn)) {
+                    WB.Audio.menuClack();
+                    this._startPrerender(battle);
+                    return;
+                }
             }
 
             // DELETE
@@ -525,6 +545,16 @@ WB.Studio = {
         }
     },
 
+    // ─── Prerender ─────────────────────────────────────
+
+    _startPrerender(battle) {
+        if (!WB.Prerender) {
+            alert('Prerender not available');
+            return;
+        }
+        WB.Prerender.start(battle);
+    },
+
     // ─── Layout Helpers ──────────────────────────────────
 
     _getActionBtns() {
@@ -542,9 +572,14 @@ WB.Studio = {
         ];
     },
 
+    _getPrerenderBtn() {
+        const cx = WB.Config.CANVAS_WIDTH / 2;
+        return { x: cx - 100, y: 654, w: 200, h: 34 };
+    },
+
     _getDeleteBtn() {
         const cx = WB.Config.CANVAS_WIDTH / 2;
-        return { x: cx - 40, y: 660, w: 80, h: 28 };
+        return { x: cx - 40, y: 700, w: 80, h: 28 };
     },
 
     _getImageBtns() {
@@ -552,14 +587,14 @@ WB.Studio = {
         const btnW = 90;
         const gap = 10;
         return [
-            { x: cx - btnW - gap / 2, y: 696, w: btnW, h: 26 },
-            { x: cx + gap / 2, y: 696, w: btnW, h: 26 },
+            { x: cx - btnW - gap / 2, y: 736, w: btnW, h: 26 },
+            { x: cx + gap / 2, y: 736, w: btnW, h: 26 },
         ];
     },
 
     _getClearImgBtn() {
         const cx = WB.Config.CANVAS_WIDTH / 2;
-        return { x: cx - 50, y: 726, w: 100, h: 22 };
+        return { x: cx - 50, y: 766, w: 100, h: 22 };
     },
 
     _pendingImageSide: null,

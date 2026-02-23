@@ -1,22 +1,25 @@
 window.WB = window.WB || {};
 
 // ─── Weapon Sprite System ──────────────────────────────────────
-// Loads the Egyptian pixel art SVG sprite sheet and renders weapon
-// sprites via a rotation-aware textured-quad shader on TEXTURE4.
-// Replaces procedural draw() calls for all 10 Egyptian weapons,
-// plus projectile shapes (glyph, droplet) and hazards (venom puddle).
+// Multi-atlas sprite renderer: loads sprite sheets and renders
+// weapon sprites via a rotation-aware textured-quad shader on TEXTURE4.
+// Atlas 0: Egyptian pixel art (512×512, 4×4 grid)
+// Atlas 1: US States SVG icons (768×768, 6×6 grid)
 WB.WeaponSprites = {
-    _texture: null,
+    _textures: [],       // WebGL textures per atlas
+    _grids: [],          // Grid maps per atlas: key → [col, row]
+    _gridSizes: [],      // Grid dimensions per atlas (e.g. 4 for 4×4)
+    _atlasIndex: {},     // Sprite key → atlas index
     _program: null,
     _vao: null,
     _vbo: null,
     _initialized: false,
 
-    // Atlas: 4×4 grid of 64×64 sprites in a 256×256 SVG
+    // Egyptian atlas: 4×4 grid of 64×64 sprites in a 256×256 SVG
     // Rasterized to 512×512 for crispness
     ATLAS_SIZE: 512,
 
-    // Sprite grid: key → [col, row]
+    // Egyptian sprite grid: key → [col, row]
     GRID: {
         'thoth-staff':     [0, 0],
         'thoth-glyph':     [1, 0],
@@ -121,7 +124,7 @@ WB.WeaponSprites = {
         gl.bindVertexArray(null);
     },
 
-    // ─── SVG Atlas Loading ─────────────────────────────────
+    // ─── Egyptian SVG Atlas Loading ──────────────────────────
 
     _loadAtlas() {
         fetch('assets/egyptian-inventory.svg')
@@ -166,53 +169,92 @@ WB.WeaponSprites = {
                     ctx.imageSmoothingEnabled = false;
                     ctx.drawImage(img, 0, 0, this.ATLAS_SIZE, this.ATLAS_SIZE);
                     URL.revokeObjectURL(url);
-                    this._uploadTexture(canvas);
+                    // Register as atlas 0 (Egyptian)
+                    this.registerAtlas(0, canvas, this.GRID, 4);
                     this._initialized = true;
-                    console.log('[WeaponSprites] Atlas loaded (' + this.ATLAS_SIZE + 'x' + this.ATLAS_SIZE + ')');
+                    console.log('[WeaponSprites] Egyptian atlas loaded (' + this.ATLAS_SIZE + 'x' + this.ATLAS_SIZE + ')');
                 };
                 img.onerror = () => {
                     console.warn('[WeaponSprites] Failed to load SVG atlas');
                     URL.revokeObjectURL(url);
+                    // Still mark initialized so states atlas can work independently
+                    this._initialized = true;
                 };
                 img.src = url;
             })
             .catch(e => {
                 console.warn('[WeaponSprites] Fetch failed:', e);
+                // Still mark initialized so states atlas can work independently
+                this._initialized = true;
             });
     },
 
-    _uploadTexture(canvas) {
+    // ─── Multi-Atlas Registration ────────────────────────────
+
+    /**
+     * Register an atlas texture.
+     * @param {number} index    - Atlas index (0=egyptian, 1=states, etc.)
+     * @param {HTMLCanvasElement} canvas - Rasterized atlas canvas
+     * @param {Object} gridMap  - Sprite key → [col, row]
+     * @param {number} gridSize - Grid dimensions (4 for 4×4, 6 for 6×6)
+     */
+    registerAtlas(index, canvas, gridMap, gridSize) {
         const gl = WB.GL.gl;
         if (!gl) return;
 
-        this._texture = gl.createTexture();
+        // Create WebGL texture
+        var tex = gl.createTexture();
         gl.activeTexture(gl.TEXTURE4);
-        gl.bindTexture(gl.TEXTURE_2D, this._texture);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-        // Restore TEXTURE0
+        // Use LINEAR for states SVGs (smooth), NEAREST for Egyptian pixel art
+        var filter = index === 0 ? gl.NEAREST : gl.LINEAR;
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
         gl.activeTexture(gl.TEXTURE0);
+
+        // Store atlas data
+        this._textures[index] = tex;
+        this._grids[index] = gridMap;
+        this._gridSizes[index] = gridSize;
+
+        // Index all sprite keys to this atlas
+        for (var key in gridMap) {
+            this._atlasIndex[key] = index;
+        }
+
+        console.log('[WeaponSprites] Atlas ' + index + ' registered (' + Object.keys(gridMap).length + ' sprites, ' + gridSize + 'x' + gridSize + ' grid)');
     },
 
     // ─── UV Lookup ─────────────────────────────────────────
 
     _getUV(key) {
-        const grid = this.GRID[key];
-        if (!grid) return [0, 0, 0.25, 0.25];
-        const u0 = grid[0] * 0.25;
-        const v0 = grid[1] * 0.25;
-        return [u0, v0, u0 + 0.25, v0 + 0.25];
+        var atlasIdx = this._atlasIndex[key];
+        if (atlasIdx == null) return [0, 0, 0.25, 0.25];
+        var grid = this._grids[atlasIdx];
+        if (!grid || !grid[key]) return [0, 0, 0.25, 0.25];
+        var cell = grid[key];
+        var size = this._gridSizes[atlasIdx] || 4;
+        var cellUV = 1.0 / size;
+        var u0 = cell[0] * cellUV;
+        var v0 = cell[1] * cellUV;
+        return [u0, v0, u0 + cellUV, v0 + cellUV];
     },
 
-    // ─── Public Draw API ───────────────────────────────────
+    // ─── Public API ───────────────────────────────────────
 
     /**
-     * Draw a sprite from the atlas.
-     * @param {string} key   - Sprite name (e.g. 'thoth-staff')
+     * Check if a sprite key exists in any atlas.
+     */
+    hasSprite(key) {
+        return this._atlasIndex[key] != null && this._textures[this._atlasIndex[key]] != null;
+    },
+
+    /**
+     * Draw a sprite from any registered atlas.
+     * @param {string} key   - Sprite name (e.g. 'thoth-staff', 'alabama-rocket')
      * @param {number} x     - World X center
      * @param {number} y     - World Y center
      * @param {number} angle - Rotation in radians
@@ -222,7 +264,13 @@ WB.WeaponSprites = {
      * @param {number} [brightness=1] - Color multiplier (1=normal)
      */
     drawSprite(key, x, y, angle, sx, sy, alpha, brightness) {
-        if (!this._initialized || !this._texture) return;
+        if (!this._initialized) return;
+
+        // Look up which atlas this sprite belongs to
+        var atlasIdx = this._atlasIndex[key];
+        if (atlasIdx == null) return;
+        var tex = this._textures[atlasIdx];
+        if (!tex) return;
 
         const gl = WB.GL.gl;
 
@@ -246,9 +294,9 @@ WB.WeaponSprites = {
         const uv = this._getUV(key);
         gl.uniform4f(this._program._unis.u_uvRect, uv[0], uv[1], uv[2], uv[3]);
 
-        // Bind atlas on TEXTURE4
+        // Bind correct atlas texture on TEXTURE4
         gl.activeTexture(gl.TEXTURE4);
-        gl.bindTexture(gl.TEXTURE_2D, this._texture);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.uniform1i(this._program._unis.u_atlas, 4);
 
         // Blending

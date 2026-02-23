@@ -44,6 +44,7 @@ WB.GL = {
             alpha: false,
             antialias: true,
             premultipliedAlpha: false,
+            preserveDrawingBuffer: true,
         });
         if (!gl) {
             console.error('WebGL2 not supported');

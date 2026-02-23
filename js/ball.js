@@ -175,9 +175,13 @@ WB.Ball = class {
         const fillColor = this.damageFlash > 0 ? '#FFF' : this.color;
         B.fillCircle(this.x, this.y, this.radius, fillColor);
 
-        // Ball image overlay (flags, faces, logos)
-        if (WB.BallImages && WB.BallImages.hasImage(this.side) && this.damageFlash <= 0) {
-            WB.BallImages.drawCircle(this.x, this.y, this.radius - 2, this.side);
+        // Ball image overlay — state flags take priority, then user-uploaded images
+        if (WB.BallImages && this.damageFlash <= 0) {
+            if (WB.BallImages.hasFlag(this.weaponType)) {
+                WB.BallImages.drawFlagCircle(this.x, this.y, this.radius - 2, this.weaponType);
+            } else if (WB.BallImages.hasImage(this.side)) {
+                WB.BallImages.drawCircle(this.x, this.y, this.radius - 2, this.side);
+            }
         }
 
         B.strokeCircle(this.x, this.y, this.radius, '#333', outlineW);

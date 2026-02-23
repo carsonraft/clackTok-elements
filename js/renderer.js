@@ -705,6 +705,29 @@ WB.Renderer = {
                     B.fillCircle(0, 0, 6, color);
                 }
                 break;
+
+            // ─── States weapons (default) ───
+            default: {
+                // Cache the set of states-pack types for O(1) lookup
+                if (!this._statesSet) {
+                    var st = WB.WeaponRegistry.getTypes('states');
+                    this._statesSet = {};
+                    if (st) { for (var i = 0; i < st.length; i++) this._statesSet[st[i]] = true; }
+                }
+                if (this._statesSet[type]) {
+                    // Colored circle with white star
+                    B.fillCircle(0, 0, 7, color);
+                    B.strokeCircle(0, 0, 7, '#333', 1.5);
+                    var starPts = [];
+                    for (var si = 0; si < 10; si++) {
+                        var sa = (si * Math.PI) / 5 - Math.PI / 2;
+                        var sr = si % 2 === 0 ? 4 : 1.8;
+                        starPts.push([Math.cos(sa) * sr, Math.sin(sa) * sr]);
+                    }
+                    B.fillPolygon(starPts, '#FFF');
+                }
+                break;
+            }
         }
         B.popTransform();
     },
@@ -746,12 +769,21 @@ WB.Renderer = {
         const isDraw = game._isDraw;
 
         // Winner banner — clean white text, no stroke, no stats
+        // Auto-size: start at 48/44px, step down if text overflows canvas
         if (isDraw) {
             T.drawText('DRAW!', cx, cy - 20,
                 'bold 48px "Courier New", monospace', '#FFF', 'center', 'middle');
         } else {
-            T.drawText(name.toUpperCase() + ' WINS!', cx, cy - 20,
-                'bold 44px "Courier New", monospace', '#FFF', 'center', 'middle');
+            var winText = name.toUpperCase() + ' WINS!';
+            var winFont = 'bold 44px "Courier New", monospace';
+            var maxW = c.CANVAS_WIDTH - 40; // 20px padding each side
+            if (T.measureText(winText, winFont) > maxW) {
+                winFont = 'bold 32px "Courier New", monospace';
+            }
+            if (T.measureText(winText, winFont) > maxW) {
+                winFont = 'bold 24px "Courier New", monospace';
+            }
+            T.drawText(winText, cx, cy - 20, winFont, '#FFF', 'center', 'middle');
         }
 
         // ★ SAVE / ★ SAVED button — bottom center of result overlay

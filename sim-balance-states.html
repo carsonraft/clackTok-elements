@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>US States Balance Report</title>
+    <style>
+        body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { color: #3C3B6E; text-align: center; }
+        h2 { color: #87CEEB; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .progress { color: #888; font-size: 13px; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0 30px; }
+        th, td { padding: 4px 6px; text-align: center; border: 1px solid #333; font-size: 11px; }
+        th { background: #222244; color: #BF0A30; }
+        td { background: #16213e; }
+        .good { color: #4ade80; }
+        .ok { color: #facc15; }
+        .bad { color: #f87171; }
+        .dominant { color: #ff6b6b; font-weight: bold; }
+        .weak { color: #818cf8; font-weight: bold; }
+        .balanced { color: #4ade80; }
+        #output { white-space: pre-wrap; line-height: 1.5; }
+        #progressBar { width: 100%; height: 24px; background: #222; border-radius: 4px; margin: 10px 0; }
+        #progressFill { height: 100%; background: #3C3B6E; border-radius: 4px; transition: width 0.3s; width: 0%; }
+        #progressText { text-align: center; color: #888; font-size: 13px; margin-bottom: 10px; }
+        .matchup-grid { font-size: 9px; }
+        .matchup-grid td, .matchup-grid th { padding: 2px 3px; }
+        .matchup-grid td.win70 { background: #1a3a1a; }
+        .matchup-grid td.win60 { background: #1a2e1a; }
+        .matchup-grid td.lose60 { background: #2e1a1a; }
+        .matchup-grid td.lose70 { background: #3a1a1a; }
+        .matchup-grid td.mirror { background: #222; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>US States Balance Report (Season 3)</h1>
+    <div id="progressBar"><div id="progressFill"></div></div>
+    <div id="progressText">Loading...</div>
+    <div id="output"><span class="progress">Loading game scripts...</span></div>
+
+    <!-- Stub canvas for WebGL init -->
+    <canvas id="gameCanvas" style="display:none"></canvas>
+
+    <!-- WebGL rendering -->
+    <script src="js/webgl/gl-context.js?v=57"></script>
+    <script src="js/webgl/gl-batch.js?v=57"></script>
+    <script src="js/webgl/gl-text.js?v=57"></script>
+    <script src="js/webgl/gl-effects.js?v=57"></script>
+
+    <!-- Core systems -->
+    <script src="js/rng.js?v=57"></script>
+    <script src="js/config.js?v=57"></script>
+    <script src="js/physics.js?v=57"></script>
+    <script src="js/audio.js?v=57"></script>
+    <script src="js/particles.js?v=57"></script>
+    <script src="js/projectile.js?v=57"></script>
+    <script src="js/excitement.js?v=57"></script>
+    <script src="js/hazard.js?v=57"></script>
+    <script src="js/arena-modifiers.js?v=57"></script>
+
+    <!-- Weapon system -->
+    <script src="js/weapon.js?v=57"></script>
+
+    <!-- Generic weapons -->
+    <script src="js/weapons/sword.js?v=57"></script>
+    <script src="js/weapons/bow.js?v=57"></script>
+    <script src="js/weapons/hammer.js?v=57"></script>
+    <script src="js/weapons/shuriken.js?v=57"></script>
+    <script src="js/weapons/sawblade.js?v=57"></script>
+    <script src="js/weapons/ghost.js?v=57"></script>
+    <script src="js/weapons/clacker.js?v=57"></script>
+    <script src="js/weapons/gunclacker.js?v=57"></script>
+
+    <!-- Elemental weapons -->
+    <script src="js/weapons/fire.js?v=57"></script>
+    <script src="js/weapons/ice.js?v=57"></script>
+    <script src="js/weapons/spark.js?v=57"></script>
+    <script src="js/weapons/stone.js?v=57"></script>
+    <script src="js/weapons/wind.js?v=57"></script>
+    <script src="js/weapons/water.js?v=57"></script>
+    <script src="js/weapons/poison.js?v=57"></script>
+    <script src="js/weapons/light.js?v=57"></script>
+    <script src="js/weapons/shadow.js?v=57"></script>
+    <script src="js/weapons/nature.js?v=57"></script>
+    <script src="js/weapons/crystal.js?v=57"></script>
+    <script src="js/weapons/magma.js?v=57"></script>
+    <script src="js/weapons/storm.js?v=57"></script>
+    <script src="js/weapons/metal.js?v=57"></script>
+    <script src="js/weapons/gravity.js?v=57"></script>
+
+    <!-- Greek Pantheon weapons -->
+    <script src="js/weapons/zeus.js?v=57"></script>
+    <script src="js/weapons/poseidon.js?v=57"></script>
+    <script src="js/weapons/hephaestus.js?v=57"></script>
+    <script src="js/weapons/artemis.js?v=57"></script>
+    <script src="js/weapons/apollo.js?v=57"></script>
+    <script src="js/weapons/ares.js?v=57"></script>
+    <script src="js/weapons/hermes.js?v=57"></script>
+    <script src="js/weapons/hades.js?v=57"></script>
+    <script src="js/weapons/athena.js?v=57"></script>
+    <script src="js/weapons/dionysus.js?v=57"></script>
+
+    <!-- Egyptian Pantheon weapons -->
+    <script src="js/weapons/thoth.js?v=57"></script>
+    <script src="js/weapons/ra.js?v=57"></script>
+    <script src="js/weapons/sekhmet.js?v=57"></script>
+    <script src="js/weapons/sobek.js?v=57"></script>
+    <script src="js/weapons/set.js?v=57"></script>
+    <script src="js/weapons/anubis.js?v=57"></script>
+    <script src="js/weapons/horus.js?v=57"></script>
+    <script src="js/weapons/khnum.js?v=57"></script>
+    <script src="js/weapons/wadjet.js?v=57"></script>
+    <script src="js/weapons/osiris.js?v=57"></script>
+
+    <!-- US States weapons -->
+    <script src="js/weapons/states-pack.js?v=57"></script>
+
+    <!-- Game entities -->
+    <script src="js/ball.js?v=57"></script>
+    <script src="js/simulator.js?v=57"></script>
+
+    <!-- Rendering and UI -->
+    <script src="js/renderer.js?v=57"></script>
+    <script src="js/ui.js?v=57"></script>
+    <script src="js/sim-ui.js?v=57"></script>
+
+    <!-- Game loop -->
+    <script src="js/main.js?v=57"></script>
+
+    <script>
+    window.addEventListener('load', function() {
+        var out = document.getElementById('output');
+        var progressFill = document.getElementById('progressFill');
+        var progressText = document.getElementById('progressText');
+
+        // All 50 states (no territories)
+        var states = WB.WeaponRegistry.getTypes('states').filter(function(t) {
+            return ['dc','puerto-rico','guam','usvi','american-samoa','northern-mariana'].indexOf(t) === -1;
+        });
+
+        var SIMS_PER_MATCHUP = 50; // Lower count for 1225 matchups — still 61,250 total battles
+
+        if (!WB.Game) {
+            WB.Game = { state: 'MENU', balls: [], projectiles: [], hazards: [],
+                particles: { particles: [], emit: function(){}, explode: function(){}, spark: function(){}, update: function(){}, draw: function(){} } };
+        }
+
+        // Use SQUARE (index 1) to match game's default STAGE_SIZE_INDEX
+        var preset = WB.Config.STAGE_PRESETS[1];
+        var sidePad = 20;
+        var cw = preset.width + sidePad * 2;
+        var titleH = 60, hudH = 106;
+        var naturalH = titleH + preset.height + hudH;
+        var minH = Math.round(cw * 1.6);
+        var ch = Math.max(naturalH, minH);
+        var extraSpace = ch - titleH - preset.height - hudH;
+        var topExtra = Math.round(extraSpace * 0.4);
+        WB.Config.ARENA.x = sidePad;
+        WB.Config.ARENA.y = titleH + topExtra;
+        WB.Config.ARENA.width = preset.width;
+        WB.Config.ARENA.height = preset.height;
+        WB.Config.BALL_FRICTION = WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].value;
+        WB.Config.SUPERS_ENABLED = false;  // No supers for states balance testing
+
+        var totalMatchups = states.length * (states.length - 1) / 2;
+        out.textContent = 'States: ' + states.length + ' | Arena: ' + preset.label + ' (' + preset.width + 'x' + preset.height + ')\n';
+        out.textContent += 'Running ' + totalMatchups + ' matchups x ' + SIMS_PER_MATCHUP + ' battles = ' + (totalMatchups * SIMS_PER_MATCHUP) + ' total battles\n';
+        out.textContent += 'This will take several minutes...\n\n';
+
+        // Build matchup list
+        var matchupList = [];
+        for (var i = 0; i < states.length; i++) {
+            for (var j = i + 1; j < states.length; j++) {
+                matchupList.push([states[i], states[j]]);
+            }
+        }
+
+        var winRates = {};
+        var matchups = {};
+        var errors = {};
+        for (var g = 0; g < states.length; g++) {
+            winRates[states[g]] = { wins: 0, losses: 0, total: 0, avgHpLeft: 0 };
+            errors[states[g]] = 0;
+        }
+
+        var matchupIdx = 0;
+        var BATCH_SIZE = 5; // matchups per batch (yield to browser between batches)
+
+        function runBatch() {
+            var end = Math.min(matchupIdx + BATCH_SIZE, matchupList.length);
+
+            for (var m = matchupIdx; m < end; m++) {
+                var left = matchupList[m][0];
+                var right = matchupList[m][1];
+                var key = left + '_vs_' + right;
+                var leftWins = 0, rightWins = 0;
+                var totalFrames = 0;
+                var leftHpTotal = 0, rightHpTotal = 0;
+                var errorCount = 0;
+
+                for (var s = 0; s < SIMS_PER_MATCHUP; s++) {
+                    var seed = Math.floor(Math.random() * 2147483647);
+                    try {
+                        var result = WB.Simulator.runBattle(left, right, seed);
+                        if (result.winner === 'left') {
+                            leftWins++;
+                            leftHpTotal += result.winnerHp;
+                        } else {
+                            rightWins++;
+                            rightHpTotal += result.winnerHp;
+                        }
+                        totalFrames += result.frames;
+                    } catch (e) {
+                        errorCount++;
+                        if (errorCount <= 2) console.error('Sim error:', left, 'vs', right, 'seed', seed, e.message);
+                    }
+                }
+
+                var validSims = leftWins + rightWins;
+                if (validSims === 0) validSims = 1; // avoid div/0
+
+                matchups[key] = {
+                    left: left, right: right,
+                    leftWins: leftWins, rightWins: rightWins,
+                    leftWinRate: (leftWins / validSims * 100).toFixed(1),
+                    rightWinRate: (rightWins / validSims * 100).toFixed(1),
+                    avgTime: validSims > 0 ? (totalFrames / validSims / 60).toFixed(1) : '0',
+                    errors: errorCount
+                };
+
+                winRates[left].wins += leftWins;
+                winRates[left].losses += rightWins;
+                winRates[left].total += validSims;
+                winRates[left].avgHpLeft += leftHpTotal;
+
+                winRates[right].wins += rightWins;
+                winRates[right].losses += leftWins;
+                winRates[right].total += validSims;
+                winRates[right].avgHpLeft += rightHpTotal;
+
+                if (errorCount > 0) {
+                    errors[left] += errorCount;
+                    errors[right] += errorCount;
+                }
+            }
+
+            matchupIdx = end;
+            var pct = (matchupIdx / matchupList.length * 100).toFixed(1);
+            progressFill.style.width = pct + '%';
+            progressText.textContent = 'Matchup ' + matchupIdx + '/' + matchupList.length + ' (' + pct + '%)';
+
+            if (matchupIdx < matchupList.length) {
+                setTimeout(runBatch, 0);
+            } else {
+                renderResults();
+            }
+        }
+
+        function renderResults() {
+            progressText.textContent = 'Complete!';
+            progressFill.style.width = '100%';
+            out.textContent = '';
+
+            function el(tag, text, className) {
+                var e = document.createElement(tag);
+                if (text) e.textContent = text;
+                if (className) e.className = className;
+                return e;
+            }
+
+            function colorSpan(text, color, bold) {
+                var s = document.createElement('span');
+                s.textContent = text;
+                s.style.color = color || '#fff';
+                if (bold) s.style.fontWeight = 'bold';
+                return s;
+            }
+
+            // 1. OVERALL RANKINGS
+            out.appendChild(el('h2', 'Overall Win Rates (' + states.length + ' states, ' + SIMS_PER_MATCHUP + ' battles/matchup)'));
+            var rankings = states.map(function(g) {
+                var wr = winRates[g];
+                return {
+                    name: g,
+                    winRate: wr.total > 0 ? (wr.wins / wr.total * 100).toFixed(1) : '0.0',
+                    wins: wr.wins,
+                    losses: wr.losses,
+                    total: wr.total,
+                    avgHp: wr.wins > 0 ? (wr.avgHpLeft / wr.wins).toFixed(0) : '0',
+                    errors: errors[g] || 0
+                };
+            }).sort(function(a, b) { return parseFloat(b.winRate) - parseFloat(a.winRate); });
+
+            var table = document.createElement('table');
+            var thead = document.createElement('tr');
+            ['Rank', 'State', 'Win Rate', 'W-L', 'Avg HP', 'Errors', 'Status'].forEach(function(h) {
+                var th = document.createElement('th');
+                th.textContent = h;
+                thead.appendChild(th);
+            });
+            table.appendChild(thead);
+
+            rankings.forEach(function(r, idx) {
+                var tr = document.createElement('tr');
+                var wr = parseFloat(r.winRate);
+                var statusClass, statusText;
+                if (wr >= 65) { statusClass = 'dominant'; statusText = 'OVERPOWERED'; }
+                else if (wr >= 58) { statusClass = 'ok'; statusText = 'Strong'; }
+                else if (wr >= 42) { statusClass = 'balanced'; statusText = 'Balanced'; }
+                else if (wr >= 35) { statusClass = 'ok'; statusText = 'Weak'; }
+                else { statusClass = 'weak'; statusText = 'UNDERPOWERED'; }
+
+                var td1 = el('td', '' + (idx + 1));
+                var td2 = document.createElement('td');
+                td2.appendChild(colorSpan(WB.Config.WEAPON_NAMES[r.name] || r.name, WB.Config.COLORS[r.name], true));
+                var td3 = el('td', r.winRate + '%', wr >= 55 ? 'good' : (wr >= 45 ? 'ok' : 'bad'));
+                var td4 = el('td', r.wins + '-' + r.losses);
+                var td5 = el('td', r.avgHp + ' HP');
+                var td6 = el('td', r.errors > 0 ? r.errors : '-', r.errors > 0 ? 'bad' : '');
+                var td7 = el('td', statusText, statusClass);
+
+                tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+                tr.appendChild(td4); tr.appendChild(td5); tr.appendChild(td6); tr.appendChild(td7);
+                table.appendChild(tr);
+            });
+            out.appendChild(table);
+
+            // 2. BALANCE SUMMARY
+            var needsBuff = rankings.filter(function(r) { return parseFloat(r.winRate) < 42; });
+            var needsNerf = rankings.filter(function(r) { return parseFloat(r.winRate) > 58; });
+            var balanced = rankings.filter(function(r) { var w = parseFloat(r.winRate); return w >= 42 && w <= 58; });
+            var errorStates = rankings.filter(function(r) { return r.errors > 10; });
+
+            out.appendChild(el('h2', 'Balance Summary'));
+            var summary = el('p', balanced.length + '/'+states.length+' states in balanced range (42-58%). ' +
+                needsNerf.length + ' overpowered, ' + needsBuff.length + ' underpowered.');
+            summary.style.fontSize = '14px';
+            out.appendChild(summary);
+
+            // Error states
+            if (errorStates.length > 0) {
+                var errH = el('h3', 'States with Simulation Errors (>10):');
+                errH.style.color = '#ff6b6b';
+                out.appendChild(errH);
+                var errList = document.createElement('ul');
+                errorStates.forEach(function(r) {
+                    var li = document.createElement('li');
+                    li.appendChild(colorSpan(WB.Config.WEAPON_NAMES[r.name] || r.name, WB.Config.COLORS[r.name], true));
+                    li.appendChild(document.createTextNode(' — ' + r.errors + ' errors (likely runtime crash in weapon logic)'));
+                    errList.appendChild(li);
+                });
+                out.appendChild(errList);
+            }
+
+            // Needs nerf
+            if (needsNerf.length > 0) {
+                var nerfH = el('h3', 'Needs Nerf (>58% win rate):');
+                nerfH.style.color = '#f87171';
+                out.appendChild(nerfH);
+                var nerfList = document.createElement('ul');
+                needsNerf.forEach(function(r) {
+                    var li = document.createElement('li');
+                    li.appendChild(colorSpan(WB.Config.WEAPON_NAMES[r.name] || r.name, WB.Config.COLORS[r.name], true));
+                    li.appendChild(document.createTextNode(' — ' + r.winRate + '% overall'));
+                    nerfList.appendChild(li);
+                });
+                out.appendChild(nerfList);
+            }
+
+            // Needs buff
+            if (needsBuff.length > 0) {
+                var buffH = el('h3', 'Needs Buff (<42% win rate):');
+                buffH.style.color = '#818cf8';
+                out.appendChild(buffH);
+                var buffList = document.createElement('ul');
+                needsBuff.forEach(function(r) {
+                    var li = document.createElement('li');
+                    li.appendChild(colorSpan(WB.Config.WEAPON_NAMES[r.name] || r.name, WB.Config.COLORS[r.name], true));
+                    li.appendChild(document.createTextNode(' — ' + r.winRate + '% overall'));
+                    buffList.appendChild(li);
+                });
+                out.appendChild(buffList);
+            }
+
+            if (needsNerf.length === 0 && needsBuff.length === 0) {
+                var allGood = el('p', 'All states are within balanced range (42-58% win rate)!', 'balanced');
+                allGood.style.fontSize = '18px';
+                out.appendChild(allGood);
+            }
+
+            // 3. MOST EXTREME MATCHUPS
+            out.appendChild(el('h2', 'Top 20 Most Extreme Matchups'));
+            var allMatchupList = Object.keys(matchups).map(function(k) {
+                var m = matchups[k];
+                var lwr = parseFloat(m.leftWinRate);
+                return {
+                    left: m.left, right: m.right,
+                    leftWinRate: m.leftWinRate, rightWinRate: m.rightWinRate,
+                    avgTime: m.avgTime,
+                    dominance: Math.abs(lwr - 50),
+                    favored: lwr >= 50 ? m.left : m.right,
+                    unfavored: lwr >= 50 ? m.right : m.left,
+                    winPct: Math.max(lwr, parseFloat(m.rightWinRate)),
+                    errors: m.errors
+                };
+            }).sort(function(a, b) { return b.dominance - a.dominance; });
+
+            var extTable = document.createElement('table');
+            var extHead = document.createElement('tr');
+            ['Matchup', 'Dominant', 'Win %', 'Avg Time', 'Errors'].forEach(function(h) {
+                var th = document.createElement('th'); th.textContent = h; extHead.appendChild(th);
+            });
+            extTable.appendChild(extHead);
+
+            allMatchupList.slice(0, 20).forEach(function(m) {
+                var tr = document.createElement('tr');
+                var td1 = document.createElement('td');
+                td1.appendChild(colorSpan(WB.Config.WEAPON_NAMES[m.favored] || m.favored, WB.Config.COLORS[m.favored], false));
+                td1.appendChild(document.createTextNode(' vs '));
+                td1.appendChild(colorSpan(WB.Config.WEAPON_NAMES[m.unfavored] || m.unfavored, WB.Config.COLORS[m.unfavored], false));
+                var td2 = document.createElement('td');
+                td2.appendChild(colorSpan(WB.Config.WEAPON_NAMES[m.favored] || m.favored, WB.Config.COLORS[m.favored], true));
+                var td3 = el('td', m.winPct.toFixed(0) + '%', m.winPct >= 80 ? 'bad' : (m.winPct >= 70 ? 'ok' : ''));
+                var td4 = el('td', m.avgTime + 's');
+                var td5 = el('td', m.errors > 0 ? '' + m.errors : '-', m.errors > 0 ? 'bad' : '');
+                tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5);
+                extTable.appendChild(tr);
+            });
+            out.appendChild(extTable);
+
+            // 4. ARCHETYPE ANALYSIS
+            out.appendChild(el('h2', 'Win Rate by Attack Type'));
+            var archetypes = {
+                'Melee Spin': ['california','connecticut','florida','iowa','kansas','kentucky','maryland',
+                    'minnesota','mississippi','missouri','montana','nevada','ohio','oklahoma','oregon',
+                    'pennsylvania','rhode-island','south-carolina','texas','utah','virginia',
+                    'west-virginia','illinois'],
+                'Body Slam': ['alaska','colorado','delaware','indiana','michigan','nebraska',
+                    'new-hampshire','north-carolina','south-dakota','wyoming'],
+                'Projectile': ['alabama','arkansas','idaho','maine','massachusetts','new-mexico',
+                    'new-york','north-dakota','vermont','washington','wisconsin'],
+                'AoE Pulse': ['arizona','hawaii','louisiana','new-jersey','tennessee'],
+                'Pulsing Aura': ['georgia']
+            };
+
+            var archTable = document.createElement('table');
+            var archHead = document.createElement('tr');
+            ['Archetype', 'Count', 'Avg Win Rate', 'Best', 'Worst'].forEach(function(h) {
+                var th = document.createElement('th'); th.textContent = h; archHead.appendChild(th);
+            });
+            archTable.appendChild(archHead);
+
+            Object.keys(archetypes).forEach(function(archName) {
+                var members = archetypes[archName];
+                var archRankings = members.map(function(s) {
+                    var wr = winRates[s];
+                    return { name: s, winRate: wr && wr.total > 0 ? (wr.wins / wr.total * 100) : 0 };
+                }).sort(function(a, b) { return b.winRate - a.winRate; });
+
+                var avgWr = archRankings.reduce(function(sum, r) { return sum + r.winRate; }, 0) / archRankings.length;
+                var best = archRankings[0];
+                var worst = archRankings[archRankings.length - 1];
+
+                var tr = document.createElement('tr');
+                tr.appendChild(el('td', archName));
+                tr.appendChild(el('td', '' + members.length));
+                tr.appendChild(el('td', avgWr.toFixed(1) + '%', avgWr >= 55 ? 'good' : (avgWr >= 45 ? 'ok' : 'bad')));
+                var bestTd = document.createElement('td');
+                bestTd.appendChild(colorSpan((WB.Config.WEAPON_NAMES[best.name] || best.name) + ' ' + best.winRate.toFixed(0) + '%', WB.Config.COLORS[best.name], false));
+                var worstTd = document.createElement('td');
+                worstTd.appendChild(colorSpan((WB.Config.WEAPON_NAMES[worst.name] || worst.name) + ' ' + worst.winRate.toFixed(0) + '%', WB.Config.COLORS[worst.name], false));
+                tr.appendChild(bestTd); tr.appendChild(worstTd);
+                archTable.appendChild(tr);
+            });
+            out.appendChild(archTable);
+
+            var footer = el('p', 'Simulation complete. ' + states.length + ' states, ' + totalMatchups + ' matchups, ' +
+                SIMS_PER_MATCHUP + ' battles each = ' + (totalMatchups * SIMS_PER_MATCHUP) + ' total battles.');
+            footer.style.color = '#666';
+            footer.style.textAlign = 'center';
+            footer.style.marginTop = '40px';
+            out.appendChild(footer);
+        }
+
+        setTimeout(runBatch, 200);
+    });
+    </script>
+</body>
+</html>
