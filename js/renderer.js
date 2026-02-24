@@ -64,12 +64,14 @@ WB.Renderer = {
         }
 
         // Draw non-sprite weapons behind balls (procedural swords, bows, etc.)
-        // Egyptian weapons use sprite-based rendering and must draw AFTER balls
+        // Egyptian weapons use sprite-based rendering and must draw AFTER balls.
+        // Body-slam states with ball-centered sprites also draw after balls.
         const _egyptianTypes = WB.WeaponSprites && WB.WeaponSprites._initialized
             ? new Set(WB.WeaponRegistry.getTypes('egyptian'))
             : null;
+        const _onTopTypes = new Set(['ohio', 'michigan', 'mississippi', 'georgia']);
         for (const ball of game.balls) {
-            if (ball.isAlive && !(_egyptianTypes && _egyptianTypes.has(ball.weaponType))) {
+            if (ball.isAlive && !(_egyptianTypes && _egyptianTypes.has(ball.weaponType)) && !_onTopTypes.has(ball.weaponType)) {
                 ball.weapon.draw();
             }
         }
@@ -84,12 +86,17 @@ WB.Renderer = {
             }
         }
 
-        // Draw sprite-based weapons ON TOP of balls (Egyptian pantheon)
+        // Draw sprite-based weapons ON TOP of balls (Egyptian pantheon + ball-centered states)
         if (_egyptianTypes) {
             for (const ball of game.balls) {
                 if (ball.isAlive && _egyptianTypes.has(ball.weaponType)) {
                     ball.weapon.draw();
                 }
+            }
+        }
+        for (const ball of game.balls) {
+            if (ball.isAlive && _onTopTypes.has(ball.weaponType)) {
+                ball.weapon.draw();
             }
         }
 

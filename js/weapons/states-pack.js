@@ -699,6 +699,7 @@ class GeorgiaWeapon extends WB.Weapon {
     }
     draw() {
         var B = WB.GLBatch;
+        // Fizz aura ring
         var alpha = this.expanding ? 0.2 : 0.05;
         B.setAlpha(alpha);
         B.fillCircle(this.owner.x, this.owner.y, this.fizzRadius, '#FF4444');
@@ -706,6 +707,14 @@ class GeorgiaWeapon extends WB.Weapon {
         B.setAlpha(0.35);
         B.strokeCircle(this.owner.x, this.owner.y, this.fizzRadius, '#FF4444', 1.5);
         B.restoreAlpha();
+        // Fizz SVG sprite overlay on ball
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('georgia-fizz')) {
+            B.flush();
+            var size = this.owner.radius * 1.5;
+            var pulseAlpha = this.expanding ? 0.9 : 0.6;
+            S.drawSprite('georgia-fizz', this.owner.x, this.owner.y, this.fizzTimer * 0.01, size, size, pulseAlpha, 1.0);
+        }
         // Pressure counter
         if (this.pressure > 0) {
             WB.GLText.drawTextLite('' + this.pressure, this.owner.x, this.owner.y - this.owner.radius - 10, '12px Courier New', '#FF4444', '#333', 'center');
@@ -2152,37 +2161,148 @@ WB.WeaponRegistry.register('north-dakota', NorthDakotaWeapon, 'states');
 // ═══════════════════════════════════════════════════════════════
 class OhioWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'ohio', baseDamage: 4, rotationSpeed: 0.05, reach: 75, scalingName: 'Rate', superThreshold: NO_SUPER });
+        super(owner, { type: 'ohio', baseDamage: 3, rotationSpeed: 0, reach: 0, scalingName: 'Rate', superThreshold: NO_SUPER, canParry: false });
         this.scalingRate = 1.0;
+        // Charge cycle: pause → aim → charge → punt tumble
+        this.chargeSpeed = 6;
+        this.chargeDuration = 80;
+        this.pauseDuration = 55;
+        this.chargeTimer = 0;
+        this.charging = false;
+        this.pausing = false;
+        this.chargeAngle = 0;
+        this.contactCooldown = 0;
+        this.contactCooldownTime = 45;
+        this.contactAura = 2;
+        this._tumbleSpin = 0;      // current tumble rotation angle
+        this._tumbleSpeed = 0;     // rad/frame — spikes on hit, decays over time
         this.scalingStat.value = this.scalingRate.toFixed(2);
     }
+    update() {
+        if (this.contactCooldown > 0) this.contactCooldown--;
+        this.chargeTimer++;
+        // Tumble spin: fast after punt, decays toward zero
+        this._tumbleSpin += this._tumbleSpeed;
+        if (this._tumbleSpeed > 0.02) {
+            this._tumbleSpeed *= 0.97; // gradual decay
+        } else {
+            this._tumbleSpeed = 0;
+        }
+        if (this.pausing) {
+            this.owner.vx *= 0.85; this.owner.vy *= 0.85;
+            if (this.chargeTimer >= this.pauseDuration) { this._startCharge(); }
+        } else if (this.charging) {
+            this.owner.vx = Math.cos(this.chargeAngle) * this.chargeSpeed;
+            this.owner.vy = Math.sin(this.chargeAngle) * this.chargeSpeed;
+            // Wall detection — if stuck against wall mid-charge, punt and re-aim
+            var a = WB.Config.ARENA, o = this.owner;
+            var atWall = (o.x - o.radius <= a.x + 2) || (o.x + o.radius >= a.x + a.width - 2) ||
+                         (o.y - o.radius <= a.y + 2) || (o.y + o.radius >= a.y + a.height - 2);
+            if (atWall && this.chargeTimer > 10) {
+                this._tumbleSpeed = 0.3; // punt tumble off the wall
+                this.pausing = true; this.charging = false; this.chargeTimer = 0;
+            }
+            if (this.chargeTimer >= this.chargeDuration) { this.pausing = true; this.charging = false; this.chargeTimer = 0; }
+        } else {
+            this._startCharge();
+        }
+    }
+    _startCharge() {
+        this.charging = true; this.pausing = false; this.chargeTimer = 0;
+        this._tumbleSpeed = 0; // stop tumbling when lining up new charge
+        if (WB.Game && WB.Game.balls) {
+            for (var i = 0; i < WB.Game.balls.length; i++) {
+                var b = WB.Game.balls[i];
+                if (b !== this.owner && b.isAlive && b.side !== this.owner.side) {
+                    this.chargeAngle = Math.atan2(b.y - this.owner.y, b.x - this.owner.x);
+                    return;
+                }
+            }
+        }
+        this.chargeAngle = WB.random() * Math.PI * 2;
+    }
+    canHit() { return this.contactCooldown <= 0 && this.charging; }
     onHit(target) {
-        target.takeDamage(this.currentDamage);
+        // Directional check: only deal damage if target is in front of the football
+        // (within ~120° cone of charge direction)
+        var dx = target.x - this.owner.x, dy = target.y - this.owner.y;
+        var angleToTarget = Math.atan2(dy, dx);
+        var diff = angleToTarget - this.chargeAngle;
+        // Normalize to [-PI, PI]
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        if (Math.abs(diff) > Math.PI * 0.33) {
+            // Target is behind the football — no damage, just bounce off
+            this.contactCooldown = 15; // short cooldown to prevent spam
+            return;
+        }
+        var speed = this.owner.getSpeed();
+        var dmg = Math.round(this.currentDamage + speed * 0.08);
+        target.takeDamage(dmg);
         this.hitCount++;
-        this.cooldown = WB.Config.WEAPON_HIT_COOLDOWN;
+        this.contactCooldown = this.contactCooldownTime;
         this.applyScaling();
-        this._onHitEffects(target, this.currentDamage, this.owner.color);
+        // Knockback on hit
+        var d = Math.sqrt(dx * dx + dy * dy) || 1;
+        var kb = Math.min(5, 2 + this.scalingRate * 0.5);
+        target.vx += (dx / d) * kb;
+        target.vy += (dy / d) * kb;
+        // Punt! Football goes tumbling after the hit
+        this._tumbleSpeed = 0.4 + WB.random() * 0.2; // fast wild spin
+        this.charging = false;
+        this.pausing = true;
+        this.chargeTimer = 0;
+        this._onHitEffects(target, dmg, this.owner.color);
         WB.Audio.weaponHit(this.hitCount, this.type);
     }
     applyScaling() {
-        // Compound: scaling_rate = base_rate × (1.05 ^ hit_count)
+        // Compound: scaling_rate = 1.05 ^ hit_count (Ohio's signature)
         this.scalingRate = Math.pow(1.05, this.hitCount);
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 3 * this.scalingRate);
+        this.chargeSpeed = Math.min(9, 6 + this.hitCount * 0.15);
         this.scalingStat.value = this.scalingRate.toFixed(2);
     }
     draw() {
-        // Ohio football SVG is icon-only (compound scaling wrench in battle)
         var B = WB.GLBatch;
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        var r = this.owner.radius;
-        // Wrench shaft
-        B.fillRect(r, -2.5, this.reach - r - 10, 5, '#888');
-        B.strokeRect(r, -2.5, this.reach - r - 10, 5, '#555', 1);
-        // Wrench head — U-shape
-        B.fillRect(this.reach - 10, -7, 10, 4, '#E03C31');
-        B.fillRect(this.reach - 10, 3, 10, 4, '#E03C31');
-        B.fillRect(this.reach - 10, -7, 3, 14, '#E03C31');
-        B.popTransform();
+        var S = WB.WeaponSprites;
+        // Render football sprite centered on ball
+        if (S && S.hasSprite('ohio-football')) {
+            B.flush();
+            var size = this.owner.radius * 1.7;
+            var angle;
+            if (this._tumbleSpeed > 0.02) {
+                // Punted! Wild tumble spin
+                angle = this._tumbleSpin;
+            } else if (this.charging) {
+                // Charging: football points toward target
+                angle = this.chargeAngle;
+            } else {
+                // Pausing/idle: point along velocity
+                var spd = this.owner.getSpeed();
+                if (spd > 1) {
+                    angle = Math.atan2(this.owner.vy, this.owner.vx);
+                } else {
+                    angle = this.chargeAngle;
+                }
+            }
+            S.drawSprite('ohio-football', this.owner.x, this.owner.y, angle, size, size, 1.0, 1.0);
+        }
+        // Speed streaks when charging
+        if (this.charging) {
+            var speed = this.owner.getSpeed();
+            if (speed > 3) {
+                var trailAlpha = Math.min(0.3, (speed - 3) * 0.05);
+                var ma = Math.atan2(-this.owner.vy, -this.owner.vx);
+                B.setAlpha(trailAlpha);
+                for (var i = 0; i < 3; i++) {
+                    var off = (i - 1) * 0.3;
+                    var lx = this.owner.x + Math.cos(ma + off) * (this.owner.radius + 3);
+                    var ly = this.owner.y + Math.sin(ma + off) * (this.owner.radius + 3);
+                    B.line(lx, ly, lx + Math.cos(ma) * (4 + speed), ly + Math.sin(ma) * (4 + speed), '#E03C31', 2);
+                }
+                B.restoreAlpha();
+            }
+        }
     }
 }
 WB.WeaponRegistry.register('ohio', OhioWeapon, 'states');
@@ -2581,7 +2701,7 @@ WB.WeaponRegistry.register('tennessee', TennesseeWeapon, 'states');
 // ═══════════════════════════════════════════════════════════════
 class TexasWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'texas', baseDamage: 6, rotationSpeed: 0.035, reach: 80, scalingName: 'Size', superThreshold: NO_SUPER });
+        super(owner, { type: 'texas', baseDamage: 7, rotationSpeed: 0.06, reach: 85, scalingName: 'Size', superThreshold: NO_SUPER });
         this.owner.radius = Math.round(WB.Config.BALL_RADIUS * 1.2);
         this.owner.mass = (this.owner.radius / WB.Config.BALL_RADIUS) * WB.Config.BALL_MASS * 1.2;
         this.scalingStat.value = this.owner.radius;
