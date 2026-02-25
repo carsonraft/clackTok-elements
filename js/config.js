@@ -29,8 +29,9 @@ WB.Config = {
     MOTION_BLUR_STRENGTH: 0.25,  // 0=off, 0.5=full 180° shutter, 0.25=subtle cinematic
     SIDEBAR_WIDTH: 0,             // px per side during battle (0 = no sidebars)
     // Stage size presets (index into STAGE_PRESETS)
-    STAGE_SIZE_INDEX: 1,
+    STAGE_SIZE_INDEX: 2,
     STAGE_PRESETS: [
+        { label: 'TINY',   width: 300, height: 300, maxSpeed: 9, wallRestitution: 0.95, gravity: 0.10 },
         { label: 'SMALL',  width: 340, height: 540 },
         { label: 'SQUARE', width: 420, height: 420 },
         { label: 'MEDIUM', width: 500, height: 780 },

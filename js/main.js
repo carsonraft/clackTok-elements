@@ -145,8 +145,26 @@ WB.Game = {
         WB.Config.ARENA.width = preset.width;
         WB.Config.ARENA.height = preset.height;
 
+        // Per-preset physics overrides from StageTuner (localStorage + preset defaults)
+        if (WB.StageTuner) {
+            var ov = WB.StageTuner.getOverrides(preset.label);
+            WB.Config.BALL_MAX_SPEED = ov.maxSpeed;
+            WB.Config.WALL_RESTITUTION = ov.wallRestitution;
+            WB.Config.GRAVITY = ov.gravity;
+            WB.Config.BALL_RADIUS = ov.ballRadius;
+        } else {
+            WB.Config.BALL_MAX_SPEED = preset.maxSpeed || 14;
+            WB.Config.WALL_RESTITUTION = preset.wallRestitution || 1.12;
+            WB.Config.GRAVITY = preset.gravity || 0.15;
+        }
+
         const sidePad = 20;
-        const cw = preset.width + sidePad * 2;
+        // Minimum canvas width so small arenas still fill the screen nicely
+        const minCanvasW = 380;
+        const cw = Math.max(preset.width + sidePad * 2, minCanvasW);
+
+        // Center arena horizontally within the (possibly wider) canvas
+        WB.Config.ARENA.x = Math.round((cw - preset.width) / 2);
 
         // Reserve space: title area above arena, HUD below arena
         // HUD: 10 top gap + bar(24) + gap(6) + bar(24) + gap(12) + stats(18) + margin(12) = 106
@@ -163,7 +181,6 @@ WB.Game = {
         const topExtra = Math.round(extraSpace * 0.4);
         const arenaY = titleH + topExtra;
 
-        WB.Config.ARENA.x = sidePad;
         WB.Config.ARENA.y = arenaY;
         WB.Config.CANVAS_WIDTH = cw;
         WB.Config.CANVAS_HEIGHT = ch;
@@ -195,6 +212,7 @@ WB.Game = {
         this._excitementScore = 0;
         WB.ArenaModifiers.clear();
         if (WB.GL) WB.GL.clearMotionBlurHistory();
+        if (WB.StageTuner) WB.StageTuner.hide();
 
         // Seed live battles for replay (replays are already seeded by SimUI)
         if (!WB.RNG._seeded) {

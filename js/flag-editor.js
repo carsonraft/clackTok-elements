@@ -23,7 +23,7 @@
     var dragStartOx = 0, dragStartOy = 0;
 
     // DOM refs
-    var scaleSlider, rotSlider, scaleVal, rotVal, offsetReadout;
+    var scaleSlider, rotSlider, scaleVal, rotVal, offsetReadout, solidBtn;
 
     // ─── Init ──────────────────────────────────────────────
 
@@ -35,6 +35,7 @@
         scaleVal = document.getElementById('scaleVal');
         rotVal = document.getElementById('rotVal');
         offsetReadout = document.getElementById('offsetReadout');
+        solidBtn = document.getElementById('btnSolid');
 
         loadConfig();
         loadStateTypes();
@@ -60,7 +61,7 @@
             var clean = {};
             for (var k in config) {
                 var c = config[k];
-                if (c.ox !== 0 || c.oy !== 0 || c.scale !== 1.0 || c.rot !== 0) {
+                if (c.ox !== 0 || c.oy !== 0 || c.scale !== 1.0 || c.rot !== 0 || c.solid) {
                     clean[k] = c;
                 }
             }
@@ -154,7 +155,7 @@
             var el = document.getElementById('flag-' + type);
             if (!el) continue;
             var c = config[type];
-            var isEdited = c && (c.ox !== 0 || c.oy !== 0 || c.scale !== 1.0 || c.rot !== 0);
+            var isEdited = c && (c.ox !== 0 || c.oy !== 0 || c.scale !== 1.0 || c.rot !== 0 || c.solid);
             if (isEdited) {
                 el.classList.add('edited');
             } else {
@@ -197,6 +198,13 @@
         rotSlider.value = Math.round(tfm.rot * 180 / Math.PI);
         updateReadouts(tfm);
 
+        // Update solid toggle
+        var isSolid = config[type] && config[type].solid;
+        if (solidBtn) {
+            if (isSolid) solidBtn.classList.add('active');
+            else solidBtn.classList.remove('active');
+        }
+
         draw();
     }
 
@@ -235,9 +243,10 @@
         ctx.fillStyle = color;
         ctx.fill();
 
-        // Flag image with transforms (clipped to ball circle)
+        // Flag image with transforms (clipped to ball circle) — skip if solid mode
+        var isSolid = config[selectedType] && config[selectedType].solid;
         var img = flagImages[selectedType];
-        if (img && img.complete && img.naturalWidth > 0) {
+        if (!isSolid && img && img.complete && img.naturalWidth > 0) {
             ctx.save();
             // Clip to circle
             ctx.beginPath();
@@ -383,6 +392,21 @@
             saveConfig();
         });
 
+        // Solid color toggle
+        document.getElementById('btnSolid').addEventListener('click', function() {
+            if (!selectedType) return;
+            if (!config[selectedType]) {
+                config[selectedType] = { ox: 0, oy: 0, scale: 1.0, rot: 0 };
+            }
+            config[selectedType].solid = !config[selectedType].solid;
+            if (solidBtn) {
+                if (config[selectedType].solid) solidBtn.classList.add('active');
+                else solidBtn.classList.remove('active');
+            }
+            draw();
+            saveConfig();
+        });
+
         // Buttons
         document.getElementById('btnReset').addEventListener('click', function() {
             if (!selectedType) return;
@@ -390,6 +414,7 @@
             scaleSlider.value = 1.0;
             rotSlider.value = 0;
             updateReadouts({ ox: 0, oy: 0, scale: 1.0, rot: 0 });
+            if (solidBtn) solidBtn.classList.remove('active');
             draw();
             saveConfig();
         });
@@ -399,6 +424,7 @@
             config = {};
             scaleSlider.value = 1.0;
             rotSlider.value = 0;
+            if (solidBtn) solidBtn.classList.remove('active');
             updateReadouts({ ox: 0, oy: 0, scale: 1.0, rot: 0 });
             draw();
             saveConfig();

@@ -181,6 +181,19 @@ WB.UI = {
             return 'studio';
         }
 
+        // Check TUNE button
+        const tuBtn = layout.tuneBtn;
+        if (tuBtn && mx >= tuBtn.x && mx <= tuBtn.x + tuBtn.w && my >= tuBtn.y && my <= tuBtn.y + tuBtn.h) {
+            WB.Audio.menuClack();
+            if (WB.StageTuner) WB.StageTuner.toggle();
+            return null;
+        }
+
+        // Close tuner if clicking elsewhere on canvas
+        if (WB.StageTuner && WB.StageTuner.isVisible()) {
+            WB.StageTuner.hide();
+        }
+
         return null;
     },
 
@@ -237,6 +250,7 @@ WB.UI = {
             frictionBtn: { x: pad + (selectorW + 6) * 2, y: selectorsY, w: selectorW, h: selectorH },
             bestOfBtn:   { x: pad, y: bestOfY, w: 100, h: bestOfH },
             studioBtn:   { x: pad + 106, y: bestOfY, w: 100, h: bestOfH },
+            tuneBtn:     { x: pad + 212, y: bestOfY, w: 80, h: bestOfH },
         };
     },
 
@@ -464,6 +478,17 @@ WB.UI = {
         B.flush();
         T.drawText('STUDIO', stBtn.x + stBtn.w / 2, stBtn.y + stBtn.h / 2,
             'bold 11px "Courier New", monospace', '#FFF', 'center', 'middle');
+
+        // TUNE button
+        const tuBtn = layout.tuneBtn;
+        if (tuBtn) {
+            const tunerOpen = WB.StageTuner && WB.StageTuner.isVisible();
+            B.fillRect(tuBtn.x, tuBtn.y, tuBtn.w, tuBtn.h, tunerOpen ? '#D4A853' : '#8B7355');
+            B.strokeRect(tuBtn.x, tuBtn.y, tuBtn.w, tuBtn.h, tunerOpen ? '#B8860B' : '#6B5335', 1);
+            B.flush();
+            T.drawText('\u2699 TUNE', tuBtn.x + tuBtn.w / 2, tuBtn.y + tuBtn.h / 2,
+                'bold 11px "Courier New", monospace', '#FFF', 'center', 'middle');
+        }
     },
 
     _drawSelector(btn, label) {

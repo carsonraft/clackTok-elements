@@ -312,6 +312,9 @@ WB.BallImages = {
     },
 
     hasFlag(weaponType) {
+        // Check if user opted for solid color in flag config
+        var cfg = this._flagConfig[weaponType];
+        if (cfg && cfg.solid) return false;
         return !!this._flagTextures[weaponType];
     },
 

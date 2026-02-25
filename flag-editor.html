@@ -114,6 +114,9 @@
         .btn-resetall:hover { background: #20203a; }
         .btn-export { background: #1a2a1a; color: #4ade80; }
         .btn-export:hover { background: #203a20; }
+        .btn-solid { background: #1a2a2a; color: #67e8f9; border-color: #555; transition: background 0.15s, border-color 0.15s; }
+        .btn-solid:hover { background: #203a3a; }
+        .btn-solid.active { background: #0e4a4a; border-color: #67e8f9; color: #fff; }
 
         /* ── Offset readout ─────────────────── */
         #offsetReadout {
@@ -156,6 +159,9 @@
                 <input type="range" id="rotSlider" min="-180" max="180" step="1" value="0">
             </div>
             <div class="btn-row">
+                <div class="btn btn-solid" id="btnSolid">SOLID COLOR</div>
+            </div>
+            <div class="btn-row">
                 <div class="btn btn-reset" id="btnReset">RESET</div>
                 <div class="btn btn-resetall" id="btnResetAll">RESET ALL</div>
             </div>
@@ -168,10 +174,10 @@
     <div id="hint">Drag the preview to reposition &bull; Scroll to zoom &bull; Changes auto-save to localStorage</div>
 
     <!-- Minimal deps: only config for COLORS/NAMES, weapon registry for state types -->
-    <script src="js/rng.js?v=65"></script>
-    <script src="js/config.js?v=65"></script>
-    <script src="js/weapon.js?v=65"></script>
-    <script src="js/weapons/states-pack.js?v=65"></script>
-    <script src="js/flag-editor.js?v=65"></script>
+    <script src="js/rng.js?v=68"></script>
+    <script src="js/config.js?v=68"></script>
+    <script src="js/weapon.js?v=68"></script>
+    <script src="js/weapons/states-pack.js?v=68"></script>
+    <script src="js/flag-editor.js?v=68"></script>
 </body>
 </html>

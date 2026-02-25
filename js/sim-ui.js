@@ -89,7 +89,9 @@ WB.SimUI = {
     // Compute arena position exactly matching main.js _applyStageSize()
     _computeArenaPosition(preset) {
         const sidePad = 20;
-        const cw = preset.width + sidePad * 2;
+        const minCanvasW = 380;
+        const cw = Math.max(preset.width + sidePad * 2, minCanvasW);
+        const arenaX = Math.round((cw - preset.width) / 2);
         const titleH = 60;
         const hudH = 106;
         const naturalH = titleH + preset.height + hudH;
@@ -97,7 +99,7 @@ WB.SimUI = {
         const ch = Math.max(naturalH, minH);
         const extraSpace = ch - titleH - preset.height - hudH;
         const topExtra = Math.round(extraSpace * 0.4);
-        return { x: sidePad, y: titleH + topExtra };
+        return { x: arenaX, y: titleH + topExtra };
     },
 
     // ─── Simulation ─────────────────────────────────────
@@ -113,16 +115,30 @@ WB.SimUI = {
         WB.Config.ARENA.height = preset.height;
         WB.Config.BALL_FRICTION = WB.Config.FRICTION_PRESETS[WB.Config.FRICTION_INDEX].value;
 
+        // Apply tuner physics overrides to match live battles
+        var savedPhysics = { maxSpeed: WB.Config.BALL_MAX_SPEED, wallRest: WB.Config.WALL_RESTITUTION, gravity: WB.Config.GRAVITY, ballRadius: WB.Config.BALL_RADIUS };
+        if (WB.StageTuner) {
+            var ov = WB.StageTuner.getOverrides(preset.label);
+            WB.Config.BALL_MAX_SPEED = ov.maxSpeed;
+            WB.Config.WALL_RESTITUTION = ov.wallRestitution;
+            WB.Config.GRAVITY = ov.gravity;
+            WB.Config.BALL_RADIUS = ov.ballRadius;
+        }
+
         this.results = WB.Simulator.runBatch(weaponLeft, weaponRight, this.simCount);
         // Stamp each result with the toggle state
         for (const r of this.results) {
             r.toggles = this._simToggles;
         }
-        // Restore arena for menu display
+        // Restore arena and physics for menu display
         WB.Config.ARENA.x = savedArena.x;
         WB.Config.ARENA.y = savedArena.y;
         WB.Config.ARENA.width = savedArena.width;
         WB.Config.ARENA.height = savedArena.height;
+        WB.Config.BALL_MAX_SPEED = savedPhysics.maxSpeed;
+        WB.Config.WALL_RESTITUTION = savedPhysics.wallRest;
+        WB.Config.GRAVITY = savedPhysics.gravity;
+        WB.Config.BALL_RADIUS = savedPhysics.ballRadius;
         this.scrollOffset = 0;
     },
 
