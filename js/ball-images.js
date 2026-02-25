@@ -13,6 +13,8 @@ WB.BallImages = {
     _vao: null,
     _vbo: null,
     _STORAGE_KEY: 'wb_ball_images',
+    _FLAG_CONFIG_KEY: 'wb_flag_config',
+    _flagConfig: {},   // weaponType → { ox, oy, scale, rot }
     _initialized: false,
 
     init() {
@@ -43,13 +45,23 @@ WB.BallImages = {
             in vec2 v_local;
             uniform sampler2D u_image;
             uniform float u_alpha;
+            uniform vec2 u_uvOffset;
+            uniform float u_uvScale;
+            uniform float u_uvRotation;
             out vec4 fragColor;
             void main() {
                 float dist = length(v_local);
                 if (dist > 1.0) discard;
                 // Soft edge anti-aliasing
                 float edge = smoothstep(1.0, 0.95, dist);
-                vec4 tex = texture(u_image, v_uv);
+                // Transform UV: rotate → scale → offset
+                vec2 uv = v_uv - 0.5;
+                float c = cos(u_uvRotation), s = sin(u_uvRotation);
+                uv = vec2(uv.x * c - uv.y * s, uv.x * s + uv.y * c);
+                uv /= u_uvScale;
+                uv += u_uvOffset;
+                uv += 0.5;
+                vec4 tex = texture(u_image, uv);
                 fragColor = vec4(tex.rgb, tex.a * u_alpha * edge);
             }
         `;
@@ -88,8 +100,29 @@ WB.BallImages = {
 
         this._initialized = true;
 
-        // Load persisted images
+        // Load persisted images and flag config
         this._loadFromStorage();
+        this.loadFlagConfig();
+    },
+
+    // ─── Flag Position/Scale/Rotation Config ────────────────
+    loadFlagConfig() {
+        try {
+            var raw = localStorage.getItem(this._FLAG_CONFIG_KEY);
+            if (raw) this._flagConfig = JSON.parse(raw);
+            else this._flagConfig = {};
+        } catch (e) { this._flagConfig = {}; }
+    },
+
+    getFlagTransform(weaponType) {
+        var cfg = this._flagConfig[weaponType];
+        if (!cfg) return { ox: 0, oy: 0, scale: 1.0, rot: 0 };
+        return {
+            ox: cfg.ox || 0,
+            oy: cfg.oy || 0,
+            scale: cfg.scale || 1.0,
+            rot: cfg.rot || 0
+        };
     },
 
     // ─── Public API ──────────────────────────────────────
@@ -140,6 +173,10 @@ WB.BallImages = {
         gl.uniform2f(this._program._unis.u_center, x, y);
         gl.uniform1f(this._program._unis.u_radius, radius);
         gl.uniform1f(this._program._unis.u_alpha, 1.0);
+        // Default UV transform (no offset/scale/rotation for user images)
+        gl.uniform2f(this._program._unis.u_uvOffset, 0, 0);
+        gl.uniform1f(this._program._unis.u_uvScale, 1.0);
+        gl.uniform1f(this._program._unis.u_uvRotation, 0);
 
         // Bind texture on TEXTURE1
         gl.activeTexture(gl.TEXTURE1);
@@ -297,6 +334,11 @@ WB.BallImages = {
         gl.uniform2f(this._program._unis.u_center, x, y);
         gl.uniform1f(this._program._unis.u_radius, radius);
         gl.uniform1f(this._program._unis.u_alpha, 1.0);
+        // Per-state UV transform
+        var tfm = this.getFlagTransform(weaponType);
+        gl.uniform2f(this._program._unis.u_uvOffset, tfm.ox, tfm.oy);
+        gl.uniform1f(this._program._unis.u_uvScale, tfm.scale);
+        gl.uniform1f(this._program._unis.u_uvRotation, tfm.rot);
 
         // Bind flag texture on TEXTURE1
         gl.activeTexture(gl.TEXTURE1);

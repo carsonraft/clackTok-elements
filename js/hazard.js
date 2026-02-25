@@ -18,6 +18,7 @@ WB.Hazard = class {
         this.vx = config.vx || 0;               // optional drift velocity
         this.vy = config.vy || 0;
         this.spriteKey = config.spriteKey || null; // optional: render atlas sprite instead of ring
+        this._wallAngle = config._wallAngle || 0; // rotation for wall-aligned sprites (NY buildings)
     }
 
     update() {
@@ -79,7 +80,7 @@ WB.Hazard = class {
             var S = WB.WeaponSprites;
             if (S && S.hasSprite(this.spriteKey)) {
                 B.flush();
-                S.drawSprite(this.spriteKey, this.x, this.y, 0, this.radius, this.radius, alpha * 0.8, 1.0);
+                S.drawSprite(this.spriteKey, this.x, this.y, this._wallAngle, this.radius * 1.8, this.radius * 1.8, alpha * 0.9, 1.0);
                 return;
             }
         }

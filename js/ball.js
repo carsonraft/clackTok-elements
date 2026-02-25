@@ -242,11 +242,11 @@ WB.Ball = class {
 
         B.flush();
 
-        // HP text — lightweight 2-pass (shadow + fill) for per-frame efficiency
+        // HP text — 6-pass with cardinal outlines for readability over flag textures
         const fontSize = Math.max(12, Math.floor(this.radius * 0.7));
         const font = `bold ${fontSize}px "Courier New", monospace`;
         const hpText = Math.ceil(this.hp).toString();
-        T.drawTextLite(hpText, this.x, this.y, font, '#FFF', '#333', 'center', 'middle');
+        T.drawTextWithStroke(hpText, this.x, this.y, font, '#FFF', '#222', 3, 'center', 'middle');
     }
 
     drawDead() {
