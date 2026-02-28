@@ -20,6 +20,7 @@ WB.Projectile = class {
         this.onMiss = config.onMiss || null; // callback(x, y) when projectile dies without hitting
         this.shape = config.shape || null;  // null = circle (default), 'bolt', 'arrow', 'sun-arrow', 'sprite', etc.
         this.spriteKey = config.spriteKey || null;  // For shape='sprite': key into WB.WeaponSprites atlas
+        this.spriteAnchor = config.spriteAnchor || 0; // 0=centered, 0.5=nose at leading hitbox edge
         this._hasHit = false;
         this.alive = true;
         this.trail = [];
@@ -501,14 +502,23 @@ WB.Projectile = class {
         }
     }
 
-    // ─── SPRITE: Atlas-based SVG sprite ───────────────────
-    // Renders a WeaponSprites atlas entry oriented along heading
+    // ─── SPRITE: Atlas-based PNG sprite ────────────────────
+    // Renders a WeaponSprites atlas entry oriented along heading.
+    // size = radius → sprite quad = 2*radius (matches hitbox diameter).
+    // spriteAnchor shifts sprite along heading so nose = leading hitbox edge.
     _drawSprite(B, r, heading) {
         const S = WB.WeaponSprites;
         if (S && S.hasSprite(this.spriteKey)) {
             B.flush();
-            var size = r * 2.0;
-            S.drawSprite(this.spriteKey, this.x, this.y, heading, size, size, 1.0, 1.0);
+            var size = r;
+            var drawX = this.x;
+            var drawY = this.y;
+            if (this.spriteAnchor) {
+                // Shift sprite forward along heading by anchor * radius
+                drawX += Math.cos(heading) * this.spriteAnchor * r;
+                drawY += Math.sin(heading) * this.spriteAnchor * r;
+            }
+            S.drawSprite(this.spriteKey, drawX, drawY, heading, size, size, 1.0, 1.0);
         } else {
             // Fallback: plain circle
             this._drawCircle(B, r);

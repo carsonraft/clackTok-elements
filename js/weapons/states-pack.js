@@ -12,18 +12,17 @@ var NO_SUPER = 9999;
 // ═══════════════════════════════════════════════════════════════
 //  HELPER: Sprite draw for weapons that have PNG icons
 //  Returns true if sprite was drawn, false if fallback needed.
-//  Positions sprite between ball edge and weapon reach tip.
-//  Math: halfW = (reach - r) / 1.4
-//        center offset from ball = r + 0.6 * halfW
-//  This ensures the visual tip lands exactly at the weapon's hitbox.
+//  Aligns sprite exactly to the melee hitbox line segment.
+//  Hitbox: line from 0.4*reach to 1.0*reach from ball center (main.js).
+//  Sprite: centered at segment midpoint (0.7*reach), halfW = 0.3*reach.
+//  Result: sprite leading edge = reach (tip), trailing edge = 0.4*reach.
 // ═══════════════════════════════════════════════════════════════
 function drawWeaponSprite(weapon, spriteKey) {
     var S = WB.WeaponSprites;
     if (!S || !S.hasSprite(spriteKey)) return false;
     WB.GLBatch.flush(); // Flush batch before switching to sprite shader
-    var r = weapon.owner.radius;
-    var halfW = (weapon.reach - r) / 1.4;
-    var offset = r + 0.6 * halfW;
+    var halfW = weapon.reach * 0.3;         // half the hitbox segment length
+    var offset = weapon.reach * 0.7;         // midpoint of hitbox segment
     var cx = weapon.owner.x + Math.cos(weapon.angle) * offset;
     var cy = weapon.owner.y + Math.sin(weapon.angle) * offset;
     S.drawSprite(spriteKey, cx, cy, weapon.angle, halfW, halfW, 1.0, 1.0);
@@ -92,8 +91,8 @@ class AlabamaWeapon extends WB.Weapon {
             vx: Math.cos(angle) * this.rocketSpeed,
             vy: Math.sin(angle) * this.rocketSpeed,
             damage: Math.round(this.currentDamage), owner: this.owner, ownerWeapon: this,
-            radius: 8, lifespan: 120, bounces: 0, color: '#990000',
-            shape: 'sprite', spriteKey: 'alabama-rocket'
+            radius: 10, lifespan: 120, bounces: 0, color: '#990000',
+            shape: 'sprite', spriteKey: 'alabama-rocket', spriteAnchor: 0.5
         }));
         // Recoil: push ball backward (opposite of fire direction)
         var recoilX = -Math.cos(angle) * this.recoilStrength;
@@ -206,7 +205,7 @@ class ArizonaWeapon extends WB.Weapon {
             vy: Math.sin(angle) * this.phoenixSpeed,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
             radius: 10, lifespan: 150, bounces: 0, color: '#FF6B35',
-            shape: 'sprite', spriteKey: 'az-phoenix'
+            shape: 'sprite', spriteKey: 'az-phoenix', spriteAnchor: 0.5
         }));
         WB.Audio.projectileFire();
     }
@@ -280,7 +279,7 @@ class ArkansasWeapon extends WB.Weapon {
                 y: this.owner.y + Math.sin(a) * (this.owner.radius + 6),
                 vx: Math.cos(a) * 6, vy: Math.sin(a) * 6,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 6, lifespan: 90, bounces: 0, color: '#A0522D',
+                radius: 8, lifespan: 90, bounces: 0, color: '#A0522D',
                 shape: 'sprite', spriteKey: 'arkansas-shard',
                 onMiss: function(x, y) {
                     if (WB.Game && WB.Game.hazards) {
@@ -635,7 +634,7 @@ class FloridaWeapon extends WB.Weapon {
                 vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
                 radius: 12, lifespan: 200, bounces: 0, color: '#2E8B57',
-                shape: 'sprite', spriteKey: 'florida-jaw'
+                shape: 'sprite', spriteKey: 'florida-jaw', spriteAnchor: 0.5
             }));
         }
         WB.Audio.projectileFire();
@@ -851,7 +850,7 @@ class IdahoWeapon extends WB.Weapon {
                 y: this.owner.y + Math.sin(a) * (this.owner.radius + 5),
                 vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 4, lifespan: 120, bounces: 0, color: '#C5A253',
+                radius: 7, lifespan: 120, bounces: 0, color: '#C5A253',
                 shape: 'sprite', spriteKey: 'idaho-kernel'
             });
             WB.Game.projectiles.push(kernel);
@@ -870,7 +869,7 @@ class IdahoWeapon extends WB.Weapon {
                 x: kernel.x, y: kernel.y,
                 vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
                 damage: popDmg, owner: this.owner, ownerWeapon: this,
-                radius: 5, lifespan: 60, bounces: 1, color: '#FFFFF0',
+                radius: 7, lifespan: 60, bounces: 1, color: '#FFFFF0',
                 shape: 'sprite', spriteKey: 'idaho-popcorn'
             }));
         }
@@ -1244,7 +1243,7 @@ class LouisianaWeapon extends WB.Weapon {
                 x: clone.x, y: clone.y,
                 vx: Math.cos(a) * 6, vy: Math.sin(a) * 6,
                 damage: 1, owner: this.owner, ownerWeapon: this,
-                radius: 5, lifespan: 80, bounces: 1, color: '#FFD700',
+                radius: 7, lifespan: 80, bounces: 1, color: '#FFD700',
                 shape: 'sprite', spriteKey: beadKey
             }));
         }
@@ -1268,7 +1267,7 @@ class LouisianaWeapon extends WB.Weapon {
             if (S && S.hasSprite(clone.spriteKey)) {
                 B.flush();
                 S.drawSprite(clone.spriteKey, clone.x, clone.y, clone.angle,
-                    clone.radius * 1.3, clone.radius * 1.3, 0.9, 1.0);
+                    clone.radius, clone.radius, 0.9, 1.0);
             } else {
                 B.setAlpha(0.7);
                 B.fillCircle(clone.x, clone.y, clone.radius, '#9B59B6');
@@ -1301,7 +1300,7 @@ class MaineWeapon extends WB.Weapon {
         super(owner, { type: 'maine', baseDamage: 4, rotationSpeed: 0.04, reach: 50, scalingName: 'Claw Size', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
         this.fireRate = 120;
-        this.clawSize = 8;
+        this.clawSize = 10;
         this.scalingStat.value = this.clawSize;
     }
     update() {
@@ -1326,7 +1325,7 @@ class MaineWeapon extends WB.Weapon {
             vx: Math.cos(angle) * 4, vy: Math.sin(angle) * 4,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
             radius: this.clawSize, lifespan: 120, bounces: 0, color: '#003F87',
-            shape: 'sprite', spriteKey: 'maine-claw'
+            shape: 'sprite', spriteKey: 'maine-claw', spriteAnchor: 0.3
         }));
         WB.Audio.projectileFire();
     }
@@ -1336,7 +1335,7 @@ class MaineWeapon extends WB.Weapon {
         target.debuffs.slowTimer = Math.max(target.debuffs.slowTimer, 30);
     }
     applyScaling() {
-        this.clawSize = 8 + Math.floor(this.hitCount * 0.4);
+        this.clawSize = 10 + Math.floor(this.hitCount * 0.4);
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 3);
         this.scalingStat.value = this.clawSize;
     }
@@ -1578,7 +1577,7 @@ class MinnesotaWeapon extends WB.Weapon {
             y: this.owner.y + Math.sin(a) * (this.reach + 5),
             vx: Math.cos(a) * 8, vy: Math.sin(a) * 8,
             damage: 1, owner: this.owner, ownerWeapon: this,
-            radius: 6, lifespan: 90, bounces: 2, color: '#222',
+            radius: 8, lifespan: 90, bounces: 2, color: '#222',
             shape: 'sprite', spriteKey: 'minnesota-puck'
         }));
     }
@@ -2033,7 +2032,7 @@ class NewJerseyWeapon extends WB.Weapon {
                 y: this.owner.y + Math.sin(a) * (this.owner.radius + 5),
                 vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 6, lifespan: 100, bounces: 1, color: pillColor,
+                radius: 8, lifespan: 100, bounces: 1, color: pillColor,
                 shape: 'sprite', spriteKey: 'newjersey-pill'
             }));
         }
@@ -2105,7 +2104,7 @@ class NewMexicoWeapon extends WB.Weapon {
             vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
             radius: 9, lifespan: 100, bounces: 0, color: chileColor,
-            shape: 'sprite', spriteKey: 'newmexico-chile'
+            shape: 'sprite', spriteKey: 'newmexico-chile', spriteAnchor: 0.3
         }));
         WB.Audio.projectileFire();
     }
@@ -2179,8 +2178,8 @@ class NewYorkWeapon extends WB.Weapon {
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 8),
             vx: Math.cos(angle) * 7, vy: Math.sin(angle) * 7,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: 8, lifespan: 100, bounces: 1, color: '#FFD700',
-            shape: 'sprite', spriteKey: 'newyork-dart',
+            radius: 10, lifespan: 100, bounces: 1, color: '#FFD700',
+            shape: 'sprite', spriteKey: 'newyork-dart', spriteAnchor: 0.5,
             onMiss: function(x, y) {
                 // Skyscraper grows at wall where dart lands
                 if (WB.Game && WB.Game.hazards) {
@@ -2307,7 +2306,7 @@ class NorthDakotaWeapon extends WB.Weapon {
         super(owner, { type: 'north-dakota', baseDamage: 4, rotationSpeed: 0.04, reach: 50, scalingName: 'Slicks', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
         this.fireRate = 90;
-        this.globSize = 7;
+        this.globSize = 9;
         this.slickCount = 0;
         this.scalingStat.value = this.slickCount;
     }
@@ -2349,7 +2348,7 @@ class NorthDakotaWeapon extends WB.Weapon {
         WB.Audio.projectileFire();
     }
     applyScaling() {
-        this.globSize = 7 + Math.floor(this.hitCount * 0.2);
+        this.globSize = 9 + Math.floor(this.hitCount * 0.2);
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 4);
         this.scalingStat.value = this.slickCount;
     }
@@ -2554,8 +2553,8 @@ class OklahomaWeapon extends WB.Weapon {
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 8),
             vx: Math.cos(angle) * 6, vy: Math.sin(angle) * 6,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: 7, lifespan: 110, bounces: 0, color: '#7B1113',
-            shape: 'sprite', spriteKey: 'oklahoma-turbine'
+            radius: 9, lifespan: 110, bounces: 0, color: '#7B1113',
+            shape: 'sprite', spriteKey: 'oklahoma-turbine', spriteAnchor: 0.2
         }));
         WB.Audio.projectileFire();
     }
@@ -3115,8 +3114,8 @@ class VermontWeapon extends WB.Weapon {
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 6),
             vx: Math.cos(angle) * 5, vy: Math.sin(angle) * 5,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: 8, lifespan: 120, bounces: 0, color: '#8B6914',
-            gravityAffected: true, shape: 'sprite', spriteKey: 'vt-broken-bottle',
+            radius: 10, lifespan: 120, bounces: 0, color: '#8B6914',
+            gravityAffected: true, shape: 'sprite', spriteKey: 'vt-broken-bottle', spriteAnchor: 0.3,
             onMiss: function(x, y) {
                 // Shatter into sticky hazard zone
                 if (WB.Game && WB.Game.hazards) {
@@ -3249,7 +3248,7 @@ class WashingtonWeapon extends WB.Weapon {
                 y: this.owner.y + Math.sin(beanAngle) * (this.owner.radius + 5),
                 vx: Math.cos(beanAngle) * speed, vy: Math.sin(beanAngle) * speed,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 6, lifespan: 55, bounces: 0, color: '#5C3317',
+                radius: 8, lifespan: 55, bounces: 0, color: '#5C3317',
                 shape: 'sprite', spriteKey: 'washington-bean'
             }));
         }

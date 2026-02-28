@@ -80,7 +80,7 @@ WB.Hazard = class {
             var S = WB.WeaponSprites;
             if (S && S.hasSprite(this.spriteKey)) {
                 B.flush();
-                S.drawSprite(this.spriteKey, this.x, this.y, this._wallAngle, this.radius * 1.8, this.radius * 1.8, alpha * 0.9, 1.0);
+                S.drawSprite(this.spriteKey, this.x, this.y, this._wallAngle, this.radius, this.radius, alpha * 0.9, 1.0);
                 return;
             }
         }
