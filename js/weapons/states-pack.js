@@ -169,56 +169,75 @@ class AlaskaWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('alaska', AlaskaWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  3. ARIZONA — AoE heat pulse
-//  Fires every 2 sec. Scaling: pulse radius +10% per hit.
+//  3. ARIZONA — Flaming phoenix projectile. Burn DOT.
+//  Fires phoenix that flies straight (no bounce, no homing). Inflicts burn.
+//  Scaling: burn damage, fire rate, projectile speed.
 // ═══════════════════════════════════════════════════════════════
 class ArizonaWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'arizona', baseDamage: 5, rotationSpeed: 0, reach: 0, scalingName: 'Radius', superThreshold: NO_SUPER, canParry: false });
-        this.pulseTimer = 0;
-        this.pulseRate = 35;
-        this.pulseRadius = 85;
-        this.contactCooldown = 0;
-        this.contactAura = 0;
-        this.scalingStat.value = Math.round(this.pulseRadius);
+        super(owner, { type: 'arizona', baseDamage: 6, rotationSpeed: 0.04, reach: 50, scalingName: 'Heat', superThreshold: NO_SUPER, isRanged: true, canParry: false });
+        this.fireTimer = 0;
+        this.fireRate = 80;
+        this.phoenixSpeed = 9;
+        this.burnDamage = 2;
+        this.burnDuration = 120;
+        this.scalingStat.value = this.burnDamage;
     }
     update() {
-        if (this.contactCooldown > 0) this.contactCooldown--;
-        this.pulseTimer++;
-        if (this.pulseTimer >= this.pulseRate) { this.pulseTimer = 0; this._heatPulse(); }
+        super.update();
+        this.fireTimer++;
+        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._firePhoenix(); }
     }
-    _heatPulse() {
-        if (!WB.Game || !WB.Game.balls) return;
-        for (var i = 0; i < WB.Game.balls.length; i++) {
-            var target = WB.Game.balls[i];
-            if (target === this.owner || !target.isAlive || target.side === this.owner.side) continue;
-            var dx = target.x - this.owner.x, dy = target.y - this.owner.y;
-            if (Math.sqrt(dx * dx + dy * dy) < this.pulseRadius) {
-                target.takeDamage(this.currentDamage);
-                this.hitCount++;
-                this.applyScaling();
-                if (WB.GLEffects) WB.GLEffects.spawnDamageNumber(target.x, target.y, this.currentDamage, '#C41E3A');
+    _firePhoenix() {
+        if (!WB.Game || !WB.Game.projectiles) return;
+        var angle = this.angle;
+        if (WB.Game.balls) {
+            for (var i = 0; i < WB.Game.balls.length; i++) {
+                var b = WB.Game.balls[i];
+                if (b !== this.owner && b.isAlive && b.side !== this.owner.side) {
+                    angle = Math.atan2(b.y - this.owner.y, b.x - this.owner.x); break;
+                }
             }
         }
-        if (WB.GLEffects) WB.GLEffects.spawnImpact(this.owner.x, this.owner.y, '#C41E3A', this.pulseRadius * 0.5);
-        if (WB.Game.particles) WB.Game.particles.emit(this.owner.x, this.owner.y, 5, '#C41E3A');
+        WB.Game.projectiles.push(new WB.Projectile({
+            x: this.owner.x + Math.cos(angle) * (this.owner.radius + 8),
+            y: this.owner.y + Math.sin(angle) * (this.owner.radius + 8),
+            vx: Math.cos(angle) * this.phoenixSpeed,
+            vy: Math.sin(angle) * this.phoenixSpeed,
+            damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
+            radius: 10, lifespan: 150, bounces: 0, color: '#FF6B35',
+            shape: 'sprite', spriteKey: 'az-phoenix'
+        }));
+        WB.Audio.projectileFire();
     }
-    canHit() { return false; }
-    onHit() {}
+    onProjectileHit(proj, target) {
+        // Burn DOT — reuses Apollo/NewMexico burn system in ball.js
+        if (!target.debuffs.burn) target.debuffs.burn = [];
+        if (target.debuffs.burn.length < 2) {
+            target.debuffs.burn.push({
+                damage: this.burnDamage,
+                remaining: this.burnDuration,
+                tickRate: 15,
+                timer: 0
+            });
+        }
+    }
     applyScaling() {
-        this.pulseRadius = Math.min(130, 85 + this.hitCount * 3);
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.6);
-        this.scalingStat.value = Math.round(this.pulseRadius);
+        this.burnDamage = 2 + Math.floor(this.hitCount * 0.3);
+        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.5);
+        this.fireRate = Math.max(55, 80 - this.hitCount * 2);
+        this.phoenixSpeed = Math.min(12, 9 + this.hitCount * 0.2);
+        this.scalingStat.value = this.burnDamage;
     }
+    onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'az-phoenix')) return;
+        // Procedural fallback — orange triangle
         var B = WB.GLBatch;
-        var pulse = Math.sin(this.pulseTimer / this.pulseRate * Math.PI * 2) * 0.05;
-        B.setAlpha(0.06 + pulse);
-        B.fillCircle(this.owner.x, this.owner.y, this.pulseRadius, '#C41E3A');
-        B.restoreAlpha();
-        B.setAlpha(0.25);
-        B.strokeCircle(this.owner.x, this.owner.y, this.pulseRadius, '#C41E3A', 1.5);
-        B.restoreAlpha();
+        B.pushTransform(this.owner.x, this.owner.y, this.angle);
+        var tip = this.reach;
+        B.fillPolygon([tip, 0, tip - 12, -6, tip - 12, 6], '#FF6B35');
+        B.popTransform();
     }
 }
 WB.WeaponRegistry.register('arizona', ArizonaWeapon, 'states');
@@ -1150,67 +1169,125 @@ class KentuckyWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('kentucky', KentuckyWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  18. LOUISIANA — AoE swamp pulse. Friction zones.
-//  Each hit: +5% friction increase in growing radius. Louisiana immune.
+//  18. LOUISIANA — Mardi Gras clone spawner.
+//  Spawns mask-wearing clones. Clones take damage from enemies.
+//  When destroyed, clones explode into bead projectiles (1 dmg each).
+//  Bead count scales with hits. No contact damage from ball or clones.
 // ═══════════════════════════════════════════════════════════════
 class LouisianaWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'louisiana', baseDamage: 5, rotationSpeed: 0, reach: 0, scalingName: 'Swamp', superThreshold: NO_SUPER, canParry: false });
-        this.pulseTimer = 0;
-        this.pulseRate = 40;
-        this.pulseRadius = 75;
-        this.frictionMult = 0.94;
-        this.contactCooldown = 0;
-        this.contactAura = 0;
-        this.scalingStat.value = Math.round((1 - this.frictionMult) * 100) + '%';
+        super(owner, { type: 'louisiana', baseDamage: 0, rotationSpeed: 0, reach: 0, scalingName: 'Beads', superThreshold: NO_SUPER, isRanged: true, canParry: false });
+        this._clones = [];
+        this._cloneTimer = 0;
+        this._cloneRate = 130;
+        this._maxClones = 3;
+        this._beadCount = 3;
+        this._maskCycle = 0;
+        this._masks = ['la-mask1', 'la-mask2', 'la-mask3', 'la-mask4'];
+        this._beads = ['la-bead-purple', 'la-bead-gold', 'la-bead-green'];
+        this.scalingStat.value = this._beadCount;
     }
     update() {
-        if (this.contactCooldown > 0) this.contactCooldown--;
-        this.pulseTimer++;
-        if (this.pulseTimer >= this.pulseRate) { this.pulseTimer = 0; this._swampPulse(); }
-        // Apply friction to enemies in range
-        if (WB.Game && WB.Game.balls) {
+        // Spawn timer
+        this._cloneTimer++;
+        if (this._cloneTimer >= this._cloneRate && this._clones.length < this._maxClones) {
+            this._cloneTimer = 0;
+            this._spawnClone();
+        }
+        // Process clones — check if enemy balls touch them
+        if (!WB.Game || !WB.Game.balls) return;
+        for (var c = this._clones.length - 1; c >= 0; c--) {
+            var clone = this._clones[c];
+            if (clone.hitCooldown > 0) clone.hitCooldown--;
+            clone.angle += 0.01;
             for (var i = 0; i < WB.Game.balls.length; i++) {
-                var t = WB.Game.balls[i];
-                if (t === this.owner || !t.isAlive || t.side === this.owner.side) continue;
-                var dx = t.x - this.owner.x, dy = t.y - this.owner.y;
-                if (Math.sqrt(dx * dx + dy * dy) < this.pulseRadius) {
-                    t.vx *= this.frictionMult;
-                    t.vy *= this.frictionMult;
+                var ball = WB.Game.balls[i];
+                if (ball === this.owner || !ball.isAlive || ball.side === this.owner.side) continue;
+                if (clone.hitCooldown > 0) continue;
+                var dx = ball.x - clone.x, dy = ball.y - clone.y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < clone.radius + ball.radius) {
+                    clone.hp -= 1;
+                    clone.hitCooldown = 20;
+                    if (WB.GLEffects) WB.GLEffects.spawnImpact(clone.x, clone.y, '#FFD700', 15);
+                    if (clone.hp <= 0) {
+                        this._explodeClone(clone);
+                        this._clones.splice(c, 1);
+                        break;
+                    }
                 }
             }
         }
     }
-    _swampPulse() {
-        if (!WB.Game || !WB.Game.balls) return;
-        for (var i = 0; i < WB.Game.balls.length; i++) {
-            var t = WB.Game.balls[i];
-            if (t === this.owner || !t.isAlive || t.side === this.owner.side) continue;
-            var dx = t.x - this.owner.x, dy = t.y - this.owner.y;
-            if (Math.sqrt(dx * dx + dy * dy) < this.pulseRadius) {
-                t.takeDamage(this.currentDamage);
-                this.hitCount++;
-                this.applyScaling();
-                if (WB.GLEffects) WB.GLEffects.spawnDamageNumber(t.x, t.y, this.currentDamage, '#4B0082');
-            }
+    _spawnClone() {
+        var a = WB.Config.ARENA;
+        var margin = 30;
+        var cx = a.x + margin + WB.random() * (a.width - margin * 2);
+        var cy = a.y + margin + WB.random() * (a.height - margin * 2);
+        var maskKey = this._masks[this._maskCycle % 4];
+        this._maskCycle++;
+        this._clones.push({
+            x: cx, y: cy, hp: 5, maxHp: 5, radius: 20,
+            spriteKey: maskKey, angle: WB.random() * Math.PI * 2,
+            hitCooldown: 0
+        });
+        if (WB.Game.particles) WB.Game.particles.emit(cx, cy, 5, '#FFD700');
+        WB.Audio.projectileFire();
+    }
+    _explodeClone(clone) {
+        if (!WB.Game || !WB.Game.projectiles) return;
+        var beadCount = this._beadCount;
+        for (var i = 0; i < beadCount; i++) {
+            var a = (i / beadCount) * Math.PI * 2 + WB.random() * 0.3;
+            var beadKey = this._beads[i % 3];
+            WB.Game.projectiles.push(new WB.Projectile({
+                x: clone.x, y: clone.y,
+                vx: Math.cos(a) * 6, vy: Math.sin(a) * 6,
+                damage: 1, owner: this.owner, ownerWeapon: this,
+                radius: 5, lifespan: 80, bounces: 1, color: '#FFD700',
+                shape: 'sprite', spriteKey: beadKey
+            }));
         }
+        if (WB.Game.particles) WB.Game.particles.explode(clone.x, clone.y, 8, '#FFD700');
+        WB.Audio.projectileFire();
     }
     canHit() { return false; }
     onHit() {}
     applyScaling() {
-        this.frictionMult = Math.max(0.85, 0.94 - this.hitCount * 0.01);
-        this.pulseRadius = Math.min(120, 75 + this.hitCount * 4);
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.7);
-        this.scalingStat.value = Math.round((1 - this.frictionMult) * 100) + '%';
+        this._beadCount = Math.min(8, 3 + Math.floor(this.hitCount / 2));
+        this._cloneRate = Math.max(80, 130 - this.hitCount * 3);
+        this._maxClones = Math.min(5, 3 + Math.floor(this.hitCount / 5));
+        this.scalingStat.value = this._beadCount;
     }
     draw() {
+        var S = WB.WeaponSprites;
         var B = WB.GLBatch;
-        B.setAlpha(0.08);
-        B.fillCircle(this.owner.x, this.owner.y, this.pulseRadius, '#2E8B57');
-        B.restoreAlpha();
-        B.setAlpha(0.2);
-        B.strokeCircle(this.owner.x, this.owner.y, this.pulseRadius, '#4B0082', 1.5);
-        B.restoreAlpha();
+        // Draw active clones
+        for (var i = 0; i < this._clones.length; i++) {
+            var clone = this._clones[i];
+            if (S && S.hasSprite(clone.spriteKey)) {
+                B.flush();
+                S.drawSprite(clone.spriteKey, clone.x, clone.y, clone.angle,
+                    clone.radius * 1.3, clone.radius * 1.3, 0.9, 1.0);
+            } else {
+                B.setAlpha(0.7);
+                B.fillCircle(clone.x, clone.y, clone.radius, '#9B59B6');
+                B.restoreAlpha();
+            }
+            // HP indicator bar above damaged clones
+            if (clone.hp < clone.maxHp) {
+                var barW = clone.radius * 1.5;
+                var hpRatio = clone.hp / clone.maxHp;
+                B.fillRect(clone.x - barW / 2, clone.y - clone.radius - 6, barW * hpRatio, 3, '#4ade80');
+                B.strokeRect(clone.x - barW / 2, clone.y - clone.radius - 6, barW, 3, '#222', 1);
+            }
+        }
+        // Faint mask overlay on owner ball
+        if (S && S.hasSprite('la-mask1')) {
+            B.flush();
+            var r = this.owner.radius * 0.85;
+            S.drawSprite('la-mask1', this.owner.x, this.owner.y, 0, r, r, 0.6, 1.0);
+        }
     }
 }
 WB.WeaponRegistry.register('louisiana', LouisianaWeapon, 'states');
@@ -1860,48 +1937,66 @@ class NevadaWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('nevada', NevadaWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  29. NEW HAMPSHIRE — Body slam (granite). Pure tank.
-//  +3% damage resistance, +1 contact damage every 2 hits. Nothing else.
+//  29. NEW HAMPSHIRE — Boulder projectile. Huge knockback.
+//  Throws granite boulders that slam enemies away. Big scaling.
 // ═══════════════════════════════════════════════════════════════
 class NewHampshireWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'new-hampshire', baseDamage: 2, rotationSpeed: 0, reach: 0, scalingName: 'Resist', superThreshold: NO_SUPER, canParry: false });
-        this.damageResist = 0;
-        this.contactCooldown = 0;
-        this.contactCooldownTime = 68;
-        this.contactAura = 2;
-        this.scalingStat.value = Math.round(this.damageResist * 100) + '%';
-        // Armor — capped at 25% reduction
-        var self = this;
-        var origTakeDamage = this.owner.takeDamage.bind(this.owner);
-        this.owner.takeDamage = function(dmg) {
-            var reduced = Math.round(dmg * (1 - self.damageResist));
-            if (reduced < 1) reduced = 1;
-            origTakeDamage(reduced);
-        };
+        super(owner, { type: 'new-hampshire', baseDamage: 8, rotationSpeed: 0.04, reach: 50, scalingName: 'Force', superThreshold: NO_SUPER, isRanged: true, canParry: false });
+        this.fireTimer = 0;
+        this.fireRate = 90;
+        this.boulderSpeed = 5;
+        this.boulderKnockback = 7;
+        this.scalingStat.value = this.boulderKnockback;
     }
-    update() { if (this.contactCooldown > 0) this.contactCooldown--; }
-    canHit() { return this.contactCooldown <= 0; }
-    onHit(target) {
-        target.takeDamage(this.currentDamage);
-        this.hitCount++;
-        this.contactCooldown = this.contactCooldownTime;
-        this.applyScaling();
-        this._onHitEffects(target, this.currentDamage, this.owner.color);
-        WB.Audio.weaponHit(this.hitCount, this.type);
+    update() {
+        super.update();
+        this.fireTimer++;
+        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireBoulder(); }
+    }
+    _fireBoulder() {
+        if (!WB.Game || !WB.Game.projectiles) return;
+        var angle = this.angle;
+        if (WB.Game.balls) {
+            for (var i = 0; i < WB.Game.balls.length; i++) {
+                var b = WB.Game.balls[i];
+                if (b !== this.owner && b.isAlive && b.side !== this.owner.side) {
+                    angle = Math.atan2(b.y - this.owner.y, b.x - this.owner.x); break;
+                }
+            }
+        }
+        WB.Game.projectiles.push(new WB.Projectile({
+            x: this.owner.x + Math.cos(angle) * (this.owner.radius + 10),
+            y: this.owner.y + Math.sin(angle) * (this.owner.radius + 10),
+            vx: Math.cos(angle) * this.boulderSpeed,
+            vy: Math.sin(angle) * this.boulderSpeed,
+            damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
+            radius: 12, lifespan: 120, bounces: 0, color: '#808080',
+            shape: 'sprite', spriteKey: 'nh-boulder'
+        }));
+        WB.Audio.projectileFire();
+    }
+    onProjectileHit(proj, target) {
+        // Massive knockback — slam target away from boulder direction
+        var angle = Math.atan2(target.y - proj.y, target.x - proj.x);
+        target.vx += Math.cos(angle) * this.boulderKnockback;
+        target.vy += Math.sin(angle) * this.boulderKnockback;
     }
     applyScaling() {
-        this.damageResist = Math.min(0.15, this.hitCount * 0.01);
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.15);
-        this.scalingStat.value = Math.round(this.damageResist * 100) + '%';
+        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.8);
+        this.boulderKnockback = Math.min(12, 7 + this.hitCount * 0.4);
+        this.boulderSpeed = Math.min(8, 5 + this.hitCount * 0.2);
+        this.fireRate = Math.max(65, 90 - this.hitCount * 2);
+        this.scalingStat.value = Math.round(this.boulderKnockback);
     }
+    onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'nh-boulder')) return;
         var B = WB.GLBatch;
-        if (this.damageResist > 0) {
-            B.setAlpha(0.1 + this.damageResist * 0.2);
-            B.strokeCircle(this.owner.x, this.owner.y, this.owner.radius + 3, '#666', 2);
-            B.restoreAlpha();
-        }
+        B.pushTransform(this.owner.x, this.owner.y, this.angle);
+        B.fillCircle(this.reach - 6, 0, 10, '#808080');
+        B.strokeCircle(this.reach - 6, 0, 10, '#555', 2);
+        B.popTransform();
     }
 }
 WB.WeaponRegistry.register('new-hampshire', NewHampshireWeapon, 'states');
@@ -2985,23 +3080,25 @@ class UtahWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('utah', UtahWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  45. VERMONT — Projectile (syrup globs). Adds mass to target.
-//  Slow, arcing. Miss → sticky floor patch (10% slow). +5% size/hit.
+//  45. VERMONT — Broken syrup bottle. 1 dmg/tick + slow.
+//  Throws bottle projectiles that shatter into sticky hazard zones on miss.
+//  Direct hits also apply slow. Scaling: fire rate, hazard duration.
 // ═══════════════════════════════════════════════════════════════
 class VermontWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'vermont', baseDamage: 2, rotationSpeed: 0.04, reach: 50, scalingName: 'Globs', superThreshold: NO_SUPER, isRanged: true });
+        super(owner, { type: 'vermont', baseDamage: 3, rotationSpeed: 0.04, reach: 50, scalingName: 'Spills', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
-        this.fireRate = 90;
-        this.globSize = 7;
-        this.scalingStat.value = this.globSize;
+        this.fireRate = 100;
+        this.hazardLifespan = 240;
+        this.spillCount = 0;
+        this.scalingStat.value = this.spillCount;
     }
     update() {
         super.update();
         this.fireTimer++;
-        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireGlob(); }
+        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireBottle(); }
     }
-    _fireGlob() {
+    _fireBottle() {
         if (!WB.Game || !WB.Game.projectiles) return;
         var angle = this.angle;
         if (WB.Game.balls) {
@@ -3016,36 +3113,45 @@ class VermontWeapon extends WB.Weapon {
         WB.Game.projectiles.push(new WB.Projectile({
             x: this.owner.x + Math.cos(angle) * (this.owner.radius + 6),
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 6),
-            vx: Math.cos(angle) * 6, vy: Math.sin(angle) * 6,
+            vx: Math.cos(angle) * 5, vy: Math.sin(angle) * 5,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: this.globSize, lifespan: 120, bounces: 0, color: '#8B6914',
-            gravityAffected: true, shape: 'sprite', spriteKey: 'vermont-syrup',
+            radius: 8, lifespan: 120, bounces: 0, color: '#8B6914',
+            gravityAffected: true, shape: 'sprite', spriteKey: 'vt-broken-bottle',
             onMiss: function(x, y) {
+                // Shatter into sticky hazard zone
                 if (WB.Game && WB.Game.hazards) {
+                    self.spillCount++;
                     WB.Game.hazards.push(new WB.Hazard({
-                        x: x, y: y, radius: 12, damage: 0, tickRate: 999, lifespan: 180,
-                        color: '#8B6914', owner: self.owner, ownerWeapon: self
+                        x: x, y: y, radius: 25, damage: 1, tickRate: 20,
+                        lifespan: self.hazardLifespan,
+                        color: '#8B6914', owner: self.owner, ownerWeapon: self,
+                        spriteKey: 'vt-broken-bottle'
                     }));
+                    if (WB.Game.particles) WB.Game.particles.emit(x, y, 5, '#8B6914');
                 }
             }
         }));
         WB.Audio.projectileFire();
     }
     onProjectileHit(proj, target) {
-        target.mass += target.mass * 0.04;
+        // Direct hit applies slow debuff (reuses Poseidon slow system in ball.js)
+        target.debuffs.slowFactor = 0.35;
+        target.debuffs.slowTimer = Math.max(target.debuffs.slowTimer || 0, 75);
+        this.spillCount++;
     }
     applyScaling() {
-        this.globSize = 7 + Math.floor(this.hitCount * 0.25);
+        this.fireRate = Math.max(60, 100 - Math.floor(this.hitCount * 3));
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 3);
-        this.scalingStat.value = this.globSize;
+        this.hazardLifespan = Math.min(360, 240 + this.hitCount * 10);
+        this.scalingStat.value = this.spillCount;
     }
     onHit() {}
     draw() {
-        if (drawWeaponSprite(this, 'vermont-syrup')) return;
+        if (drawWeaponSprite(this, 'vt-broken-bottle')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -2, 20, 4, '#5C3317');
-        B.fillCircle(this.reach - 3, 0, this.globSize, '#8B6914');
+        B.fillCircle(this.reach - 3, 0, 8, '#8B6914');
         B.popTransform();
     }
 }
