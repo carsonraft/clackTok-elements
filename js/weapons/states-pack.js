@@ -10,11 +10,9 @@ window.WB = window.WB || {};
 var NO_SUPER = 9999;
 
 // ═══════════════════════════════════════════════════════════════
-//  HELPER: SVG sprite draw for weapons that have icons
+//  HELPER: Sprite draw for weapons that have PNG icons
 //  Returns true if sprite was drawn, false if fallback needed.
-//  Aligns SVG pivot (20,50) with ball edge and tip (90,50) with reach.
-//
-//  SVG layout: 100x100 viewBox, attachment at x=20, tip at x=90.
+//  Positions sprite between ball edge and weapon reach tip.
 //  Math: halfW = (reach - r) / 1.4
 //        center offset from ball = r + 0.6 * halfW
 //  This ensures the visual tip lands exactly at the weapon's hitbox.
@@ -61,12 +59,12 @@ function drawMeleeWeapon(weapon, tipShape) {
 // ═══════════════════════════════════════════════════════════════
 class AlabamaWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'alabama', baseDamage: 6, rotationSpeed: 0.04, reach: 50, scalingName: 'Rockets', superThreshold: NO_SUPER, isRanged: true });
+        super(owner, { type: 'alabama', baseDamage: 7, rotationSpeed: 0.04, reach: 50, scalingName: 'Thrust', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
-        this.fireRate = 140; // ~2.3 seconds
+        this.fireRate = 120; // ~2 seconds
         this.rocketSpeed = 7;
-        this.rocketsFired = 0;
-        this.scalingStat.value = this.rocketsFired;
+        this.recoilStrength = 5; // how hard the ball kicks backward on fire
+        this.scalingStat.value = this.recoilStrength;
     }
     update() {
         super.update();
@@ -75,10 +73,6 @@ class AlabamaWeapon extends WB.Weapon {
     }
     fireRocket() {
         if (!WB.Game || !WB.Game.projectiles) return;
-        this.rocketsFired++;
-        var isBig = (this.rocketsFired % 3 === 0);
-        var dmg = isBig ? this.currentDamage * 2 : this.currentDamage;
-        var size = isBig ? 10 : 6;
         // Aim at enemy
         var angle = this.angle;
         if (WB.Game.balls) {
@@ -86,41 +80,37 @@ class AlabamaWeapon extends WB.Weapon {
                 var b = WB.Game.balls[i];
                 if (b !== this.owner && b.isAlive && b.side !== this.owner.side) {
                     angle = Math.atan2(b.y - this.owner.y, b.x - this.owner.x);
-                    angle += (WB.random() - 0.5) * 0.2;
+                    angle += (WB.random() - 0.5) * 0.15;
                     break;
                 }
             }
         }
+        // Fire rocket forward
         WB.Game.projectiles.push(new WB.Projectile({
             x: this.owner.x + Math.cos(angle) * (this.owner.radius + 8),
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 8),
             vx: Math.cos(angle) * this.rocketSpeed,
             vy: Math.sin(angle) * this.rocketSpeed,
-            damage: Math.round(dmg), owner: this.owner, ownerWeapon: this,
-            radius: size, lifespan: 120, bounces: 0, color: '#990000',
+            damage: Math.round(this.currentDamage), owner: this.owner, ownerWeapon: this,
+            radius: 8, lifespan: 120, bounces: 0, color: '#990000',
             shape: 'sprite', spriteKey: 'alabama-rocket'
         }));
+        // Recoil: push ball backward (opposite of fire direction)
+        var recoilX = -Math.cos(angle) * this.recoilStrength;
+        var recoilY = -Math.sin(angle) * this.recoilStrength;
+        this.owner.vx += recoilX;
+        this.owner.vy += recoilY;
         WB.Audio.projectileFire();
     }
     applyScaling() {
-        this.rocketSpeed = 7 + this.hitCount * 0.5;
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.5);
-        this.scalingStat.value = this.rocketsFired;
+        this.rocketSpeed = Math.min(12, 7 + this.hitCount * 0.4);
+        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.6);
+        this.recoilStrength = Math.min(9, 5 + this.hitCount * 0.4);
+        this.scalingStat.value = Math.round(this.recoilStrength * 10) / 10;
     }
     onHit() {} // ranged only
     draw() {
-        // Alabama's SVG is used on projectiles (rockets), not the launcher arm
-        var B = WB.GLBatch;
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        // Launcher tube
-        B.fillRect(this.owner.radius, -4, 30, 8, '#555');
-        B.strokeRect(this.owner.radius, -4, 30, 8, '#333', 1.5);
-        B.popTransform();
-        // Rocket counter on ball
-        if (this.rocketsFired > 0) {
-            var countStr = '' + this.rocketsFired;
-            WB.GLText.drawTextLite(countStr, this.owner.x, this.owner.y - this.owner.radius - 10, '12px Courier New', '#FFF', '#333', 'center');
-        }
+        // No weapon visual — rockets fire from the ball, recoil is the feedback
     }
 }
 WB.WeaponRegistry.register('alabama', AlabamaWeapon, 'states');
@@ -163,11 +153,17 @@ class AlaskaWeapon extends WB.Weapon {
         this.scalingStat.value = this.owner.mass.toFixed(1);
     }
     draw() {
-        // No weapon visual — just the heavy ball
         var B = WB.GLBatch;
         B.setAlpha(0.15);
         B.strokeCircle(this.owner.x, this.owner.y, this.owner.radius + 4, '#003366', 2);
         B.restoreAlpha();
+        // Harpoon sprite overlay on the ball
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('alaska-harpoon')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('alaska-harpoon', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
     }
 }
 WB.WeaponRegistry.register('alaska', AlaskaWeapon, 'states');
@@ -333,6 +329,11 @@ class CaliforniaWeapon extends WB.Weapon {
         this.applyScaling();
         this._onHitEffects(target, this.currentDamage, this.owner.color);
         WB.Audio.weaponHit(this.hitCount, this.type);
+        // Big knockback on every hit — California earthquake blade
+        var kbAngle = Math.atan2(target.y - this.owner.y, target.x - this.owner.x);
+        var kbForce = 7 + this.seismicEnergy * 0.3; // scales with seismic energy
+        target.vx += Math.cos(kbAngle) * kbForce;
+        target.vy += Math.sin(kbAngle) * kbForce;
         // Every 3rd hit: QUAKE
         if (this.seismicEnergy % 3 === 0) this._triggerQuake();
     }
@@ -356,7 +357,20 @@ class CaliforniaWeapon extends WB.Weapon {
         this.scalingStat.value = this.seismicEnergy;
     }
     draw() {
-        drawMeleeWeapon(this, 'rect');
+        // Custom big sword draw — square sprite, no distortion
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('california-sword')) {
+            WB.GLBatch.flush();
+            var r = this.owner.radius;
+            // Big square sprite — PNG is 128x128, keep aspect ratio 1:1
+            var size = this.reach * 0.9;      // ~72px half-extent = 144px total
+            var offset = r + size * 0.45;     // center the sprite so blade extends past ball edge
+            var cx = this.owner.x + Math.cos(this.angle) * offset;
+            var cy = this.owner.y + Math.sin(this.angle) * offset;
+            S.drawSprite('california-sword', cx, cy, this.angle, size, size, 1.0, 1.0);
+        } else {
+            drawMeleeWeapon(this, 'rect');
+        }
         // Fissure visual
         if (this.fissureTimer > 0) {
             var B = WB.GLBatch;
@@ -409,6 +423,12 @@ class ColoradoWeapon extends WB.Weapon {
         B.setAlpha(0.12);
         B.strokeCircle(this.owner.x, this.owner.y, this.owner.radius + 3, '#4B0082', 2.5);
         B.restoreAlpha();
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('colorado-boulder')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('colorado-boulder', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
     }
 }
 WB.WeaponRegistry.register('colorado', ColoradoWeapon, 'states');
@@ -456,6 +476,7 @@ class ConnecticutWeapon extends WB.Weapon {
         this.scalingStat.value = this.insuranceStacks;
     }
     draw() {
+        if (drawWeaponSprite(this, 'connecticut-briefcase')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         // Briefcase shape
@@ -535,6 +556,13 @@ class DelawareWeapon extends WB.Weapon {
     }
     draw() {
         var B = WB.GLBatch;
+        // Shell sprite overlay
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('delaware-shell')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('delaware-shell', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
         // Draw shell rings
         for (var i = 0; i < this.shells.length; i++) {
             var ringR = this.owner.radius - i * 2;
@@ -548,25 +576,92 @@ class DelawareWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('delaware', DelawareWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  9. FLORIDA — Melee spin (gator jaw). Florida Man events!
-//  15% chance per hit → random physics modifier for 2 seconds.
-//  Chance +2% per hit.
+//  9. FLORIDA — Projectile (whole gator throw)
+//  Throws the entire gator at the enemy. No bounce — flies off
+//  screen if it misses. Big damage, slow fire rate.
+//  Scaling: gators (+1/3 hits), damage scales, speed increases.
 // ═══════════════════════════════════════════════════════════════
 class FloridaWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'florida', baseDamage: 4, rotationSpeed: 0.07, reach: 75, scalingName: 'Chaos', superThreshold: NO_SUPER });
-        this.eventChance = 0.25;
-        this.eventTimer = 0;
-        this.scalingStat.value = Math.round(this.eventChance * 100) + '%';
+        super(owner, { type: 'florida', baseDamage: 8, rotationSpeed: 0.04, reach: 50, scalingName: 'Gators', superThreshold: NO_SUPER, isRanged: true });
+        this.fireTimer = 0;
+        this.fireRate = 120;
+        this.gatorCount = 1;
+        this.scalingStat.value = this.gatorCount;
     }
     update() {
         super.update();
-        if (this.eventTimer > 0) this.eventTimer--;
-        // Frame-based event reset (setTimeout doesn't work in simulator)
-        if (this._eventResetTimer > 0) {
-            this._eventResetTimer--;
-            if (this._eventResetTimer <= 0 && this._eventReset) { this._eventReset(); this._eventReset = null; }
+        this.fireTimer++;
+        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._throwGators(); }
+    }
+    _throwGators() {
+        if (!WB.Game || !WB.Game.projectiles) return;
+        // Aim at nearest enemy
+        var baseAngle = this.angle;
+        if (WB.Game.balls) {
+            for (var i = 0; i < WB.Game.balls.length; i++) {
+                var b = WB.Game.balls[i];
+                if (b !== this.owner && b.isAlive && b.side !== this.owner.side) {
+                    baseAngle = Math.atan2(b.y - this.owner.y, b.x - this.owner.x); break;
+                }
+            }
         }
+        for (var k = 0; k < this.gatorCount; k++) {
+            // Small spread for multi-gator volleys
+            var a = baseAngle + (this.gatorCount > 1 ? (k - (this.gatorCount - 1) / 2) * 0.2 : 0);
+            var spd = 5 + this.hitCount * 0.15;
+            WB.Game.projectiles.push(new WB.Projectile({
+                x: this.owner.x + Math.cos(a) * (this.owner.radius + 8),
+                y: this.owner.y + Math.sin(a) * (this.owner.radius + 8),
+                vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
+                radius: 12, lifespan: 200, bounces: 0, color: '#2E8B57',
+                shape: 'sprite', spriteKey: 'florida-jaw'
+            }));
+        }
+        WB.Audio.projectileFire();
+        if (WB.Game.particles) WB.Game.particles.emit(this.owner.x, this.owner.y, 4, '#2E8B57');
+    }
+    onHit() {}
+    applyScaling() {
+        this.gatorCount = Math.min(4, 1 + Math.floor(this.hitCount / 3));
+        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.7);
+        this.fireRate = Math.max(70, 120 - this.hitCount * 3);
+        this.scalingStat.value = this.gatorCount;
+    }
+    draw() {
+        if (drawWeaponSprite(this, 'florida-jaw')) return;
+        var B = WB.GLBatch;
+        B.pushTransform(this.owner.x, this.owner.y, this.angle);
+        var r = this.owner.radius;
+        // Gator launcher arm
+        B.fillRect(r, -3, 20, 6, '#2E8B57');
+        B.strokeRect(r, -3, 20, 6, '#1B5E3A', 1);
+        // Mini gator at tip
+        var tx = this.reach - 2;
+        B.fillRect(tx - 8, -5, 16, 10, '#2E8B57');
+        B.strokeRect(tx - 8, -5, 16, 10, '#1B5E3A', 1.5);
+        // Gator eye
+        B.fillCircle(tx + 4, -3, 2, '#FFD700');
+        B.fillCircle(tx + 4, -3, 1, '#222');
+        // Gator teeth
+        B.fillTriangle(tx + 7, -2, tx + 11, 0, tx + 7, 2, '#FFF');
+        B.popTransform();
+    }
+}
+WB.WeaponRegistry.register('florida', FloridaWeapon, 'states');
+
+// ═══════════════════════════════════════════════════════════════
+//  10. GEORGIA — Melee (Coke bottle)
+//  Swings a glass Coke bottle. On hit, fizz splash knocks back.
+//  Scaling: fizz (+1/hit) → more knockback, bigger splash.
+// ═══════════════════════════════════════════════════════════════
+class GeorgiaWeapon extends WB.Weapon {
+    constructor(owner) {
+        super(owner, { type: 'georgia', baseDamage: 6, rotationSpeed: 0.06, reach: 78, scalingName: 'Fizz', superThreshold: NO_SUPER });
+        this.fizz = 0;
+        this.knockback = 3;
+        this.scalingStat.value = this.fizz;
     }
     onHit(target) {
         target.takeDamage(this.currentDamage);
@@ -575,159 +670,35 @@ class FloridaWeapon extends WB.Weapon {
         this.applyScaling();
         this._onHitEffects(target, this.currentDamage, this.owner.color);
         WB.Audio.weaponHit(this.hitCount, this.type);
-        // Florida Man event
-        if (WB.random() < this.eventChance) this._floridaManEvent();
-    }
-    _floridaManEvent() {
-        this.eventTimer = 120;
-        // Only beneficial events now — Florida Man helps you
-        var events = ['speed', 'bounce', 'spin', 'size_up', 'regen'];
-        var ev = events[Math.floor(WB.random() * events.length)];
-        var self = this.owner;
-        var wep = this;
-        switch(ev) {
-            case 'speed':
-                var ms = self.maxSpeed; self.maxSpeed *= 1.8;
-                self.vx *= 1.4; self.vy *= 1.4;
-                wep._eventResetTimer = 150;
-                wep._eventReset = function() { self.maxSpeed = ms; };
-                break;
-            case 'bounce': self.vx *= 1.8; self.vy *= 1.8; break;
-            case 'spin': wep.rotationSpeed *= 2.5;
-                wep._eventResetTimer = 150;
-                wep._eventReset = function() { wep.rotationSpeed /= 2.5; };
-                break;
-            case 'size_up': self.radius = Math.round(self.radius * 1.2); self.mass *= 1.3;
-                wep._eventResetTimer = 180;
-                wep._eventReset = function() { self.radius = Math.round(self.radius / 1.2); self.mass /= 1.3; };
-                break;
-            case 'regen': self.hp = Math.min(self.maxHp, self.hp + 5); break;
-        }
-        WB.Renderer.triggerShake(4);
-        if (WB.Game.particles) WB.Game.particles.explode(self.x, self.y, 8, '#FF6600');
+        // Fizz knockback splash
+        var dx = target.x - this.owner.x, dy = target.y - this.owner.y;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        target.vx += (dx / dist) * this.knockback;
+        target.vy += (dy / dist) * this.knockback;
+        if (WB.Game.particles) WB.Game.particles.explode(target.x, target.y, 5, '#8B4513');
     }
     applyScaling() {
-        this.eventChance = Math.min(0.6, 0.25 + this.hitCount * 0.03);
+        this.fizz++;
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.5);
-        this.scalingStat.value = Math.round(this.eventChance * 100) + '%';
+        this.knockback = Math.min(7, 3 + this.fizz * 0.3);
+        this.scalingStat.value = this.fizz;
     }
     draw() {
+        if (drawWeaponSprite(this, 'georgia-fizz')) return;
         var B = WB.GLBatch;
-        var r = this.owner.radius;
-        if (drawWeaponSprite(this, 'florida-jaw')) {
-            // Still draw event indicator ring
-            if (this.eventTimer > 0) {
-                B.setAlpha(0.3);
-                B.strokeCircle(this.owner.x, this.owner.y, r + 8, '#FF6600', 2);
-                B.restoreAlpha();
-            }
-            return;
-        }
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        // Gator jaw — two triangular teeth
-        var jawLen = this.reach;
-        B.fillRect(r, -3, jawLen - r - 10, 6, '#2E8B57');
-        B.strokeRect(r, -3, jawLen - r - 10, 6, '#1B5E3A', 1);
-        // Upper jaw
-        B.fillTriangle(jawLen - 12, -2, jawLen, 0, jawLen - 12, -8, '#2E8B57');
-        // Lower jaw
-        B.fillTriangle(jawLen - 12, 2, jawLen, 0, jawLen - 12, 8, '#2E8B57');
-        // Teeth
-        B.fillTriangle(jawLen - 8, -2, jawLen - 4, -6, jawLen - 4, -2, '#FFF');
-        B.fillTriangle(jawLen - 8, 2, jawLen - 4, 6, jawLen - 4, 2, '#FFF');
+        var r = this.owner.radius;
+        // Bottle body — tapered shape
+        B.fillRect(r, -4, this.reach - r - 12, 8, '#2D5A27');
+        B.strokeRect(r, -4, this.reach - r - 12, 8, '#1A3A16', 1.5);
+        // Bottle neck
+        B.fillRect(this.reach - 14, -2.5, 12, 5, '#2D5A27');
+        B.strokeRect(this.reach - 14, -2.5, 12, 5, '#1A3A16', 1);
+        // Cap
+        B.fillRect(this.reach - 3, -3, 4, 6, '#C0C0C0');
+        // Label
+        B.fillRect(r + 8, -3, 14, 6, '#CC0000');
         B.popTransform();
-        // Event indicator
-        if (this.eventTimer > 0) {
-            B.setAlpha(0.3);
-            B.strokeCircle(this.owner.x, this.owner.y, r + 8, '#FF6600', 2);
-            B.restoreAlpha();
-        }
-    }
-}
-WB.WeaponRegistry.register('florida', FloridaWeapon, 'states');
-
-// ═══════════════════════════════════════════════════════════════
-//  10. GEORGIA — Pulsing aura (fizz ring)
-//  Expands/contracts in rhythm. Damage on expanding phase only.
-//  Scaling: pressure (+1/hit) → faster expansion, bigger radius.
-// ═══════════════════════════════════════════════════════════════
-class GeorgiaWeapon extends WB.Weapon {
-    constructor(owner) {
-        super(owner, { type: 'georgia', baseDamage: 5, rotationSpeed: 0, reach: 0, scalingName: 'Pressure', superThreshold: NO_SUPER, canParry: false });
-        this.pressure = 0;
-        this.fizzTimer = 0;
-        this.fizzMaxRadius = 88;
-        this.fizzSpeed = 1.8;
-        this.fizzRadius = 0;
-        this.expanding = true;
-        this.fizzDmgCooldown = 0;
-        this.contactCooldown = 0;
-        this.contactAura = 0;
-        this.scalingStat.value = this.pressure;
-    }
-    update() {
-        if (this.contactCooldown > 0) this.contactCooldown--;
-        if (this.fizzDmgCooldown > 0) this.fizzDmgCooldown--;
-        this.fizzTimer++;
-        // Expand/contract cycle
-        if (this.expanding) {
-            this.fizzRadius += this.fizzSpeed;
-            if (this.fizzRadius >= this.fizzMaxRadius) this.expanding = false;
-        } else {
-            this.fizzRadius -= this.fizzSpeed * 0.8;
-            if (this.fizzRadius <= 10) this.expanding = true;
-        }
-        // Damage on expanding AND contracting phases
-        if (this.fizzDmgCooldown <= 0) {
-            this._fizzDamage();
-            this.fizzDmgCooldown = 9;
-        }
-    }
-    _fizzDamage() {
-        if (!WB.Game || !WB.Game.balls) return;
-        for (var i = 0; i < WB.Game.balls.length; i++) {
-            var t = WB.Game.balls[i];
-            if (t === this.owner || !t.isAlive || t.side === this.owner.side) continue;
-            var dx = t.x - this.owner.x, dy = t.y - this.owner.y;
-            if (Math.sqrt(dx * dx + dy * dy) < this.fizzRadius) {
-                t.takeDamage(this.currentDamage);
-                this.hitCount++;
-                this.applyScaling();
-                if (WB.GLEffects) WB.GLEffects.spawnDamageNumber(t.x, t.y, this.currentDamage, '#FF4444');
-            }
-        }
-    }
-    canHit() { return false; }
-    onHit() {}
-    applyScaling() {
-        this.pressure++;
-        this.fizzSpeed = 1.8 + this.pressure * 0.15;
-        this.fizzMaxRadius = Math.min(120, 88 + this.pressure * 3);
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.5);
-        this.scalingStat.value = this.pressure;
-    }
-    draw() {
-        var B = WB.GLBatch;
-        // Fizz aura ring
-        var alpha = this.expanding ? 0.2 : 0.05;
-        B.setAlpha(alpha);
-        B.fillCircle(this.owner.x, this.owner.y, this.fizzRadius, '#FF4444');
-        B.restoreAlpha();
-        B.setAlpha(0.35);
-        B.strokeCircle(this.owner.x, this.owner.y, this.fizzRadius, '#FF4444', 1.5);
-        B.restoreAlpha();
-        // Fizz SVG sprite overlay on ball
-        var S = WB.WeaponSprites;
-        if (S && S.hasSprite('georgia-fizz')) {
-            B.flush();
-            var size = this.owner.radius * 1.5;
-            var pulseAlpha = this.expanding ? 0.9 : 0.6;
-            S.drawSprite('georgia-fizz', this.owner.x, this.owner.y, this.fizzTimer * 0.01, size, size, pulseAlpha, 1.0);
-        }
-        // Pressure counter
-        if (this.pressure > 0) {
-            WB.GLText.drawTextLite('' + this.pressure, this.owner.x, this.owner.y - this.owner.radius - 10, '12px Courier New', '#FF4444', '#333', 'center');
-        }
     }
 }
 WB.WeaponRegistry.register('georgia', GeorgiaWeapon, 'states');
@@ -798,26 +769,49 @@ class HawaiiWeapon extends WB.Weapon {
         B.setAlpha(0.25);
         B.strokeCircle(this.owner.x, this.owner.y, this.pulseRadius, '#FF4400', 1.5);
         B.restoreAlpha();
+        // Lava sprite on ball
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('hawaii-lava')) {
+            B.flush();
+            var size = this.owner.radius * 0.9;
+            S.drawSprite('hawaii-lava', this.owner.x, this.owner.y, 0, size, size, 0.85, 1.0);
+        }
     }
 }
 WB.WeaponRegistry.register('hawaii', HawaiiWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  12. IDAHO — Projectile (popcorn kernels)
-//  Fast, straight. +1 kernel per hit to the volley. Pop sound.
+//  12. IDAHO — Projectile (popcorn kernels that POP)
+//  Fires golden kernels that travel ~35 frames then "pop" into
+//  a burst of 3-4 white popcorn pieces that scatter in all
+//  directions. Kernel does low damage; popcorn pieces do more.
+//  Scaling: +kernels per volley, +popcorn pieces per pop.
 // ═══════════════════════════════════════════════════════════════
 class IdahoWeapon extends WB.Weapon {
     constructor(owner) {
         super(owner, { type: 'idaho', baseDamage: 2, rotationSpeed: 0.04, reach: 50, scalingName: 'Kernels', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
-        this.fireRate = 130;
+        this.fireRate = 110;
         this.kernelCount = 1;
+        this.popPieces = 3;
+        this.popTime = 35; // frames before kernel pops
+        this._kernels = []; // track live kernels for pop timing
         this.scalingStat.value = this.kernelCount;
     }
     update() {
         super.update();
         this.fireTimer++;
         if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireKernels(); }
+        // Check kernels for pop timing
+        for (var i = this._kernels.length - 1; i >= 0; i--) {
+            var k = this._kernels[i];
+            if (!k.alive) { this._kernels[i] = this._kernels[this._kernels.length - 1]; this._kernels.pop(); continue; }
+            if (k._age >= this.popTime) {
+                this._popKernel(k);
+                k.alive = false;
+                this._kernels[i] = this._kernels[this._kernels.length - 1]; this._kernels.pop();
+            }
+        }
     }
     _fireKernels() {
         if (!WB.Game || !WB.Game.projectiles) return;
@@ -832,31 +826,53 @@ class IdahoWeapon extends WB.Weapon {
         }
         for (var k = 0; k < this.kernelCount; k++) {
             var a = baseAngle + (WB.random() - 0.5) * 0.3;
-            var spd = 7 + this.hitCount * 0.2;
-            WB.Game.projectiles.push(new WB.Projectile({
+            var spd = 5 + this.hitCount * 0.15;
+            var kernel = new WB.Projectile({
                 x: this.owner.x + Math.cos(a) * (this.owner.radius + 5),
                 y: this.owner.y + Math.sin(a) * (this.owner.radius + 5),
                 vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 5, lifespan: 80, bounces: 0, color: '#C5A253',
+                radius: 4, lifespan: 120, bounces: 0, color: '#C5A253',
                 shape: 'sprite', spriteKey: 'idaho-kernel'
-            }));
+            });
+            WB.Game.projectiles.push(kernel);
+            this._kernels.push(kernel);
         }
         WB.Audio.projectileFire();
     }
+    _popKernel(kernel) {
+        // Kernel pops into scattered popcorn pieces
+        if (!WB.Game || !WB.Game.projectiles) return;
+        var popDmg = this.currentDamage + 1;
+        for (var p = 0; p < this.popPieces; p++) {
+            var a = (p / this.popPieces) * Math.PI * 2 + WB.random() * 0.5;
+            var spd = 3 + WB.random() * 3;
+            WB.Game.projectiles.push(new WB.Projectile({
+                x: kernel.x, y: kernel.y,
+                vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                damage: popDmg, owner: this.owner, ownerWeapon: this,
+                radius: 5, lifespan: 60, bounces: 1, color: '#FFFFF0',
+                shape: 'sprite', spriteKey: 'idaho-popcorn'
+            }));
+        }
+        if (WB.Game.particles) WB.Game.particles.explode(kernel.x, kernel.y, 6, '#FFFFF0');
+        WB.Audio.projectileFire();
+    }
     applyScaling() {
-        this.kernelCount = Math.min(5, 1 + Math.floor(this.hitCount * 0.3));
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 5);
+        this.kernelCount = Math.min(4, 1 + Math.floor(this.hitCount / 4));
+        this.popPieces = Math.min(6, 3 + Math.floor(this.hitCount / 5));
+        this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 4);
         this.scalingStat.value = this.kernelCount;
     }
     onHit() {}
     draw() {
-        // Idaho kernel SVG is used on projectiles, not the launcher arm
+        if (drawWeaponSprite(this, 'idaho-kernel')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#8B7355');
-        B.fillCircle(this.reach - 2, 0, 4, '#C5A253');
-        B.strokeCircle(this.reach - 2, 0, 4, '#333', 1);
+        // Kernel at tip
+        B.fillCircle(this.reach - 2, 0, 5, '#C5A253');
+        B.strokeCircle(this.reach - 2, 0, 5, '#8B6914', 1);
         B.popTransform();
     }
 }
@@ -962,6 +978,13 @@ class IndianaWeapon extends WB.Weapon {
     }
     draw() {
         var B = WB.GLBatch;
+        // Tire sprite overlay
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('indiana-tire')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('indiana-tire', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
         var speed = this.owner.getSpeed();
         if (speed > 4) {
             var alpha = Math.min(0.25, (speed - 4) * 0.04);
@@ -1305,56 +1328,79 @@ class MarylandWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('maryland', MarylandWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  21. MASSACHUSETTS — Projectile (bricks). Fast, straight.
-//  -3% fire cooldown, +5% speed per hit. Wall-embed bricks.
+//  21. MASSACHUSETTS — Magic hex hazard spawner
+//  Places hex zones at weapon tip. Enemies take damage passing through.
+//  Scaling: fire rate decreases, hex radius grows, hex damage grows.
 // ═══════════════════════════════════════════════════════════════
 class MassachusettsWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'massachusetts', baseDamage: 2, rotationSpeed: 0.04, reach: 50, scalingName: 'Fire Rate', superThreshold: NO_SUPER, isRanged: true });
+        super(owner, { type: 'massachusetts', baseDamage: 2, rotationSpeed: 0.04, reach: 50, scalingName: 'Hexes', superThreshold: NO_SUPER, isRanged: true, canParry: false });
         this.fireTimer = 0;
-        this.fireRate = 100;
-        this.brickSpeed = 7;
-        this.scalingStat.value = this.fireRate;
+        this.fireRate = 120;
+        this.hexRadius = 28;
+        this.hexDamage = 2;
+        this.hexTickRate = 45;
+        this.hexLifespan = 360;
+        this.hexesPlaced = 0;
+        this.scalingStat.value = this.hexesPlaced;
     }
     update() {
         super.update();
         this.fireTimer++;
-        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireBrick(); }
+        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._placeHex(); }
     }
-    _fireBrick() {
-        if (!WB.Game || !WB.Game.projectiles) return;
-        var angle = this.angle;
-        if (WB.Game.balls) {
-            for (var i = 0; i < WB.Game.balls.length; i++) {
-                var b = WB.Game.balls[i];
-                if (b !== this.owner && b.isAlive && b.side !== this.owner.side) {
-                    angle = Math.atan2(b.y - this.owner.y, b.x - this.owner.x); break;
-                }
-            }
-        }
-        WB.Game.projectiles.push(new WB.Projectile({
-            x: this.owner.x + Math.cos(angle) * (this.owner.radius + 6),
-            y: this.owner.y + Math.sin(angle) * (this.owner.radius + 6),
-            vx: Math.cos(angle) * this.brickSpeed, vy: Math.sin(angle) * this.brickSpeed,
-            damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: 7, lifespan: 100, bounces: 0, color: '#8B4513', shape: 'bullet'
+    _placeHex() {
+        if (!WB.Game || !WB.Game.hazards) return;
+        // Place hex at weapon tip position
+        var hx = this.owner.x + Math.cos(this.angle) * this.reach;
+        var hy = this.owner.y + Math.sin(this.angle) * this.reach;
+        WB.Game.hazards.push(new WB.Hazard({
+            x: hx, y: hy,
+            radius: this.hexRadius,
+            damage: this.hexDamage,
+            tickRate: this.hexTickRate,
+            lifespan: this.hexLifespan,
+            color: '#6B3FA0',
+            owner: this.owner,
+            ownerWeapon: this,
+            spriteKey: 'massachusetts-hex'
         }));
+        this.hexesPlaced++;
+        this.scalingStat.value = this.hexesPlaced;
+        if (WB.Game.particles) WB.Game.particles.emit(hx, hy, 6, '#6B3FA0');
         WB.Audio.projectileFire();
     }
     applyScaling() {
-        this.fireRate = Math.max(25, 100 - Math.floor(this.hitCount * 3.0));
-        this.brickSpeed = 7 + this.hitCount * 0.25;
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.3);
-        this.scalingStat.value = this.fireRate;
+        this.fireRate = Math.max(50, 120 - Math.floor(this.hitCount * 5));
+        this.hexRadius = 28 + this.hitCount * 0.5;
+        this.hexDamage = 2 + Math.floor(this.hitCount / 4);
+        this.currentDamage = this.hexDamage;
+        this.scalingStat.value = this.hexesPlaced;
     }
     onHit() {}
     draw() {
-        var B = WB.GLBatch;
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        B.fillRect(this.owner.radius, -3, 25, 6, '#666');
-        B.fillRect(this.reach - 8, -4, 8, 8, '#8B4513');
-        B.strokeRect(this.reach - 8, -4, 8, 8, '#5C2D12', 1.5);
-        B.popTransform();
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('massachusetts-hex')) {
+            WB.GLBatch.flush();
+            var size = this.owner.radius * 0.85;
+            var rot = Date.now() * 0.002;
+            S.drawSprite('massachusetts-hex', this.owner.x, this.owner.y, rot, size, size, 0.8, 1.0);
+        } else {
+            var B = WB.GLBatch;
+            var t = Date.now() * 0.003;
+            var r = 8;
+            B.setAlpha(0.5);
+            for (var i = 0; i < 6; i++) {
+                var a1 = t + i * Math.PI / 3;
+                var a2 = t + (i + 1) * Math.PI / 3;
+                B.line(
+                    this.owner.x + Math.cos(a1) * r, this.owner.y + Math.sin(a1) * r,
+                    this.owner.x + Math.cos(a2) * r, this.owner.y + Math.sin(a2) * r,
+                    '#6B3FA0', 2
+                );
+            }
+            B.restoreAlpha();
+        }
     }
 }
 WB.WeaponRegistry.register('massachusetts', MassachusettsWeapon, 'states');
@@ -1735,6 +1781,15 @@ class NebraskaWeapon extends WB.Weapon {
     }
     draw() {
         var B = WB.GLBatch;
+        // Horns sprite — faces charge direction
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('nebraska-horns')) {
+            B.flush();
+            var hornAngle = this.charging ? this.chargeAngle : Math.atan2(this.owner.vy, this.owner.vx);
+            var size = this.owner.radius * 0.9;
+            S.drawSprite('nebraska-horns', this.owner.x, this.owner.y, hornAngle, size, size, 1.0, 1.0);
+        }
+        // Charge trail
         if (this.charging) {
             B.setAlpha(0.2);
             var ma = Math.atan2(-this.owner.vy, -this.owner.vx);
@@ -1852,69 +1907,69 @@ class NewHampshireWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('new-hampshire', NewHampshireWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  30. NEW JERSEY — AoE toxic pulse (fastest rate). Gravity field.
-//  Every 1.5 sec pulse. +1% downward pull per hit near NJ.
+//  30. NEW JERSEY — Projectile (pills)
+//  Throws pills in random directions at intervals. Pills do scaling
+//  damage AND heal NJ on hit. More pills per volley as hits scale.
 // ═══════════════════════════════════════════════════════════════
 class NewJerseyWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'new-jersey', baseDamage: 5, rotationSpeed: 0, reach: 0, scalingName: 'Density', superThreshold: NO_SUPER, canParry: false });
-        this.pulseTimer = 0;
-        this.pulseRate = 35;
-        this.pulseRadius = 80;
-        this.gravPull = 2;
-        this.contactCooldown = 0;
-        this.contactAura = 0;
-        this.scalingStat.value = this.gravPull.toFixed(0);
+        super(owner, { type: 'new-jersey', baseDamage: 3, rotationSpeed: 0.04, reach: 50, scalingName: 'Scripts', superThreshold: NO_SUPER, isRanged: true });
+        this.fireTimer = 0;
+        this.fireRate = 90;
+        this.pillCount = 1;
+        this.healPerHit = 2;
+        this.scalingStat.value = this.pillCount;
     }
     update() {
-        if (this.contactCooldown > 0) this.contactCooldown--;
-        this.pulseTimer++;
-        if (this.pulseTimer >= this.pulseRate) { this.pulseTimer = 0; this._toxicPulse(); }
-        // Gravity pull
-        if (this.gravPull > 0 && WB.Game && WB.Game.balls) {
-            for (var i = 0; i < WB.Game.balls.length; i++) {
-                var t = WB.Game.balls[i];
-                if (t === this.owner || !t.isAlive) continue;
-                var dx = t.x - this.owner.x, dy = t.y - this.owner.y;
-                var dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 120 && dist > 0) {
-                    var nx = -dx / dist, ny = -dy / dist;
-                    t.vx += nx * this.gravPull * 0.03;
-                    t.vy += ny * this.gravPull * 0.03;
-                }
-            }
-        }
+        super.update();
+        this.fireTimer++;
+        if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._throwPills(); }
     }
-    _toxicPulse() {
-        if (!WB.Game || !WB.Game.balls) return;
-        for (var i = 0; i < WB.Game.balls.length; i++) {
-            var t = WB.Game.balls[i];
-            if (t === this.owner || !t.isAlive || t.side === this.owner.side) continue;
-            var dx = t.x - this.owner.x, dy = t.y - this.owner.y;
-            if (Math.sqrt(dx * dx + dy * dy) < this.pulseRadius) {
-                t.takeDamage(this.currentDamage);
-                this.hitCount++;
-                this.applyScaling();
-                if (WB.GLEffects) WB.GLEffects.spawnDamageNumber(t.x, t.y, this.currentDamage, '#FFD700');
-            }
+    _throwPills() {
+        if (!WB.Game || !WB.Game.projectiles) return;
+        for (var k = 0; k < this.pillCount; k++) {
+            // Random direction — pills scatter chaotically
+            var a = WB.random() * Math.PI * 2;
+            var spd = 5 + WB.random() * 3;
+            var colors = ['#FF4444', '#4488FF', '#44CC44', '#FFAA00', '#CC44CC'];
+            var pillColor = colors[Math.floor(WB.random() * colors.length)];
+            WB.Game.projectiles.push(new WB.Projectile({
+                x: this.owner.x + Math.cos(a) * (this.owner.radius + 5),
+                y: this.owner.y + Math.sin(a) * (this.owner.radius + 5),
+                vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
+                radius: 6, lifespan: 100, bounces: 1, color: pillColor,
+                shape: 'sprite', spriteKey: 'newjersey-pill'
+            }));
         }
+        WB.Audio.projectileFire();
     }
-    canHit() { return false; }
+    onProjectileHit(proj, target) {
+        // Heal NJ on each pill hit
+        this.owner.hp = Math.min(this.owner.maxHp, this.owner.hp + this.healPerHit);
+        if (WB.GLEffects) WB.GLEffects.spawnDamageNumber(this.owner.x, this.owner.y - 15, '+' + this.healPerHit, '#44FF44');
+    }
     onHit() {}
     applyScaling() {
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.7);
-        this.gravPull = Math.min(10, 2 + this.hitCount);
-        this.pulseRadius = Math.min(120, 80 + this.hitCount * 3);
-        this.scalingStat.value = this.gravPull.toFixed(0);
+        this.pillCount = Math.min(5, 1 + Math.floor(this.hitCount / 3));
+        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.5);
+        this.healPerHit = Math.min(5, 2 + Math.floor(this.hitCount / 4));
+        this.fireRate = Math.max(55, 90 - this.hitCount * 2);
+        this.scalingStat.value = this.pillCount;
     }
     draw() {
+        if (drawWeaponSprite(this, 'newjersey-pill')) return;
         var B = WB.GLBatch;
-        B.setAlpha(0.06);
-        B.fillCircle(this.owner.x, this.owner.y, this.pulseRadius, '#7CFC00');
-        B.restoreAlpha();
-        B.setAlpha(0.25);
-        B.strokeCircle(this.owner.x, this.owner.y, this.pulseRadius, '#FFD700', 1.5);
-        B.restoreAlpha();
+        B.pushTransform(this.owner.x, this.owner.y, this.angle);
+        // Pill dispenser arm
+        B.fillRect(this.owner.radius, -3, 22, 6, '#888');
+        B.strokeRect(this.owner.radius, -3, 22, 6, '#555', 1);
+        // Pill at tip — capsule shape
+        var tx = this.reach - 4;
+        B.fillCircle(tx - 4, 0, 4, '#FF4444');
+        B.fillCircle(tx + 4, 0, 4, '#FFFFFF');
+        B.fillRect(tx - 4, -4, 8, 8, '#FF8888');
+        B.popTransform();
     }
 }
 WB.WeaponRegistry.register('new-jersey', NewJerseyWeapon, 'states');
@@ -1954,7 +2009,8 @@ class NewMexicoWeapon extends WB.Weapon {
             y: this.owner.y + Math.sin(angle) * (this.owner.radius + 6),
             vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: 6, lifespan: 100, bounces: 0, color: chileColor, shape: 'spiked'
+            radius: 9, lifespan: 100, bounces: 0, color: chileColor,
+            shape: 'sprite', spriteKey: 'newmexico-chile'
         }));
         WB.Audio.projectileFire();
     }
@@ -1973,12 +2029,20 @@ class NewMexicoWeapon extends WB.Weapon {
     onHit() {}
     draw() {
         var B = WB.GLBatch;
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        B.fillRect(this.owner.radius, -2, 25, 4, '#8B7355');
-        var chileColor = this.heatLevel < 3 ? '#228B22' : this.heatLevel < 8 ? '#FF4500' : '#FFFFFF';
-        B.fillCircle(this.reach - 3, 0, 5, chileColor);
-        B.strokeCircle(this.reach - 3, 0, 5, '#333', 1);
-        B.popTransform();
+        // Chile sprite overlay
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('newmexico-chile')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('newmexico-chile', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
+        // Heat level indicator ring on ball
+        if (this.heatLevel > 0) {
+            var heatColor = this.heatLevel < 3 ? '#228B22' : this.heatLevel < 8 ? '#FF4500' : '#FFFFFF';
+            B.setAlpha(0.2 + this.heatLevel * 0.03);
+            B.strokeCircle(this.owner.x, this.owner.y, this.owner.radius + 4, heatColor, 2);
+            B.restoreAlpha();
+        }
     }
 }
 WB.WeaponRegistry.register('new-mexico', NewMexicoWeapon, 'states');
@@ -2063,7 +2127,7 @@ class NewYorkWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
-        // New York dart SVG is used on projectiles, not the launcher arm
+        if (drawWeaponSprite(this, 'newyork-dart')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 28, 6, '#555');
@@ -2121,8 +2185,14 @@ class NorthCarolinaWeapon extends WB.Weapon {
         this.scalingStat.value = this.glideDuration;
     }
     draw() {
+        var B = WB.GLBatch;
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('northcarolina-prop')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('northcarolina-prop', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
         if (this.gliding) {
-            var B = WB.GLBatch;
             B.setAlpha(0.15);
             // Wing lines
             B.line(this.owner.x - 15, this.owner.y, this.owner.x - 25, this.owner.y - 8, '#4B9CD3', 2);
@@ -2169,7 +2239,7 @@ class NorthDakotaWeapon extends WB.Weapon {
             vx: Math.cos(angle) * 5, vy: Math.sin(angle) * 5,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
             radius: this.globSize, lifespan: 100, bounces: 0, color: '#222',
-            gravityAffected: true,
+            gravityAffected: true, shape: 'sprite', spriteKey: 'northdakota-oil',
             onMiss: function(x, y) {
                 self.slickCount++;
                 self.scalingStat.value = self.slickCount;
@@ -2190,6 +2260,7 @@ class NorthDakotaWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'northdakota-oil')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -3, 25, 6, '#555');
@@ -2670,57 +2741,68 @@ class SouthCarolinaWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('south-carolina', SouthCarolinaWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  41. SOUTH DAKOTA — Body slam (Mount Rushmore). Damage reflect.
-//  Every 2 hits: +1 contact dmg. 10% damage reflection (increases).
+//  41. SOUTH DAKOTA — Melee (chisel). Presidential bust hazards.
+//  Each hit drops a bust at impact. Cycles through presidents:
+//  Washington(1dmg), Jefferson(2), Roosevelt(3), Lincoln(4).
 // ═══════════════════════════════════════════════════════════════
 class SouthDakotaWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'south-dakota', baseDamage: 2, rotationSpeed: 0, reach: 0, scalingName: 'Reflect', superThreshold: NO_SUPER, canParry: false });
-        this.reflectPct = 0.03;
-        this.contactCooldown = 0;
-        this.contactCooldownTime = 63;
-        this.contactAura = 2;
-        this.scalingStat.value = Math.round(this.reflectPct * 100) + '%';
-        // Reflect damage
-        var self = this;
-        var origTakeDamage = this.owner.takeDamage.bind(this.owner);
-        this.owner.takeDamage = function(dmg) {
-            origTakeDamage(dmg);
-            // Reflect back
-            var reflected = Math.round(dmg * self.reflectPct);
-            if (reflected > 0 && WB.Game && WB.Game.balls) {
-                for (var i = 0; i < WB.Game.balls.length; i++) {
-                    var b = WB.Game.balls[i];
-                    if (b !== self.owner && b.isAlive && b.side !== self.owner.side) {
-                        b.takeDamage(reflected);
-                        if (WB.GLEffects) WB.GLEffects.spawnDamageNumber(b.x, b.y, reflected, '#777');
-                    }
-                }
-            }
-        };
+        super(owner, { type: 'south-dakota', baseDamage: 5, rotationSpeed: 0.055, reach: 72, scalingName: 'Busts', superThreshold: NO_SUPER });
+        // Cycle through presidents: Washington(1), Jefferson(2), Roosevelt(3), Lincoln(4)
+        this._presidents = [
+            { name: 'Washington', damage: 1, color: '#B8B0A0', spriteKey: 'southdakota-washington' },
+            { name: 'Jefferson',  damage: 2, color: '#A89888', spriteKey: 'southdakota-jefferson' },
+            { name: 'Roosevelt',  damage: 3, color: '#988878', spriteKey: 'southdakota-roosevelt' },
+            { name: 'Lincoln',    damage: 4, color: '#887868', spriteKey: 'southdakota-lincoln' }
+        ];
+        this._nextPres = 0;
+        this.bustCount = 0;
+        this.bustLifespan = 300; // ~5 seconds
+        this.scalingStat.value = this.bustCount;
     }
-    update() { if (this.contactCooldown > 0) this.contactCooldown--; }
-    canHit() { return this.contactCooldown <= 0; }
     onHit(target) {
         target.takeDamage(this.currentDamage);
         this.hitCount++;
-        this.contactCooldown = this.contactCooldownTime;
+        this.cooldown = WB.Config.WEAPON_HIT_COOLDOWN;
         this.applyScaling();
         this._onHitEffects(target, this.currentDamage, this.owner.color);
         WB.Audio.weaponHit(this.hitCount, this.type);
+        // Drop a presidential bust hazard at the hit location
+        this._dropBust(target.x, target.y);
+    }
+    _dropBust(x, y) {
+        if (!WB.Game || !WB.Game.hazards) return;
+        var pres = this._presidents[this._nextPres];
+        this._nextPres = (this._nextPres + 1) % 4;
+        this.bustCount++;
+        WB.Game.hazards.push(new WB.Hazard({
+            x: x, y: y,
+            radius: 18,
+            damage: pres.damage,
+            tickRate: 30,
+            lifespan: this.bustLifespan,
+            color: pres.color,
+            owner: this.owner,
+            ownerWeapon: this,
+            spriteKey: pres.spriteKey
+        }));
+        this.scalingStat.value = this.bustCount;
     }
     applyScaling() {
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.15);
-        this.reflectPct = Math.min(0.12, 0.03 + this.hitCount * 0.010);
-        this.scalingStat.value = Math.round(this.reflectPct * 100) + '%';
+        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.4);
+        this.bustLifespan = Math.min(480, 300 + this.hitCount * 10);
     }
     draw() {
         var B = WB.GLBatch;
-        if (this.reflectPct > 0.05) {
-            B.setAlpha(0.1);
-            B.strokeCircle(this.owner.x, this.owner.y, this.owner.radius + 4, '#888', 2);
-            B.restoreAlpha();
-        }
+        B.pushTransform(this.owner.x, this.owner.y, this.angle);
+        var r = this.owner.radius;
+        // Chisel arm
+        B.fillRect(r, -2, this.reach - r - 10, 4, '#8B7355');
+        B.strokeRect(r, -2, this.reach - r - 10, 4, '#5C4A32', 1);
+        // Chisel tip
+        B.fillTriangle(this.reach - 10, -4, this.reach, 0, this.reach - 10, 4, '#C0C0C0');
+        B.strokeRect(this.reach - 10, -4, 10, 8, '#888', 0.5);
+        B.popTransform();
     }
 }
 WB.WeaponRegistry.register('south-dakota', SouthDakotaWeapon, 'states');
@@ -2780,6 +2862,13 @@ class TennesseeWeapon extends WB.Weapon {
     }
     draw() {
         var B = WB.GLBatch;
+        // Banjo sprite overlay
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('tennessee-banjo')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('tennessee-banjo', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
         var progress = this.pulseTimer / this.pulseRate;
         var radius = this.pulseClose ? 50 : 100;
         var drawR = radius * progress;
@@ -2930,7 +3019,7 @@ class VermontWeapon extends WB.Weapon {
             vx: Math.cos(angle) * 6, vy: Math.sin(angle) * 6,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
             radius: this.globSize, lifespan: 120, bounces: 0, color: '#8B6914',
-            gravityAffected: true,
+            gravityAffected: true, shape: 'sprite', spriteKey: 'vermont-syrup',
             onMiss: function(x, y) {
                 if (WB.Game && WB.Game.hazards) {
                     WB.Game.hazards.push(new WB.Hazard({
@@ -2952,6 +3041,7 @@ class VermontWeapon extends WB.Weapon {
     }
     onHit() {}
     draw() {
+        if (drawWeaponSprite(this, 'vermont-syrup')) return;
         var B = WB.GLBatch;
         B.pushTransform(this.owner.x, this.owner.y, this.angle);
         B.fillRect(this.owner.radius, -2, 20, 4, '#5C3317');
@@ -3021,21 +3111,16 @@ WB.WeaponRegistry.register('virginia', VirginiaWeapon, 'states');
 // ═══════════════════════════════════════════════════════════════
 class WashingtonWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'washington', baseDamage: 3, rotationSpeed: 0.04, reach: 50, scalingName: 'Caffeine', superThreshold: NO_SUPER, isRanged: true });
+        super(owner, { type: 'washington', baseDamage: 2, rotationSpeed: 0.04, reach: 50, scalingName: 'Beans', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
-        this.fireRate = 60;
-        this.jitter = 0;
-        this.scalingStat.value = this.jitter.toFixed(1);
+        this.fireRate = 65;
+        this.beanCount = 4;
+        this.scalingStat.value = this.beanCount;
     }
     update() {
         super.update();
         this.fireTimer++;
         if (this.fireTimer >= this.fireRate) { this.fireTimer = 0; this._fireBeans(); }
-        // Jitter — random position offset
-        if (this.jitter > 0) {
-            this.owner.x += (WB.random() - 0.5) * this.jitter * 0.3;
-            this.owner.y += (WB.random() - 0.5) * this.jitter * 0.3;
-        }
     }
     _fireBeans() {
         if (!WB.Game || !WB.Game.projectiles) return;
@@ -3048,31 +3133,37 @@ class WashingtonWeapon extends WB.Weapon {
                 }
             }
         }
-        // Jitter affects aim
-        angle += (WB.random() - 0.5) * this.jitter * 0.05;
-        WB.Game.projectiles.push(new WB.Projectile({
-            x: this.owner.x + Math.cos(angle) * (this.owner.radius + 5),
-            y: this.owner.y + Math.sin(angle) * (this.owner.radius + 5),
-            vx: Math.cos(angle) * 8, vy: Math.sin(angle) * 8,
-            damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: 5, lifespan: 70, bounces: 0, color: '#5C3317'
-        }));
+        // Volley of beans — spray pattern
+        var spreadAngle = 0.5;
+        for (var n = 0; n < this.beanCount; n++) {
+            var beanAngle = angle + (WB.random() - 0.5) * spreadAngle;
+            var speed = 5.5 + WB.random() * 2.5;
+            WB.Game.projectiles.push(new WB.Projectile({
+                x: this.owner.x + Math.cos(beanAngle) * (this.owner.radius + 5),
+                y: this.owner.y + Math.sin(beanAngle) * (this.owner.radius + 5),
+                vx: Math.cos(beanAngle) * speed, vy: Math.sin(beanAngle) * speed,
+                damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
+                radius: 6, lifespan: 55, bounces: 0, color: '#5C3317',
+                shape: 'sprite', spriteKey: 'washington-bean'
+            }));
+        }
         WB.Audio.projectileFire();
     }
     applyScaling() {
-        this.owner.maxSpeed = WB.Config.BALL_MAX_SPEED * (1 + this.hitCount * 0.02);
-        this.fireRate = Math.max(15, 60 - Math.floor(this.hitCount * 0.6));
-        this.jitter += 1;
+        this.beanCount = 4 + Math.min(5, Math.floor(this.hitCount / 3)); // 4→9 beans
+        this.fireRate = Math.max(40, 65 - Math.floor(this.hitCount * 0.2));
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 5);
-        this.scalingStat.value = this.jitter.toFixed(0);
+        this.scalingStat.value = this.beanCount;
     }
     onHit() {}
     draw() {
-        var B = WB.GLBatch;
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        B.fillRect(this.owner.radius, -2, 20, 4, '#3A2410');
-        B.fillCircle(this.reach - 2, 0, 3, '#5C3317');
-        B.popTransform();
+        // Bean sprite overlay on ball
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('washington-bean')) {
+            WB.GLBatch.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('washington-bean', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
     }
 }
 WB.WeaponRegistry.register('washington', WashingtonWeapon, 'states');
@@ -3125,16 +3216,17 @@ class WestVirginiaWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('west-virginia', WestVirginiaWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  49. WISCONSIN — Projectile (cheese wheels). Bouncing.
-//  2 bounces, 90% velocity retention. Walls leave sticky smears.
+//  49. WISCONSIN — Projectile (cheese wheels). Fattening!
+//  Cheese hits make the enemy bigger and slower. Bounces 2x.
+//  Scaling: +cheese size per hit, enemy grows more per cheese.
 // ═══════════════════════════════════════════════════════════════
 class WisconsinWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'wisconsin', baseDamage: 4, rotationSpeed: 0.04, reach: 50, scalingName: 'Wheels', superThreshold: NO_SUPER, isRanged: true });
+        super(owner, { type: 'wisconsin', baseDamage: 4, rotationSpeed: 0.04, reach: 50, scalingName: 'Cheese', superThreshold: NO_SUPER, isRanged: true });
         this.fireTimer = 0;
-        this.fireRate = 120;
-        this.wheelSize = 7;
-        this.scalingStat.value = this.wheelSize;
+        this.fireRate = 110;
+        this.cheeseHits = 0;
+        this.scalingStat.value = this.cheeseHits;
     }
     update() {
         super.update();
@@ -3153,28 +3245,47 @@ class WisconsinWeapon extends WB.Weapon {
             }
         }
         WB.Game.projectiles.push(new WB.Projectile({
-            x: this.owner.x + Math.cos(angle) * (this.owner.radius + 6),
-            y: this.owner.y + Math.sin(angle) * (this.owner.radius + 6),
-            vx: Math.cos(angle) * 6, vy: Math.sin(angle) * 6,
+            x: this.owner.x + Math.cos(angle) * (this.owner.radius + 8),
+            y: this.owner.y + Math.sin(angle) * (this.owner.radius + 8),
+            vx: Math.cos(angle) * 5.5, vy: Math.sin(angle) * 5.5,
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-            radius: this.wheelSize, lifespan: 120, bounces: 2, color: '#FFD700',
-            damageFalloff: 0.1
+            radius: 10, lifespan: 120, bounces: 2, color: '#FFD700',
+            damageFalloff: 0.1,
+            shape: 'sprite', spriteKey: 'wisconsin-cheese'
         }));
         WB.Audio.projectileFire();
     }
+    onProjectileHit(proj, target) {
+        this.cheeseHits++;
+        // Fatten the enemy — bigger radius, more mass, slower
+        var growFactor = 1 + this.cheeseHits * 0.03; // 3% bigger per cheese hit
+        var maxGrow = 1.6; // cap at 60% growth
+        if (growFactor > maxGrow) growFactor = maxGrow;
+        target.radius = Math.round(WB.Config.BALL_RADIUS * growFactor);
+        target.mass = (target.radius / WB.Config.BALL_RADIUS) * WB.Config.BALL_MASS * growFactor;
+        // Slow them down
+        var slowFactor = Math.max(0.6, 1.0 - this.cheeseHits * 0.02); // 2% slower per hit, floor 60%
+        target.maxSpeed = WB.Config.BALL_MAX_SPEED * slowFactor;
+        this.scalingStat.value = this.cheeseHits;
+    }
     applyScaling() {
-        this.wheelSize = 7 + Math.floor(this.hitCount * 0.25);
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 4);
-        this.scalingStat.value = this.wheelSize;
     }
     onHit() {}
     draw() {
         var B = WB.GLBatch;
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        B.fillRect(this.owner.radius, -2, 25, 4, '#8B7355');
-        B.fillCircle(this.reach - 3, 0, this.wheelSize, '#FFD700');
-        B.strokeCircle(this.reach - 3, 0, this.wheelSize, '#B8860B', 1);
-        B.popTransform();
+        // Cheese sprite overlay
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('wisconsin-cheese')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('wisconsin-cheese', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
+        if (this.cheeseHits > 0) {
+            B.setAlpha(0.15);
+            B.strokeCircle(this.owner.x, this.owner.y, this.owner.radius + 4, '#FFD700', 2);
+            B.restoreAlpha();
+        }
     }
 }
 WB.WeaponRegistry.register('wisconsin', WisconsinWeapon, 'states');
@@ -3243,6 +3354,13 @@ class WyomingWeapon extends WB.Weapon {
     }
     draw() {
         var B = WB.GLBatch;
+        // Geyser sprite overlay
+        var S = WB.WeaponSprites;
+        if (S && S.hasSprite('wyoming-geyser')) {
+            B.flush();
+            var size = this.owner.radius * 0.85;
+            S.drawSprite('wyoming-geyser', this.owner.x, this.owner.y, 0, size, size, 0.9, 1.0);
+        }
         // Geyser timer indicator
         var progress = this.geyserTimer / 180;
         if (progress > 0.7) {
