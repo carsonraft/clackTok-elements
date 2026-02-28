@@ -745,6 +745,82 @@ WB.Game = {
     }
 };
 
+// ═══════════════════════════════════════════════════════════════
+//  DEBUG / TESTING UTILITIES
+//  Console helpers for rapid testing. Persist across reloads.
+//  Usage (from browser console or automation):
+//
+//    testFight('louisiana', 'arizona')       — instant battle
+//    testFight('florida', 'new-york', 123)   — seeded for replay
+//    listWeapons()                            — show all weapon types
+//    listWeapons('states')                    — filter by pack
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Launch a battle instantly, skipping menu & countdown.
+ * @param {string} left  — weapon type for P1 (e.g. 'louisiana', 'zeus')
+ * @param {string} right — weapon type for P2
+ * @param {number} [seed] — optional RNG seed for deterministic replay
+ * @returns {string} description of launched fight
+ */
+window.testFight = function(left, right, seed) {
+    if (!WB.Game || !WB.UI) return 'Game not initialized';
+    WB.UI.selectedLeft = left;
+    WB.UI.selectedRight = right;
+    if (seed !== undefined) {
+        WB.RNG.seed(seed);
+        WB.RNG._seeded = true;
+    }
+    WB.Game.startCountdown();
+    setTimeout(function() { WB.Game.startBattle(); }, 100);
+    return left + ' vs ' + right + (seed !== undefined ? ' (seed: ' + seed + ')' : '');
+};
+
+/**
+ * List all registered weapon types, optionally filtered by pack.
+ * @param {string} [pack] — 'classic', 'elemental', 'pantheon', 'egyptian', 'states'
+ * @returns {string[]} array of weapon type strings
+ */
+window.listWeapons = function(pack) {
+    var reg = WB.WeaponRegistry;
+    if (!reg || !reg._weapons) return 'Registry not loaded';
+    var types = Object.keys(reg._weapons);
+    if (pack) {
+        types = types.filter(function(t) { return reg._weapons[t].pack === pack; });
+    }
+    console.table(types.map(function(t) {
+        return { type: t, pack: reg._weapons[t].pack };
+    }));
+    return types;
+};
+
+/**
+ * Run N headless sim battles between two weapons. Returns win rate.
+ * @param {string} left  — weapon type for P1
+ * @param {string} right — weapon type for P2
+ * @param {number} [n=20] — number of battles
+ * @returns {string} summary with win counts
+ */
+window.testSim = function(left, right, n) {
+    n = n || 20;
+    if (!WB.Simulator) return 'Simulator not loaded';
+    var leftWins = 0, rightWins = 0, errors = 0;
+    for (var i = 0; i < n; i++) {
+        try {
+            var r = WB.Simulator.runBattle(left, right);
+            if (r.winner === 'left') leftWins++;
+            else rightWins++;
+        } catch(e) {
+            errors++;
+        }
+    }
+    var result = left + ' ' + leftWins + 'W vs ' + right + ' ' + rightWins + 'W';
+    if (errors > 0) result += ' (' + errors + ' errors)';
+    result += ' (' + n + ' battles)';
+    console.log(result);
+    return result;
+};
+
 // Start on load
 window.addEventListener('load', () => {
     WB.Game.init();

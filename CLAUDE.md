@@ -247,3 +247,26 @@ This balance was achieved through **7 rounds of iterative simulation**, totaling
 - **Projectile homing**: `homing` property on WB.Projectile — the projectile curves toward the nearest enemy each frame by this angular amount
 - **Super system**: `hitCount >= superThreshold` triggers `activateSuper()` once. `this.superActive` stays true forever after.
 - **Debuffs applied in ball.js**: `takeDamage()` checks `forgeMarks` to amplify damage. Movement checks `slowFactor`/`slowTimer` and `madness`.
+
+### Console Debug Utilities (in `js/main.js`)
+Three global functions available in the browser console (or via `preview_eval` from automation). Persist across page reloads — no need to inject anything.
+
+```javascript
+// Instant battle — skips menu and countdown, jumps straight to fight
+testFight('louisiana', 'arizona')          // random seed
+testFight('florida', 'new-york', 12345)    // deterministic seed for replay
+
+// List all registered weapon types (with optional pack filter)
+listWeapons()                              // all ~99 weapons
+listWeapons('states')                      // just the 56 states
+listWeapons('pantheon')                    // just the 10 Greek gods
+
+// Headless sim — run N battles, get win rate (no rendering)
+testSim('new-hampshire', 'massachusetts', 50)  // 50 battles
+testSim('zeus', 'artemis')                     // default 20 battles
+```
+
+**When to use which:**
+- `testFight` — visual testing (sprites, animations, hitbox alignment). Use `preview_screenshot` to capture frames.
+- `testSim` — stability & balance testing. Fast, no rendering, catches crashes.
+- `listWeapons` — discover weapon type strings (the first argument to the other two functions).

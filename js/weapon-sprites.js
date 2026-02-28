@@ -3,12 +3,13 @@ window.WB = window.WB || {};
 // ─── Weapon Sprite System ──────────────────────────────────────
 // Multi-atlas sprite renderer: loads sprite sheets and renders
 // weapon sprites via a rotation-aware textured-quad shader on TEXTURE4.
-// Atlas 0: Egyptian pixel art (512×512, 4×4 grid)
-// Atlas 1: US States SVG icons (768×768, 6×6 grid)
+// Atlas 0: Egyptian pixel art (512×512, 4×4 grid — still SVG-based, needs PNG migration)
+// Atlas 1: US States PNG pixel icons (1024×1024, 8×8 grid)
 WB.WeaponSprites = {
     _textures: [],       // WebGL textures per atlas
     _grids: [],          // Grid maps per atlas: key → [col, row]
     _gridSizes: [],      // Grid dimensions per atlas (e.g. 4 for 4×4)
+    _atlasSizes: [],     // Atlas pixel dimensions per atlas (for UV inset)
     _atlasIndex: {},     // Sprite key → atlas index
     _program: null,
     _vao: null,
@@ -209,8 +210,8 @@ WB.WeaponSprites = {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        // Use LINEAR for states SVGs (smooth), NEAREST for Egyptian pixel art
-        var filter = index === 0 ? gl.NEAREST : gl.LINEAR;
+        // NEAREST for all pixel art atlases (Egyptian + States PNGs)
+        var filter = gl.NEAREST;
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
         gl.activeTexture(gl.TEXTURE0);
@@ -219,6 +220,7 @@ WB.WeaponSprites = {
         this._textures[index] = tex;
         this._grids[index] = gridMap;
         this._gridSizes[index] = gridSize;
+        this._atlasSizes[index] = canvas.width;
 
         // Index all sprite keys to this atlas
         for (var key in gridMap) {
@@ -240,7 +242,10 @@ WB.WeaponSprites = {
         var cellUV = 1.0 / size;
         var u0 = cell[0] * cellUV;
         var v0 = cell[1] * cellUV;
-        return [u0, v0, u0 + cellUV, v0 + cellUV];
+        // Inset by half-texel to prevent bilinear bleeding from neighbors
+        var atlasPixels = this._atlasSizes[atlasIdx] || 512;
+        var halfTexel = 0.5 / atlasPixels;
+        return [u0 + halfTexel, v0 + halfTexel, u0 + cellUV - halfTexel, v0 + cellUV - halfTexel];
     },
 
     // ─── Public API ───────────────────────────────────────
