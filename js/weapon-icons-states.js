@@ -84,10 +84,9 @@ WB.StatesIcons = {
     // Florida gator: 4 quadrant PNGs form a 2×2 grid = 256×256 gator
     STITCHED: {
         'florida-jaw': {
-            layout: [2, 2],  // cols, rows
+            layout: [4, 1],  // 4 sequential pieces left-to-right: head, front, back, tail
             pieces: [
-                'floridaGator1', 'floridaGator2',   // top-left, top-right
-                'floridaGator3', 'floridaGator4',    // bottom-left, bottom-right
+                'floridaGator1', 'floridaGator2', 'floridaGator3', 'floridaGator4'
             ]
         }
     },
