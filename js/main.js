@@ -34,6 +34,7 @@ WB.Game = {
             WB.BallImages.init();
             WB.BallImages.loadFlags();  // Preload state flag textures
         }
+        if (WB.FlagWaver) WB.FlagWaver.init();
         if (WB.WeaponSprites) WB.WeaponSprites.init();
         if (WB.StatesIcons) WB.StatesIcons.init();
         // Load sprite editor overrides from localStorage
@@ -716,6 +717,10 @@ WB.Game = {
             }
             this.state = 'RESULT';
             this._resultTimer = 300; // ~5 seconds at 60fps (extra time for save button)
+            // Start waving flag for states-pack winners
+            if (this.winner && WB.FlagWaver) {
+                WB.FlagWaver.start(this.winner.weaponType);
+            }
         }
     },
 
@@ -749,6 +754,7 @@ WB.Game = {
 
     _returnFromResult() {
         if (WB.GL) WB.GL.clearMotionBlurHistory();
+        if (WB.FlagWaver) WB.FlagWaver.stop();
         // Unseed RNG after live battles (replays unseed via SimUI.onReplayEnd)
         if (!WB.SimUI.isReplaying && WB.RNG._seeded) {
             WB.RNG.unseed();

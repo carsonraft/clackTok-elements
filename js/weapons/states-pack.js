@@ -652,8 +652,9 @@ class FloridaWeapon extends WB.Weapon {
                 y: this.owner.y + Math.sin(a) * (this.owner.radius + 8),
                 vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
                 damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
-                radius: 12, lifespan: 200, bounces: 0, color: '#2E8B57',
-                shape: 'sprite', spriteKey: 'florida-jaw', spriteAnchor: 0.5
+                radius: 18, lifespan: 200, bounces: 0, color: '#2E8B57',
+                shape: 'sprite', spriteKey: 'florida-jaw', spriteAnchor: 0.5,
+                spriteScaleX: 2.0, spriteScaleY: 1.0
             }));
         }
         WB.Audio.projectileFire(this.type);
@@ -2523,7 +2524,7 @@ class OhioWeapon extends WB.Weapon {
         // Render football sprite centered on ball
         if (S && S.hasSprite('ohio-football')) {
             B.flush();
-            var size = this.owner.radius * 1.7;
+            var size = this.owner.radius * 1.3;
             var angle;
             if (this._tumbleSpeed > 0.02) {
                 // Punted! Wild tumble spin
@@ -2882,44 +2883,66 @@ class SouthCarolinaWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('south-carolina', SouthCarolinaWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  41. SOUTH DAKOTA — Melee (chisel). Presidential bust hazards.
-//  Each hit drops a bust at impact. Cycles through presidents:
-//  Washington(1dmg), Jefferson(2), Roosevelt(3), Lincoln(4).
+//  41. SOUTH DAKOTA — Bust spawner. No melee arm.
+//  Periodically drops presidential bust hazards near the enemy.
+//  Cycles: Washington(1dmg), Jefferson(2), Roosevelt(3), Lincoln(4).
+//  Scaling: faster drops, longer-lived busts, more damage on busts.
 // ═══════════════════════════════════════════════════════════════
 class SouthDakotaWeapon extends WB.Weapon {
     constructor(owner) {
-        super(owner, { type: 'south-dakota', baseDamage: 5, rotationSpeed: 0.055, reach: 72, scalingName: 'Busts', superThreshold: NO_SUPER });
-        // Cycle through presidents: Washington(1), Jefferson(2), Roosevelt(3), Lincoln(4)
+        super(owner, { type: 'south-dakota', baseDamage: 3, rotationSpeed: 0, reach: 0, scalingName: 'Busts', superThreshold: NO_SUPER, isRanged: true, canParry: false });
         this._presidents = [
-            { name: 'Washington', damage: 1, color: '#B8B0A0', spriteKey: 'southdakota-washington' },
-            { name: 'Jefferson',  damage: 2, color: '#A89888', spriteKey: 'southdakota-jefferson' },
-            { name: 'Roosevelt',  damage: 3, color: '#988878', spriteKey: 'southdakota-roosevelt' },
-            { name: 'Lincoln',    damage: 4, color: '#887868', spriteKey: 'southdakota-lincoln' }
+            { name: 'Washington', damage: 2, color: '#B8B0A0', spriteKey: 'southdakota-washington' },
+            { name: 'Jefferson',  damage: 3, color: '#A89888', spriteKey: 'southdakota-jefferson' },
+            { name: 'Roosevelt',  damage: 4, color: '#988878', spriteKey: 'southdakota-roosevelt' },
+            { name: 'Lincoln',    damage: 5, color: '#887868', spriteKey: 'southdakota-lincoln' }
         ];
         this._nextPres = 0;
         this.bustCount = 0;
-        this.bustLifespan = 300; // ~5 seconds
+        this.bustLifespan = 300;
+        this._dropTimer = 0;
+        this._dropRate = 90; // frames between bust drops (~1.5s)
         this.scalingStat.value = this.bustCount;
+        applyCustomOverrides(this);
+    }
+    update() {
+        super.update();
+        this._dropTimer++;
+        if (this._dropTimer >= this._dropRate) {
+            this._dropTimer = 0;
+            // Drop bust near the nearest enemy
+            var tx = this.owner.x, ty = this.owner.y;
+            if (WB.Game && WB.Game.balls) {
+                for (var i = 0; i < WB.Game.balls.length; i++) {
+                    var b = WB.Game.balls[i];
+                    if (b !== this.owner && b.isAlive && b.side !== this.owner.side) {
+                        // Drop at enemy's current position with small random offset
+                        tx = b.x + (WB.random() - 0.5) * 30;
+                        ty = b.y + (WB.random() - 0.5) * 30;
+                        break;
+                    }
+                }
+            }
+            // Clamp to arena bounds
+            var a = WB.Config.ARENA;
+            tx = Math.max(a.x + 20, Math.min(a.x + a.width - 20, tx));
+            ty = Math.max(a.y + 20, Math.min(a.y + a.height - 20, ty));
+            this._dropBust(tx, ty);
+        }
     }
     onHit(target) {
-        target.takeDamage(this.currentDamage);
-        this.hitCount++;
-        this.cooldown = WB.Config.WEAPON_HIT_COOLDOWN;
-        this.applyScaling();
-        this._onHitEffects(target, this.currentDamage, this.owner.color);
-        WB.Audio.weaponHit(this.hitCount);
-        // Drop a presidential bust hazard at the hit location
-        this._dropBust(target.x, target.y);
+        // Busts deal damage via hazard tick — no direct melee hit
     }
     _dropBust(x, y) {
         if (!WB.Game || !WB.Game.hazards) return;
         var pres = this._presidents[this._nextPres];
         this._nextPres = (this._nextPres + 1) % 4;
         this.bustCount++;
+        var bustDmg = pres.damage + Math.floor(this.bustCount * 0.15);
         WB.Game.hazards.push(new WB.Hazard({
             x: x, y: y,
-            radius: 18,
-            damage: pres.damage,
+            radius: 20,
+            damage: bustDmg,
             tickRate: 30,
             lifespan: this.bustLifespan,
             color: pres.color,
@@ -2930,22 +2953,16 @@ class SouthDakotaWeapon extends WB.Weapon {
         }));
         WB.Audio.spawnSound(this.type);
         this.scalingStat.value = this.bustCount;
+        // Count as a hit for scaling purposes
+        this.hitCount++;
+        this.applyScaling();
     }
     applyScaling() {
-        this.currentDamage = this.baseDamage + Math.floor(this.hitCount * 0.4);
-        this.bustLifespan = Math.min(480, 300 + this.hitCount * 10);
+        this.bustLifespan = Math.min(480, 300 + this.hitCount * 8);
+        this._dropRate = Math.max(55, 90 - this.hitCount * 2);
     }
     draw() {
-        var B = WB.GLBatch;
-        B.pushTransform(this.owner.x, this.owner.y, this.angle);
-        var r = this.owner.radius;
-        // Chisel arm
-        B.fillRect(r, -2, this.reach - r - 10, 4, '#8B7355');
-        B.strokeRect(r, -2, this.reach - r - 10, 4, '#5C4A32', 1);
-        // Chisel tip
-        B.fillTriangle(this.reach - 10, -4, this.reach, 0, this.reach - 10, 4, '#C0C0C0');
-        B.strokeRect(this.reach - 10, -4, 10, 8, '#888', 0.5);
-        B.popTransform();
+        // No melee weapon — busts ARE the weapon. Nothing drawn on the ball.
     }
 }
 WB.WeaponRegistry.register('south-dakota', SouthDakotaWeapon, 'states');

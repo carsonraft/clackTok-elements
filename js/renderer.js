@@ -807,11 +807,20 @@ WB.Renderer = {
             T.drawText(winText, cx, cy - 20, winFont, '#FFF', 'center', 'middle');
         }
 
-        // ★ SAVE / ★ SAVED button — bottom center of result overlay
+        // Waving flag for states-pack winners
+        var flagShowing = false;
+        if (!isDraw && WB.FlagWaver && WB.FlagWaver.isActive()) {
+            WB.FlagWaver.update();
+            var flagW = 200, flagH = 125;
+            WB.FlagWaver.drawFlag(cx - flagW / 2, cy + 15, flagW, flagH);
+            flagShowing = true;
+        }
+
+        // ★ SAVE / ★ SAVED button — shifted down when flag is showing
         if (game._battleSeed && !WB.SimUI.isReplaying) {
             const btnW = 140, btnH = 38;
             const btnX = cx - btnW / 2;
-            const btnY = cy + 50;
+            const btnY = flagShowing ? cy + 155 : cy + 50;
 
             // Build result object for isSaved check
             const resultObj = this._buildBattleResult(game);

@@ -22,6 +22,8 @@ WB.Projectile = class {
         this.spriteKey = config.spriteKey || null;  // For shape='sprite': key into WB.WeaponSprites atlas
         this.spriteAnchor = config.spriteAnchor || 0; // 0=centered, 0.5=nose at leading hitbox edge
         this.spriteAngleOffset = config.spriteAngleOffset || 0; // radians to rotate PNG so "nose" points right at angle=0
+        this.spriteScaleX = config.spriteScaleX || 1; // X multiplier for non-square sprites (e.g. 3 for 3:1 gator)
+        this.spriteScaleY = config.spriteScaleY || 1; // Y multiplier for non-square sprites
         this._hasHit = false;
         this.alive = true;
         this.trail = [];
@@ -530,17 +532,22 @@ WB.Projectile = class {
             // Check for sprite editor overrides
             var angleOff = this.spriteAngleOffset;
             var anchor = this.spriteAnchor;
+            var scX = this.spriteScaleX;
+            var scY = this.spriteScaleY;
             var ov = WB._spriteConfig && WB._spriteConfig[this.spriteKey];
             if (ov) {
                 if (ov.angleOffset != null) angleOff = ov.angleOffset;
                 if (ov.anchor != null) anchor = ov.anchor;
+                if (ov.spriteScaleX != null) scX = ov.spriteScaleX;
+                if (ov.spriteScaleY != null) scY = ov.spriteScaleY;
             }
-            var size = r; // sprite size = hitbox radius (v80 rule)
+            var sizeX = r * scX; // half-width in game pixels
+            var sizeY = r * scY; // half-height in game pixels
             var drawX = this.x;
             var drawY = this.y;
             if (anchor) {
-                drawX += Math.cos(heading) * anchor * r;
-                drawY += Math.sin(heading) * anchor * r;
+                drawX += Math.cos(heading) * anchor * r * scX;
+                drawY += Math.sin(heading) * anchor * r * scX;
             }
             // Mirror sprite vertically when heading leftward (|heading| > π/2)
             // so directional sprites (phoenix, rocket, etc.) don't appear upside-down
@@ -548,7 +555,7 @@ WB.Projectile = class {
             if (h > Math.PI) h -= Math.PI * 2;
             if (h < -Math.PI) h += Math.PI * 2;
             var flipY = (h > Math.PI / 2 || h < -Math.PI / 2) ? -1 : 1;
-            S.drawSprite(this.spriteKey, drawX, drawY, heading + angleOff, size, size * flipY, 1.0, 1.0);
+            S.drawSprite(this.spriteKey, drawX, drawY, heading + angleOff, sizeX, sizeY * flipY, 1.0, 1.0);
         } else {
             // Fallback: plain circle
             this._drawCircle(B, r);

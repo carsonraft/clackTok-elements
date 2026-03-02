@@ -44,16 +44,19 @@ WB.Hazard = class {
             for (const target of WB.Game.balls) {
                 if (!target.isAlive) continue;
 
+                // Check collision BEFORE solid push (push moves ball out of range)
+                let touching = WB.Physics.circleCircle(this.x, this.y, this.radius, target.x, target.y, target.radius);
+
                 // Solid bounce — ALL balls bounce off solid hazards (both sides)
-                if (this.solid) {
+                if (this.solid && touching) {
                     const dx = target.x - this.x;
                     const dy = target.y - this.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
-                    const minDist = this.radius + target.radius;
-                    if (dist < minDist && dist > 0) {
+                    if (dist > 0) {
                         // Push ball out of overlap
                         const nx = dx / dist;
                         const ny = dy / dist;
+                        const minDist = this.radius + target.radius;
                         const overlap = minDist - dist + 0.5;
                         target.x += nx * overlap;
                         target.y += ny * overlap;
@@ -72,8 +75,8 @@ WB.Hazard = class {
                 // Per-target cooldown
                 const cd = this._hitTimers.get(target) || 0;
                 if (cd > 0) { this._hitTimers.set(target, cd - 1); continue; }
-                // Circle collision for damage
-                if (WB.Physics.circleCircle(this.x, this.y, this.radius, target.x, target.y, target.radius)) {
+                // Damage on contact (uses pre-push collision result)
+                if (touching) {
                     target.takeDamage(this.damage);
                     this._hitTimers.set(target, this.tickRate);
                     // Track hit for weapon scaling

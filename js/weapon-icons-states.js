@@ -81,10 +81,10 @@ WB.StatesIcons = {
     },
 
     // ─── Stitched sprites (multiple PNGs → one sprite) ───────
-    // Florida gator: 4 quadrant PNGs form a 2×2 grid = 256×256 gator
+    // Florida gator: 4 PNGs in 2×2 grid = 256×256 → fits 128×128 cell as square
     STITCHED: {
         'florida-jaw': {
-            layout: [4, 1],  // 4 sequential pieces left-to-right: head, front, back, tail
+            layout: [2, 2],  // 2×2 grid: top=[head, front], bottom=[back, tail]
             pieces: [
                 'floridaGator1', 'floridaGator2', 'floridaGator3', 'floridaGator4'
             ]
@@ -153,9 +153,9 @@ WB.StatesIcons = {
     },
 
     // ─── Atlas config ───────────────────────────────────────
-    ATLAS_SIZE: 1024,
+    ATLAS_SIZE: 1152,   // 9*128 — fits 65 sprites (64 PNGs + 1 stitched)
     CELL_SIZE: 128,
-    GRID_DIM: 8,
+    GRID_DIM: 9,
 
     // ─── Atlas Builder ──────────────────────────────────────
 

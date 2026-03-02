@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flag Wave Editor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            padding: 12px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 22px;
+            color: #D4A853;
+            margin-bottom: 6px;
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 14px;
+        }
+
+        /* ─── Flag Grid ─────────────────────────── */
+        #flagGrid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 3px;
+            max-width: 820px;
+            margin: 0 auto 16px;
+        }
+        .flag-btn {
+            background: #16213e;
+            border: 2px solid #333;
+            border-radius: 4px;
+            padding: 3px 2px;
+            cursor: pointer;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            color: #ccc;
+            transition: border-color 0.15s, background 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+        .flag-btn:hover { background: #1a2e4a; border-color: #666; }
+        .flag-btn.selected { border-color: #FFD700; background: #1a2e4a; }
+        .flag-btn .flag-thumb {
+            width: 100%;
+            height: 30px;
+            object-fit: cover;
+            display: block;
+            margin-bottom: 2px;
+            border-radius: 2px;
+            background: #111;
+        }
+        .flag-btn .flag-label {
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ─── Preview + Controls Layout ─────────── */
+        #editorArea {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            max-width: 920px;
+            margin: 0 auto;
+        }
+        #previewWrap {
+            flex-shrink: 0;
+        }
+        #previewCanvas {
+            border: 2px solid #444;
+            border-radius: 6px;
+            background: #111;
+            display: block;
+        }
+        #previewLabel {
+            text-align: center;
+            font-size: 13px;
+            color: #D4A853;
+            margin-top: 6px;
+            font-weight: bold;
+            min-height: 18px;
+        }
+
+        /* ─── Controls Panel ────────────────────── */
+        #controlsPanel {
+            min-width: 280px;
+            max-width: 340px;
+        }
+
+        /* Presets */
+        #presets {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .preset-btn {
+            background: #16213e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: #D4A853;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .preset-btn:hover { background: #1a2e4a; border-color: #D4A853; }
+
+        /* Sliders */
+        .slider-group {
+            margin-bottom: 10px;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+        .slider-label .name { color: #aaa; }
+        .slider-label .val { color: #D4A853; font-weight: bold; }
+        .slider-group input[type="range"] {
+            width: 100%;
+            accent-color: #D4A853;
+            height: 16px;
+        }
+        .slider-range {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #666;
+            margin-top: -2px;
+        }
+
+        /* Action Buttons */
+        #actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .action-btn {
+            flex: 1;
+            padding: 8px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            font-weight: bold;
+            border: 2px solid;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.15s;
+        }
+        #saveBtn {
+            background: #1a3a1a;
+            border-color: #4CAF50;
+            color: #4CAF50;
+        }
+        #saveBtn:hover { background: #2a5a2a; }
+        #saveBtn.saved {
+            background: #4CAF50;
+            color: #111;
+        }
+        #resetBtn {
+            background: #3a1a1a;
+            border-color: #E03C31;
+            color: #E03C31;
+        }
+        #resetBtn:hover { background: #5a2a2a; }
+
+        /* Status toast */
+        #toast {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #D4A853;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #toast.show { opacity: 1; }
+
+        /* Hint */
+        #hint {
+            text-align: center;
+            font-size: 10px;
+            color: #555;
+            margin-top: 14px;
+            max-width: 820px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>FLAG WAVE EDITOR</h1>
+    <div class="subtitle">Adjust wave distortion for the victory flag animation</div>
+
+    <div id="flagGrid"></div>
+
+    <div id="editorArea">
+        <div id="previewWrap">
+            <canvas id="previewCanvas" width="480" height="340"></canvas>
+            <div id="previewLabel">Select a state above</div>
+        </div>
+        <div id="controlsPanel">
+            <div id="presets">
+                <button class="preset-btn" data-preset="default">Default</button>
+                <button class="preset-btn" data-preset="gentle">Gentle</button>
+                <button class="preset-btn" data-preset="geocities">Geocities</button>
+                <button class="preset-btn" data-preset="maxcheese">Max Cheese</button>
+                <button class="preset-btn" data-preset="seizure">Seizure</button>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label"><span class="name">Amplitude</span><span class="val" id="ampVal">18</span></div>
+                <input type="range" id="ampSlider" min="1" max="50" step="1" value="18">
+                <div class="slider-range"><span>1</span><span>50</span></div>
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span class="name">Frequency</span><span class="val" id="freqVal">0.040</span></div>
+                <input type="range" id="freqSlider" min="0.01" max="0.15" step="0.005" value="0.04">
+                <div class="slider-range"><span>0.01</span><span>0.15</span></div>
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span class="name">Speed</span><span class="val" id="speedVal">3.5</span></div>
+                <input type="range" id="speedSlider" min="0.5" max="15" step="0.5" value="3.5">
+                <div class="slider-range"><span>0.5</span><span>15</span></div>
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span class="name">Harmonics</span><span class="val" id="harmVal">3</span></div>
+                <input type="range" id="harmSlider" min="1" max="8" step="1" value="3">
+                <div class="slider-range"><span>1</span><span>8</span></div>
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span class="name">Shear</span><span class="val" id="shearVal">0.30</span></div>
+                <input type="range" id="shearSlider" min="0" max="1" step="0.05" value="0.3">
+                <div class="slider-range"><span>0</span><span>1</span></div>
+            </div>
+            <div class="slider-group">
+                <div class="slider-label"><span class="name">Shadow Depth</span><span class="val" id="shadowVal">0.35</span></div>
+                <input type="range" id="shadowSlider" min="0" max="1" step="0.05" value="0.35">
+                <div class="slider-range"><span>0</span><span>1</span></div>
+            </div>
+
+            <div id="actions">
+                <button class="action-btn" id="resetBtn">RESET</button>
+                <button class="action-btn" id="saveBtn">SAVE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="hint">Parameters are global (same wave for all flags) &bull; Reload the game to apply changes</div>
+    <div id="toast"></div>
+
+<script>
+(function() {
+    'use strict';
+
+    // ─── State Data ──────────────────────────────────────
+    var STATES = [
+        { key: 'alabama',        name: 'Alabama' },
+        { key: 'alaska',         name: 'Alaska' },
+        { key: 'arizona',        name: 'Arizona' },
+        { key: 'arkansas',       name: 'Arkansas' },
+        { key: 'california',     name: 'California' },
+        { key: 'colorado',       name: 'Colorado' },
+        { key: 'connecticut',    name: 'Connecticut' },
+        { key: 'delaware',       name: 'Delaware' },
+        { key: 'florida',        name: 'Florida' },
+        { key: 'georgia',        name: 'Georgia' },
+        { key: 'hawaii',         name: 'Hawaii' },
+        { key: 'idaho',          name: 'Idaho' },
+        { key: 'illinois',       name: 'Illinois' },
+        { key: 'indiana',        name: 'Indiana' },
+        { key: 'iowa',           name: 'Iowa' },
+        { key: 'kansas',         name: 'Kansas' },
+        { key: 'kentucky',       name: 'Kentucky' },
+        { key: 'louisiana',      name: 'Louisiana' },
+        { key: 'maine',          name: 'Maine' },
+        { key: 'maryland',       name: 'Maryland' },
+        { key: 'massachusetts',  name: 'Massachusetts' },
+        { key: 'michigan',       name: 'Michigan' },
+        { key: 'minnesota',      name: 'Minnesota' },
+        { key: 'mississippi',    name: 'Mississippi' },
+        { key: 'missouri',       name: 'Missouri' },
+        { key: 'montana',        name: 'Montana' },
+        { key: 'nebraska',       name: 'Nebraska' },
+        { key: 'nevada',         name: 'Nevada' },
+        { key: 'new-hampshire',  name: 'New Hampshire' },
+        { key: 'new-jersey',     name: 'New Jersey' },
+        { key: 'new-mexico',     name: 'New Mexico' },
+        { key: 'new-york',       name: 'New York' },
+        { key: 'north-carolina', name: 'N. Carolina' },
+        { key: 'north-dakota',   name: 'N. Dakota' },
+        { key: 'ohio',           name: 'Ohio' },
+        { key: 'oklahoma',       name: 'Oklahoma' },
+        { key: 'oregon',         name: 'Oregon' },
+        { key: 'pennsylvania',   name: 'Pennsylvania' },
+        { key: 'rhode-island',   name: 'Rhode Island' },
+        { key: 'south-carolina', name: 'S. Carolina' },
+        { key: 'south-dakota',   name: 'S. Dakota' },
+        { key: 'tennessee',      name: 'Tennessee' },
+        { key: 'texas',          name: 'Texas' },
+        { key: 'utah',           name: 'Utah' },
+        { key: 'vermont',        name: 'Vermont' },
+        { key: 'virginia',       name: 'Virginia' },
+        { key: 'washington',     name: 'Washington' },
+        { key: 'west-virginia',  name: 'W. Virginia' },
+        { key: 'wisconsin',      name: 'Wisconsin' },
+        { key: 'wyoming',        name: 'Wyoming' }
+    ];
+
+    var STORAGE_KEY = 'wb_flag_wave_config';
+
+    var DEFAULTS = {
+        amplitude: 18,
+        frequency: 0.04,
+        speed: 3.5,
+        harmonics: 3,
+        shear: 0.3,
+        shadowDepth: 0.35
+    };
+
+    var PRESETS = {
+        'default':   { amplitude: 18, frequency: 0.04,  speed: 3.5, harmonics: 3, shear: 0.3,  shadowDepth: 0.35 },
+        'gentle':    { amplitude: 8,  frequency: 0.02,  speed: 1.5, harmonics: 2, shear: 0.15, shadowDepth: 0.2  },
+        'geocities': { amplitude: 30, frequency: 0.08,  speed: 6,   harmonics: 5, shear: 0.5,  shadowDepth: 0.5  },
+        'maxcheese': { amplitude: 45, frequency: 0.12,  speed: 10,  harmonics: 7, shear: 0.8,  shadowDepth: 0.7  },
+        'seizure':   { amplitude: 50, frequency: 0.15,  speed: 15,  harmonics: 8, shear: 1.0,  shadowDepth: 1.0  }
+    };
+
+    // ─── Wave State ──────────────────────────────────────
+    var params = {};
+    for (var k in DEFAULTS) params[k] = DEFAULTS[k];
+
+    var selectedState = null;
+    var flagImage = null;
+    var srcData = null;
+    var waveTime = 0;
+    var animId = null;
+
+    var FLAG_W = 400;
+    var FLAG_H = 250;
+    var EXTRA_Y = 50;
+
+    var previewCanvas = document.getElementById('previewCanvas');
+    var previewCtx = previewCanvas.getContext('2d');
+    var previewLabel = document.getElementById('previewLabel');
+
+    // ─── Offscreen Canvases ──────────────────────────────
+    var srcCanvas = document.createElement('canvas');
+    srcCanvas.width = FLAG_W;
+    srcCanvas.height = FLAG_H;
+    var srcCtx = srcCanvas.getContext('2d');
+
+    var waveCanvas = document.createElement('canvas');
+    waveCanvas.width = FLAG_W;
+    waveCanvas.height = FLAG_H + EXTRA_Y * 2;
+    var waveCtx = waveCanvas.getContext('2d');
+
+    // ─── Load / Save Config ──────────────────────────────
+    function loadConfig() {
+        try {
+            var raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                var cfg = JSON.parse(raw);
+                for (var key in DEFAULTS) {
+                    if (cfg[key] != null) params[key] = cfg[key];
+                }
+            }
+        } catch (e) {}
+    }
+
+    function saveConfig() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(params));
+        } catch (e) {}
+    }
+
+    // ─── Build Flag Grid ─────────────────────────────────
+    function buildGrid() {
+        var grid = document.getElementById('flagGrid');
+        while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+        for (var i = 0; i < STATES.length; i++) {
+            var s = STATES[i];
+            var btn = document.createElement('div');
+            btn.className = 'flag-btn';
+            btn.dataset.key = s.key;
+
+            var img = document.createElement('img');
+            img.className = 'flag-thumb';
+            img.src = 'assets/flags/' + s.key + '.png';
+            img.alt = s.name;
+            img.loading = 'lazy';
+
+            var lbl = document.createElement('span');
+            lbl.className = 'flag-label';
+            lbl.textContent = s.name;
+
+            btn.appendChild(img);
+            btn.appendChild(lbl);
+            btn.addEventListener('click', (function(state) {
+                return function() { selectState(state); };
+            })(s));
+            grid.appendChild(btn);
+        }
+    }
+
+    function selectState(state) {
+        selectedState = state;
+
+        var btns = document.querySelectorAll('.flag-btn');
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].classList.toggle('selected', btns[i].dataset.key === state.key);
+        }
+
+        previewLabel.textContent = state.name;
+
+        var img = new Image();
+        img.onload = function() {
+            flagImage = img;
+            srcCtx.clearRect(0, 0, FLAG_W, FLAG_H);
+            var scale = Math.max(FLAG_W / img.width, FLAG_H / img.height);
+            var sw = img.width * scale;
+            var sh = img.height * scale;
+            srcCtx.drawImage(img, (FLAG_W - sw) / 2, (FLAG_H - sh) / 2, sw, sh);
+            try {
+                srcData = srcCtx.getImageData(0, 0, FLAG_W, FLAG_H);
+            } catch (e) {
+                srcData = null;
+            }
+        };
+        img.onerror = function() {
+            flagImage = null;
+            srcData = null;
+            previewLabel.textContent = state.name + ' (flag not found)';
+        };
+        img.src = 'assets/flags/' + state.key + '.png';
+    }
+
+    // ─── Slider Wiring ───────────────────────────────────
+    var sliderDefs = [
+        { id: 'ampSlider',    key: 'amplitude',   valId: 'ampVal',    fmt: function(v) { return Math.round(v).toString(); } },
+        { id: 'freqSlider',   key: 'frequency',   valId: 'freqVal',   fmt: function(v) { return v.toFixed(3); } },
+        { id: 'speedSlider',  key: 'speed',       valId: 'speedVal',  fmt: function(v) { return v.toFixed(1); } },
+        { id: 'harmSlider',   key: 'harmonics',   valId: 'harmVal',   fmt: function(v) { return Math.round(v).toString(); } },
+        { id: 'shearSlider',  key: 'shear',       valId: 'shearVal',  fmt: function(v) { return v.toFixed(2); } },
+        { id: 'shadowSlider', key: 'shadowDepth', valId: 'shadowVal', fmt: function(v) { return v.toFixed(2); } }
+    ];
+
+    function syncSliders() {
+        for (var i = 0; i < sliderDefs.length; i++) {
+            var d = sliderDefs[i];
+            document.getElementById(d.id).value = params[d.key];
+            document.getElementById(d.valId).textContent = d.fmt(params[d.key]);
+        }
+    }
+
+    function wireSliders() {
+        for (var i = 0; i < sliderDefs.length; i++) {
+            (function(d) {
+                var slider = document.getElementById(d.id);
+                var valEl = document.getElementById(d.valId);
+                slider.addEventListener('input', function() {
+                    var v = parseFloat(this.value);
+                    params[d.key] = v;
+                    valEl.textContent = d.fmt(v);
+                });
+            })(sliderDefs[i]);
+        }
+    }
+
+    // ─── Presets ──────────────────────────────────────────
+    function wirePresets() {
+        var btns = document.querySelectorAll('.preset-btn');
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].addEventListener('click', function() {
+                var presetKey = this.dataset.preset;
+                var preset = PRESETS[presetKey];
+                if (!preset) return;
+                for (var key in preset) {
+                    params[key] = preset[key];
+                }
+                syncSliders();
+                showToast('Preset: ' + presetKey);
+            });
+        }
+    }
+
+    // ─── Action Buttons ──────────────────────────────────
+    function wireActions() {
+        document.getElementById('saveBtn').addEventListener('click', function() {
+            saveConfig();
+            var btn = this;
+            btn.textContent = 'SAVED';
+            btn.classList.add('saved');
+            showToast('Saved — reload game to apply');
+            setTimeout(function() {
+                btn.textContent = 'SAVE';
+                btn.classList.remove('saved');
+            }, 2000);
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            for (var key in DEFAULTS) params[key] = DEFAULTS[key];
+            syncSliders();
+            showToast('Reset to defaults (not saved yet)');
+        });
+    }
+
+    // ─── Toast ───────────────────────────────────────────
+    var _toastTimer = 0;
+    function showToast(msg) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function() { t.classList.remove('show'); }, 2500);
+    }
+
+    // ─── Wave Distortion Render ──────────────────────────
+    // Same per-column pixel-shift algorithm as js/flag-waver.js
+    function renderWave() {
+        if (!srcData) return null;
+
+        var w = FLAG_W;
+        var h = FLAG_H;
+        var extraY = EXTRA_Y;
+        var cw = waveCanvas.width;
+        var ch = waveCanvas.height;
+        var p = params;
+        var t = waveTime;
+
+        waveCtx.clearRect(0, 0, cw, ch);
+
+        var src = srcData.data;
+        var out = waveCtx.createImageData(cw, ch);
+        var dst = out.data;
+
+        for (var x = 0; x < w; x++) {
+            // Sum harmonic sine waves
+            var wave = 0;
+            for (var n = 1; n <= p.harmonics; n++) {
+                wave += (p.amplitude / n) * Math.sin(p.frequency * n * x + p.speed * t * (1 + n * 0.3));
+            }
+            // Apply shear (wave increases left to right)
+            var shearFactor = 1 + p.shear * (x / w);
+            wave *= shearFactor;
+
+            var yOffset = Math.round(wave) + extraY;
+
+            // Calculate slope for lighting (shadow/highlight)
+            var waveNext = 0;
+            for (var n2 = 1; n2 <= p.harmonics; n2++) {
+                waveNext += (p.amplitude / n2) * Math.sin(p.frequency * n2 * (x + 1) + p.speed * t * (1 + n2 * 0.3));
+            }
+            var slope = (waveNext - wave / shearFactor) * p.shadowDepth;
+
+            // Copy source column with vertical offset + lighting
+            for (var y = 0; y < h; y++) {
+                var si = (y * w + x) * 4;
+                var dstY = y + yOffset;
+                if (dstY < 0 || dstY >= ch) continue;
+                var di = (dstY * cw + x) * 4;
+                var light = 1 + slope * 0.08;
+                dst[di]     = Math.min(255, Math.max(0, Math.round(src[si]     * light)));
+                dst[di + 1] = Math.min(255, Math.max(0, Math.round(src[si + 1] * light)));
+                dst[di + 2] = Math.min(255, Math.max(0, Math.round(src[si + 2] * light)));
+                dst[di + 3] = src[si + 3];
+            }
+        }
+
+        waveCtx.putImageData(out, 0, 0);
+        return waveCanvas;
+    }
+
+    // ─── Animation Loop ──────────────────────────────────
+    var _prevFrameTime = 0;
+    var _frameInterval = 1000 / 60;
+
+    function animate(timestamp) {
+        animId = requestAnimationFrame(animate);
+
+        // 60fps limiter (avoid 2x speed on 120Hz)
+        if (timestamp - _prevFrameTime < _frameInterval * 0.9) return;
+        _prevFrameTime = timestamp;
+
+        waveTime += 1 / 60;
+
+        var pw = previewCanvas.width;
+        var ph = previewCanvas.height;
+
+        // Dark background
+        previewCtx.fillStyle = '#111';
+        previewCtx.fillRect(0, 0, pw, ph);
+
+        if (!srcData) {
+            previewCtx.fillStyle = '#444';
+            previewCtx.font = '14px "Courier New", monospace';
+            previewCtx.textAlign = 'center';
+            previewCtx.textBaseline = 'middle';
+            previewCtx.fillText('Select a state above', pw / 2, ph / 2);
+            return;
+        }
+
+        // Render wave distortion
+        var waved = renderWave();
+        if (waved) {
+            var dx = (pw - waved.width) / 2;
+            var dy = (ph - waved.height) / 2;
+            previewCtx.drawImage(waved, dx, dy);
+        }
+
+        // Thin reference border around original flag bounds
+        previewCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+        previewCtx.lineWidth = 1;
+        var flagX = (pw - FLAG_W) / 2;
+        var flagY = (ph - FLAG_H) / 2;
+        previewCtx.strokeRect(flagX - 0.5, flagY - 0.5, FLAG_W + 1, FLAG_H + 1);
+    }
+
+    // ─── Init ────────────────────────────────────────────
+    loadConfig();
+    buildGrid();
+    wireSliders();
+    syncSliders();
+    wirePresets();
+    wireActions();
+
+    // Auto-select first state
+    selectState(STATES[0]);
+
+    // Start animation
+    animId = requestAnimationFrame(animate);
+
+})();
+</script>
+</body>
+</html>
