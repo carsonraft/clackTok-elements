@@ -22,7 +22,7 @@ WB.Config = {
     GRAVITY_ANGLE: Math.PI / 2,  // radians, PI/2 = straight down (Set's super shifts this)
     WEAPON_WALL_BOUNCE: true,
     WEAPON_WALL_BOUNCE_STRENGTH: 3.0,
-    WEAPON_WALL_DMG_BOUNCE: false,
+    WEAPON_WALL_DMG_BOUNCE: true,
     SUPERS_ENABLED: false,
     CUTSCENE_ENABLED: false,
     MOTION_BLUR_ENABLED: true,
