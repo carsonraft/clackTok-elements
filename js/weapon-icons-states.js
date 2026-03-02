@@ -84,7 +84,7 @@ WB.StatesIcons = {
     // Florida gator: 4 PNGs in 2×2 grid = 256×256 → fits 128×128 cell as square
     STITCHED: {
         'florida-jaw': {
-            layout: [2, 2],  // 2×2 grid: top=[head, front], bottom=[back, tail]
+            layout: [4, 1],  // 4 sequential pieces left-to-right: head, front, back, tail
             pieces: [
                 'floridaGator1', 'floridaGator2', 'floridaGator3', 'floridaGator4'
             ]

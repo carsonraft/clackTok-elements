@@ -108,12 +108,20 @@ WB.Hazard = class {
         const fadeRatio = Math.min(1, this.lifespan / (this.maxLife * 0.3)); // fade in last 30%
         const alpha = fadeRatio;
 
-        // Sprite-based hazard (e.g. New York skyscrapers)
+        // Sprite-based hazard (e.g. New York skyscrapers, Massachusetts hex)
         if (this.spriteKey) {
             var S = WB.WeaponSprites;
             if (S && S.hasSprite(this.spriteKey)) {
                 B.flush();
-                S.drawSprite(this.spriteKey, this.x, this.y, this._wallAngle, this.radius, this.radius, alpha * 0.9, 1.0);
+                var sprAlpha = 0.9;
+                var sprScale = 1.0;
+                var ov = WB._spriteConfig && WB._spriteConfig[this.spriteKey];
+                if (ov) {
+                    if (ov.alpha != null) sprAlpha = ov.alpha;
+                    if (ov.scale != null) sprScale = ov.scale;
+                }
+                var sr = this.radius * sprScale;
+                S.drawSprite(this.spriteKey, this.x, this.y, this._wallAngle, sr, sr, alpha * sprAlpha, 1.0);
                 return;
             }
         }

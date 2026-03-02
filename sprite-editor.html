@@ -194,9 +194,16 @@
             </div>
             <div class="control-row">
                 <label>Anchor (forward shift) <span id="anchorVal">0.00</span></label>
-                <input type="range" id="anchorSlider" min="-1.0" max="1.0" step="0.05" value="0">
+                <input type="range" id="anchorSlider" min="-2.0" max="2.0" step="0.05" value="0">
             </div>
-            <!-- Size Scale removed: sprite size must equal hitbox size (v80 rule) -->
+            <div class="control-row">
+                <label>Sprite Opacity <span id="alphaVal">1.00</span></label>
+                <input type="range" id="alphaSlider" min="0.05" max="1.0" step="0.05" value="1.0">
+            </div>
+            <div class="control-row">
+                <label>Sprite Scale <span id="scaleVal">1.00</span></label>
+                <input type="range" id="scaleSlider" min="0.2" max="3.0" step="0.05" value="1.0">
+            </div>
             <!-- Projectile Stats (shown for proj category) -->
             <div class="stat-section" id="projStats" style="display:none">
                 <h3>Projectile Stats</h3>
@@ -244,7 +251,7 @@
                 <h3>Hazard Stats</h3>
                 <div class="control-row">
                     <label>Radius (px) <span id="staticRadiusVal">-</span></label>
-                    <input type="range" id="staticRadiusSlider" min="6" max="40" step="1" value="12" style="accent-color:#fbbf24">
+                    <input type="range" id="staticRadiusSlider" min="6" max="120" step="1" value="12" style="accent-color:#fbbf24">
                 </div>
                 <div class="control-row">
                     <label>Damage <span id="staticDmgVal">-</span></label>
@@ -432,7 +439,7 @@ var selected = null;
 var travelAngle = 0; // radians, 0 = right
 var atlasCanvas = null;
 var atlasGrid = {};
-var atlasGridSize = 8;
+var atlasGridSize = 9;    // must match weapon-icons-states.js GRID_DIM
 var atlasCellSize = 128;
 var atlasLoaded = false;
 var filterCat = 'all';
@@ -453,7 +460,8 @@ function getValues(spriteData) {
     return {
         angleOffset: override.angleOffset != null ? override.angleOffset : (spriteData.defAngle * Math.PI / 180),
         anchor: override.anchor != null ? override.anchor : spriteData.defAnchor,
-        // size removed: sprite must match hitbox (v80 rule)
+        alpha: override.alpha != null ? override.alpha : 1.0,
+        scale: override.scale != null ? override.scale : 1.0,
     };
 }
 
@@ -564,8 +572,8 @@ function loadAtlas() {
     }
 
     atlasCanvas = document.createElement('canvas');
-    atlasCanvas.width = 1024;
-    atlasCanvas.height = 1024;
+    atlasCanvas.width = 1152;
+    atlasCanvas.height = 1152;
     var ctx = atlasCanvas.getContext('2d');
 
     var normalKeys = Object.keys(PNGS);
@@ -695,6 +703,8 @@ function syncSliders() {
     var v = getValues(selected);
     document.getElementById('angleSlider').value = Math.round(v.angleOffset * 180 / Math.PI);
     document.getElementById('anchorSlider').value = v.anchor;
+    document.getElementById('alphaSlider').value = v.alpha;
+    document.getElementById('scaleSlider').value = v.scale;
 
     // Show/hide stat sections based on category
     var projSection = document.getElementById('projStats');
@@ -794,8 +804,12 @@ function formatCustomVal(val, step) {
 function updateLabels() {
     var a = parseFloat(document.getElementById('angleSlider').value);
     var anch = parseFloat(document.getElementById('anchorSlider').value);
+    var alph = parseFloat(document.getElementById('alphaSlider').value);
+    var scl = parseFloat(document.getElementById('scaleSlider').value);
     document.getElementById('angleVal').textContent = a.toFixed(0) + '\u00B0';
     document.getElementById('anchorVal').textContent = anch.toFixed(2);
+    document.getElementById('alphaVal').textContent = alph.toFixed(2);
+    document.getElementById('scaleVal').textContent = scl.toFixed(2);
 
     // Projectile stat labels
     if (selected && selected.cat === 'proj') {
@@ -827,6 +841,7 @@ function saveCurrentValues() {
     if (!selected) return;
     var a = parseFloat(document.getElementById('angleSlider').value) * Math.PI / 180;
     var anch = parseFloat(document.getElementById('anchorSlider').value);
+    var alph = parseFloat(document.getElementById('alphaSlider').value);
 
     // --- Visual overrides (sprite-keyed) ---
     var defA = selected.defAngle * Math.PI / 180;
@@ -842,6 +857,13 @@ function saveCurrentValues() {
         delete entry.angleOffset;
         delete entry.anchor;
     }
+
+    // Opacity override (default 1.0 = fully opaque)
+    if (Math.abs(alph - 1.0) > 0.01) { entry.alpha = alph; } else { delete entry.alpha; }
+
+    // Scale override (default 1.0 = match hitbox)
+    var scl = parseFloat(document.getElementById('scaleSlider').value);
+    if (Math.abs(scl - 1.0) > 0.01) { entry.scale = scl; } else { delete entry.scale; }
     delete entry.size; // clean up any legacy size overrides
 
     // --- Projectile stat overrides (sprite-keyed, same config object) ---
@@ -1031,7 +1053,7 @@ function drawPreview(timestamp) {
 
             var heading = Math.atan2(pvy, pvx);
             var spriteAngle = heading + vals.angleOffset;
-            var spriteSize = Math.max(ps.radius, 20); // min 20px so sprite is visible in editor
+            var spriteSize = ps.radius * vals.scale; // true-to-game size (no inflation)
 
             // Anchor shift
             var drawX = px, drawY = py;
@@ -1055,7 +1077,7 @@ function drawPreview(timestamp) {
             ctx.setLineDash([]);
 
             // Sprite (matches hitbox)
-            drawSpriteOnCtx(ctx, selected.key, drawX, drawY, spriteAngle, spriteSize, spriteSize, pastBounces ? alpha * 0.35 : alpha);
+            drawSpriteOnCtx(ctx, selected.key, drawX, drawY, spriteAngle, spriteSize, spriteSize, (pastBounces ? alpha * 0.35 : alpha) * vals.alpha);
 
             // Damage label
             if (!pastBounces) {
@@ -1124,11 +1146,11 @@ function drawPreview(timestamp) {
         var baseCenter = reach * 0.7;
         var anchorShift = vals.anchor * reach * 0.3; // match game: +-30% of reach
         var spriteCenter = baseCenter + anchorShift;
-        var halfW = reach * 0.3; // 1:1 with hitbox (v80 rule)
+        var halfW = reach * 0.3 * vals.scale; // scaled sprite size
         var wx = cx + Math.cos(weaponAngle) * spriteCenter;
         var wy = cy + Math.sin(weaponAngle) * spriteCenter;
 
-        drawSpriteOnCtx(ctx, selected.key, wx, wy, weaponAngle + vals.angleOffset, halfW, halfW, 1.0);
+        drawSpriteOnCtx(ctx, selected.key, wx, wy, weaponAngle + vals.angleOffset, halfW, halfW, vals.alpha);
 
         // Stats overlay
         ctx.fillStyle = '#888';
@@ -1161,8 +1183,8 @@ function drawPreview(timestamp) {
         ctx.stroke();
 
         // Scale sprite to match hitbox radius
-        var spriteHalf = Math.max(hr, 20);
-        drawSpriteOnCtx(ctx, selected.key, cx, cy, spriteAngle, spriteHalf, spriteHalf, 1.0);
+        var spriteHalf = hr * vals.scale; // true-to-game size (no inflation)
+        drawSpriteOnCtx(ctx, selected.key, cx, cy, spriteAngle, spriteHalf, spriteHalf, vals.alpha);
 
         // Label
         ctx.fillStyle = '#888';
@@ -1192,7 +1214,7 @@ function drawPreview(timestamp) {
         var baseCenter = reach * 0.7;
         var anchorShift = vals.anchor * reach * 0.3;
         var spriteCenter = baseCenter + anchorShift;
-        var halfW = reach * 0.3;
+        var halfW = reach * 0.3 * vals.scale;
         var wx = cx + Math.cos(weaponAngle) * spriteCenter;
         var wy = cy + Math.sin(weaponAngle) * spriteCenter;
 
@@ -1204,7 +1226,7 @@ function drawPreview(timestamp) {
         ctx.lineTo(cx + Math.cos(weaponAngle) * reach, cy + Math.sin(weaponAngle) * reach);
         ctx.stroke();
 
-        drawSpriteOnCtx(ctx, selected.key, wx, wy, weaponAngle + vals.angleOffset, halfW, halfW, 1.0);
+        drawSpriteOnCtx(ctx, selected.key, wx, wy, weaponAngle + vals.angleOffset, halfW, halfW, vals.alpha);
 
         // Stats at bottom
         ctx.fillStyle = '#888';
@@ -1243,6 +1265,8 @@ document.getElementById('previewCanvas').addEventListener('click', function(e) {
 function onSliderInput() { updateLabels(); saveCurrentValues(); }
 document.getElementById('angleSlider').addEventListener('input', onSliderInput);
 document.getElementById('anchorSlider').addEventListener('input', onSliderInput);
+document.getElementById('alphaSlider').addEventListener('input', onSliderInput);
+document.getElementById('scaleSlider').addEventListener('input', onSliderInput);
 // Projectile stat sliders
 document.getElementById('projSpeedSlider').addEventListener('input', onSliderInput);
 document.getElementById('projRadiusSlider').addEventListener('input', onSliderInput);

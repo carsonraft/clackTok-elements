@@ -535,27 +535,36 @@ WB.Projectile = class {
             var scX = this.spriteScaleX;
             var scY = this.spriteScaleY;
             var ov = WB._spriteConfig && WB._spriteConfig[this.spriteKey];
+            var sprAlpha = 1.0;
+            var sprScale = 1.0;
             if (ov) {
                 if (ov.angleOffset != null) angleOff = ov.angleOffset;
                 if (ov.anchor != null) anchor = ov.anchor;
                 if (ov.spriteScaleX != null) scX = ov.spriteScaleX;
                 if (ov.spriteScaleY != null) scY = ov.spriteScaleY;
+                if (ov.alpha != null) sprAlpha = ov.alpha;
+                if (ov.scale != null) sprScale = ov.scale;
             }
-            var sizeX = r * scX; // half-width in game pixels
-            var sizeY = r * scY; // half-height in game pixels
+            var sizeX = r * scX * sprScale; // half-width in game pixels
+            var sizeY = r * scY * sprScale; // half-height in game pixels
             var drawX = this.x;
             var drawY = this.y;
             if (anchor) {
                 drawX += Math.cos(heading) * anchor * r * scX;
                 drawY += Math.sin(heading) * anchor * r * scX;
             }
+            // Spin override — tumbling projectiles (VT bottle, etc.)
+            var drawAngle = heading + angleOff;
+            if (this._spinRate) {
+                drawAngle = this._age * this._spinRate + angleOff;
+            }
             // Mirror sprite vertically when heading leftward (|heading| > π/2)
             // so directional sprites (phoenix, rocket, etc.) don't appear upside-down
             var h = heading % (Math.PI * 2);
             if (h > Math.PI) h -= Math.PI * 2;
             if (h < -Math.PI) h += Math.PI * 2;
-            var flipY = (h > Math.PI / 2 || h < -Math.PI / 2) ? -1 : 1;
-            S.drawSprite(this.spriteKey, drawX, drawY, heading + angleOff, sizeX, sizeY * flipY, 1.0, 1.0);
+            var flipY = (this._spinRate) ? 1 : ((h > Math.PI / 2 || h < -Math.PI / 2) ? -1 : 1);
+            S.drawSprite(this.spriteKey, drawX, drawY, drawAngle, sizeX, sizeY * flipY, sprAlpha, 1.0);
         } else {
             // Fallback: plain circle
             this._drawCircle(B, r);

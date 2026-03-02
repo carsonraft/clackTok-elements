@@ -26,7 +26,8 @@ function drawWeaponSprite(weapon, spriteKey, angleOffset) {
     if (ov) {
         if (ov.angleOffset != null) ao = ov.angleOffset;
     }
-    var halfW = weapon.reach * 0.3;    // sprite half-width = hitbox extent
+    var sprScale = (ov && ov.scale != null) ? ov.scale : 1.0;
+    var halfW = weapon.reach * 0.3 * sprScale;    // sprite half-width = hitbox extent × scale
     var r = weapon.owner.radius;
     // Anchor shifts sprite along weapon arm: 0 = near ball, 1 = at tip
     var anchor = (ov && ov.anchor != null) ? ov.anchor : 0;
@@ -35,7 +36,8 @@ function drawWeaponSprite(weapon, spriteKey, angleOffset) {
     var offset = baseOffset + anchorShift;
     var cx = weapon.owner.x + Math.cos(weapon.angle) * offset;
     var cy = weapon.owner.y + Math.sin(weapon.angle) * offset;
-    S.drawSprite(spriteKey, cx, cy, weapon.angle + ao, halfW, halfW, 1.0, 1.0);
+    var sprAlpha = (ov && ov.alpha != null) ? ov.alpha : 1.0;
+    S.drawSprite(spriteKey, cx, cy, weapon.angle + ao, halfW, halfW, sprAlpha, 1.0);
     return true;
 }
 
@@ -397,12 +399,17 @@ class CaliforniaWeapon extends WB.Weapon {
         if (S && S.hasSprite('california-sword')) {
             WB.GLBatch.flush();
             var r = this.owner.radius;
+            var ov = WB._spriteConfig && WB._spriteConfig['california-sword'];
+            var sprScale = (ov && ov.scale != null) ? ov.scale : 1.0;
+            var sprAlpha = (ov && ov.alpha != null) ? ov.alpha : 1.0;
+            var ao = (ov && ov.angleOffset != null) ? ov.angleOffset : Math.PI / 2;
+            var anchorOv = (ov && ov.anchor != null) ? ov.anchor : 0;
             // Big square sprite — PNG is 128x128, keep aspect ratio 1:1
-            var size = this.reach * 0.9;      // ~72px half-extent = 144px total
-            var offset = r + size * 0.45;     // center the sprite so blade extends past ball edge
+            var size = this.reach * 0.9 * sprScale;
+            var offset = r + size * 0.45 + anchorOv * this.reach * 0.3;
             var cx = this.owner.x + Math.cos(this.angle) * offset;
             var cy = this.owner.y + Math.sin(this.angle) * offset;
-            S.drawSprite('california-sword', cx, cy, this.angle + Math.PI / 2, size, size, 1.0, 1.0);
+            S.drawSprite('california-sword', cx, cy, this.angle + ao, size, size, sprAlpha, 1.0);
         } else {
             drawMeleeWeapon(this, 'rect');
         }
@@ -1456,7 +1463,10 @@ class MassachusettsWeapon extends WB.Weapon {
             WB.GLBatch.flush();
             var size = this.owner.radius * 0.85;
             var rot = Date.now() * 0.002;
-            S.drawSprite('massachusetts-hex', this.owner.x, this.owner.y, rot, size, size, 0.8, 1.0);
+            var maAlpha = 0.8;
+            var ov = WB._spriteConfig && WB._spriteConfig['massachusetts-hex'];
+            if (ov && ov.alpha != null) maAlpha = ov.alpha;
+            S.drawSprite('massachusetts-hex', this.owner.x, this.owner.y, rot, size, size, maAlpha, 1.0);
         } else {
             var B = WB.GLBatch;
             var t = Date.now() * 0.003;
@@ -2241,6 +2251,9 @@ class NewYorkWeapon extends WB.Weapon {
                 if (WB.Game && WB.Game.hazards) {
                     var a = WB.Config.ARENA;
                     var bldgR = 25;
+                    // Apply sprite editor size override
+                    var tov = WB._spriteConfig && WB._spriteConfig['newyork-terrain'];
+                    if (tov && tov.projectileRadius != null) bldgR = tov.projectileRadius;
                     var bx = x, by = y, bAngle = 0;
                     // Snap to nearest wall and orient building base toward it
                     var dLeft = x - a.x, dRight = (a.x + a.width) - x;
@@ -3170,9 +3183,10 @@ class UtahWeapon extends WB.Weapon {
 WB.WeaponRegistry.register('utah', UtahWeapon, 'states');
 
 // ═══════════════════════════════════════════════════════════════
-//  45. VERMONT — Broken syrup bottle. 1 dmg/tick + slow.
-//  Throws bottle projectiles that shatter into sticky hazard zones on miss.
-//  Direct hits also apply slow. Scaling: fire rate, hazard duration.
+//  45. VERMONT — Maple syrup bottle. Thrown rotating bottle projectile.
+//  On hit: shatters into 3 glass-shard projectiles coated in syrup + slow debuff.
+//  On miss: shatters into sticky syrup puddle hazard (DOT + slow zone).
+//  Scaling: fire rate, hazard duration, shard count.
 // ═══════════════════════════════════════════════════════════════
 class VermontWeapon extends WB.Weapon {
     constructor(owner) {
@@ -3180,6 +3194,7 @@ class VermontWeapon extends WB.Weapon {
         this.fireTimer = 0;
         this.fireRate = 100;
         this.hazardLifespan = 240;
+        this.shardCount = 3;
         this.spillCount = 0;
         this.scalingStat.value = this.spillCount;
         applyCustomOverrides(this);
@@ -3208,32 +3223,52 @@ class VermontWeapon extends WB.Weapon {
             damage: this.currentDamage, owner: this.owner, ownerWeapon: this,
             radius: 10, lifespan: 120, bounces: 0, color: '#8B6914',
             gravityAffected: true, shape: 'sprite', spriteKey: 'vt-broken-bottle', spriteAnchor: 0.3,
+            // Spinning rotation — bottle tumbles in flight
+            _spinRate: 0.12,
             onMiss: function(x, y) {
-                // Shatter into sticky hazard zone
-                if (WB.Game && WB.Game.hazards) {
-                    self.spillCount++;
-                    WB.Game.hazards.push(new WB.Hazard({
-                        x: x, y: y, radius: 25, damage: 1, tickRate: 20,
-                        lifespan: self.hazardLifespan,
-                        color: '#8B6914', owner: self.owner, ownerWeapon: self,
-                        spriteKey: 'vt-broken-bottle'
-                    }));
-                    if (WB.Game.particles) WB.Game.particles.emit(x, y, 5, '#8B6914');
-                }
+                self._shatter(x, y);
             }
         }));
         WB.Audio.projectileFire(this.type);
     }
+    _shatter(x, y) {
+        // Spawn syrup puddle hazard (uses vermont-syrup sprite)
+        if (WB.Game && WB.Game.hazards) {
+            this.spillCount++;
+            WB.Game.hazards.push(new WB.Hazard({
+                x: x, y: y, radius: 25, damage: 1, tickRate: 20,
+                lifespan: this.hazardLifespan,
+                color: '#8B6914', owner: this.owner, ownerWeapon: this,
+                spriteKey: 'vermont-syrup'
+            }));
+        }
+        // Spawn glass shard projectiles that scatter outward
+        if (WB.Game && WB.Game.projectiles) {
+            for (var i = 0; i < this.shardCount; i++) {
+                var a = (i / this.shardCount) * Math.PI * 2 + WB.random() * 0.5;
+                var spd = 3 + WB.random() * 2;
+                WB.Game.projectiles.push(new WB.Projectile({
+                    x: x, y: y,
+                    vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                    damage: 1, owner: this.owner, ownerWeapon: this,
+                    radius: 5, lifespan: 50, bounces: 0, color: '#A0783C',
+                    shape: 'spiked', _spinRate: 0.2
+                }));
+            }
+        }
+        if (WB.Game.particles) WB.Game.particles.emit(x, y, 6, '#8B6914');
+    }
     onProjectileHit(proj, target) {
-        // Direct hit applies slow debuff (reuses Poseidon slow system in ball.js)
+        // Direct hit: slow debuff + shatter at impact point
         target.debuffs.slowFactor = 0.35;
         target.debuffs.slowTimer = Math.max(target.debuffs.slowTimer || 0, 75);
-        this.spillCount++;
+        this._shatter(proj.x, proj.y);
     }
     applyScaling() {
         this.fireRate = Math.max(60, 100 - Math.floor(this.hitCount * 3));
         this.currentDamage = this.baseDamage + Math.floor(this.hitCount / 3);
         this.hazardLifespan = Math.min(360, 240 + this.hitCount * 10);
+        this.shardCount = Math.min(6, 3 + Math.floor(this.hitCount / 3));
         this.scalingStat.value = this.spillCount;
     }
     onHit() {}

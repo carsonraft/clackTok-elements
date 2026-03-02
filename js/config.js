@@ -27,6 +27,7 @@ WB.Config = {
     CUTSCENE_ENABLED: false,
     MOTION_BLUR_ENABLED: true,
     MOTION_BLUR_STRENGTH: 0.25,  // 0=off, 0.5=full 180° shutter, 0.25=subtle cinematic
+    EXPANDED_ROSTERS: false,     // Show all packs (classic/elemental/pantheon/egyptian) or just states
     SIDEBAR_WIDTH: 0,             // px per side during battle (0 = no sidebars)
     // Stage size presets (index into STAGE_PRESETS)
     STAGE_SIZE_INDEX: 2,

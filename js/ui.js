@@ -5,7 +5,7 @@ WB.UI = {
     selectedRight: null,
     hoveredBtn: null,
     weaponTypes: [],
-    selectedPack: 'elemental',  // Default pack tab (switches to 'pantheon' once gods are added)
+    selectedPack: 'states',  // Default pack tab
     menuScroll: 0,       // Scroll offset for weapon grid
     maxScroll: 0,        // Computed max scroll
 
@@ -189,6 +189,18 @@ WB.UI = {
             return null;
         }
 
+        // Check EXPANDED ROSTERS button
+        const exBtn = layout.expandedBtn;
+        if (exBtn && mx >= exBtn.x && mx <= exBtn.x + exBtn.w && my >= exBtn.y && my <= exBtn.y + exBtn.h) {
+            WB.Audio.menuClack();
+            WB.Config.EXPANDED_ROSTERS = !WB.Config.EXPANDED_ROSTERS;
+            // When collapsing back, switch to states if current pack would be hidden
+            if (!WB.Config.EXPANDED_ROSTERS && this.selectedPack !== 'states') {
+                this._switchPack('states');
+            }
+            return null;
+        }
+
         // Close tuner if clicking elsewhere on canvas
         if (WB.StageTuner && WB.StageTuner.isVisible()) {
             WB.StageTuner.hide();
@@ -251,13 +263,16 @@ WB.UI = {
             bestOfBtn:   { x: pad, y: bestOfY, w: 100, h: bestOfH },
             studioBtn:   { x: pad + 106, y: bestOfY, w: 100, h: bestOfH },
             tuneBtn:     { x: pad + 212, y: bestOfY, w: 80, h: bestOfH },
+            expandedBtn: { x: c.CANVAS_WIDTH - pad - 118, y: bestOfY, w: 118, h: bestOfH },
         };
     },
 
     _getPackTabs(layout) {
         const c = WB.Config;
         // Use config PACKS keys so all tabs show even before weapons are registered
-        const packs = Object.keys(WB.Config.PACKS || {});
+        var allPacks = Object.keys(WB.Config.PACKS || {});
+        // When expanded rosters is off, only show 'states' tab
+        const packs = WB.Config.EXPANDED_ROSTERS ? allPacks : allPacks.filter(function(p) { return p === 'states'; });
         const packNames = WB.Config.PACKS || {};
         const pad = 15;
         const tabH = 20;
@@ -487,6 +502,17 @@ WB.UI = {
             B.strokeRect(tuBtn.x, tuBtn.y, tuBtn.w, tuBtn.h, tunerOpen ? '#B8860B' : '#6B5335', 1);
             B.flush();
             T.drawText('\u2699 TUNE', tuBtn.x + tuBtn.w / 2, tuBtn.y + tuBtn.h / 2,
+                'bold 11px "Courier New", monospace', '#FFF', 'center', 'middle');
+        }
+
+        // EXPANDED ROSTERS button
+        const exBtn = layout.expandedBtn;
+        if (exBtn) {
+            const expanded = WB.Config.EXPANDED_ROSTERS;
+            B.fillRect(exBtn.x, exBtn.y, exBtn.w, exBtn.h, expanded ? '#3C6E3C' : '#556B7A');
+            B.strokeRect(exBtn.x, exBtn.y, exBtn.w, exBtn.h, expanded ? '#2A4E2A' : '#3D4F5A', 1);
+            B.flush();
+            T.drawText(expanded ? '\u2713 EXPANDED' : 'EXPANDED', exBtn.x + exBtn.w / 2, exBtn.y + exBtn.h / 2,
                 'bold 11px "Courier New", monospace', '#FFF', 'center', 'middle');
         }
     },
