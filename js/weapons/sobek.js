@@ -24,6 +24,7 @@ class SobekWeapon extends WB.Weapon {
 
     update() {
         if (this._deflectReverse > 0) this._deflectReverse--;
+        this._prevAngle = this.angle;
         // Track toward nearest enemy (slow pursuit)
         if (WB.Game && WB.Game.balls) {
             let closest = null, closestDist = Infinity;

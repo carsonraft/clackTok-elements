@@ -24,6 +24,7 @@ class ThothWeapon extends WB.Weapon {
 
     update() {
         if (this._deflectReverse > 0) this._deflectReverse--;
+        this._prevAngle = this.angle;
         // Rotate to aim at nearest enemy
         if (WB.Game && WB.Game.balls) {
             let closest = null, closestDist = Infinity;

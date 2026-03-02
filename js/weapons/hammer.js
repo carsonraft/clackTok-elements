@@ -32,7 +32,8 @@ class HammerWeapon extends WB.Weapon {
             }
         }
         this.rotationSpeed = this.currentSpeed;
-        this.angle += this.rotationSpeed * this.getDir();
+        this._prevAngle = this.angle;
+        this.angle += this.rotationSpeed * this.getDir() * this._easeMult();
         if (this.cooldown > 0) this.cooldown--;
     }
 

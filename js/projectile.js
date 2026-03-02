@@ -33,6 +33,10 @@ WB.Projectile = class {
         this._hitTargets = new Set();
         this._age = 0; // frame counter for spinning/animated shapes
 
+        // Interpolation: previous frame positions for smooth rendering
+        this._prevX = config.x;
+        this._prevY = config.y;
+
         // Apply stat overrides from sprite editor (localStorage)
         if (this.spriteKey && WB._spriteConfig) {
             var ov = WB._spriteConfig[this.spriteKey];
@@ -55,6 +59,10 @@ WB.Projectile = class {
         const tb = this._trailBuf[this._trailIdx];
         tb.x = this.x; tb.y = this.y;
         this._trailIdx = (this._trailIdx + 1) & 1;
+
+        // Save pre-update position for render interpolation
+        this._prevX = this.x;
+        this._prevY = this.y;
 
         this.x += this.vx;
         this.y += this.vy;

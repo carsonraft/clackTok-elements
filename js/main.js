@@ -14,6 +14,8 @@ WB.Game = {
     _resultTimer: 0,
     _lastFrameTime: 0,       // timestamp of last processed frame
     _frameInterval: 1000 / 60, // target 60fps (~16.67ms)
+    _physicsAccum: 0,         // accumulated time for fixed-step physics
+    _lerpAlpha: 1.0,          // interpolation factor (0=prev frame, 1=current frame)
     _prerenderActive: false,  // true during offline prerender (pauses rAF loop)
 
     init() {
@@ -299,16 +301,46 @@ WB.Game = {
             }
         }
 
-        // ── 60fps frame limiter ──────────────────────────────────
-        // On 120Hz+ displays, requestAnimationFrame fires too fast.
-        // Skip frames that arrive before the 16.67ms budget elapses
-        // so physics/timers stay at the intended 60fps pace.
-        const elapsed = timestamp - this._lastFrameTime;
-        if (elapsed < this._frameInterval * 0.9) return; // 0.9 tolerance for timing jitter
-        this._lastFrameTime = timestamp - (elapsed % this._frameInterval);
+        // ── Fixed-timestep physics with interpolated rendering ────
+        // Physics always runs at 60Hz (16.67ms ticks).
+        // On 120Hz+ displays, we render EVERY frame with interpolated
+        // positions between physics ticks for ultra-smooth motion.
+        // On 60Hz displays, accumulator fills exactly 1 tick per frame
+        // and alpha ≈ 1.0, so there's no visual change.
+        const elapsed = Math.min(timestamp - this._lastFrameTime, 50); // cap at 50ms to prevent spiral-of-death
+        this._lastFrameTime = timestamp;
+        this._physicsAccum += elapsed;
 
         WB.now = Date.now(); // Cached timestamp — use WB.now instead of Date.now() in draw/update
 
+        // Step physics in fixed increments
+        const dt = this._frameInterval;
+        let didPhysics = false;
+        while (this._physicsAccum >= dt) {
+            this._physicsAccum -= dt;
+            didPhysics = true;
+
+            switch (this.state) {
+                case 'MENU':
+                    break; // menu has no physics tick
+                case 'COUNTDOWN':
+                    this.updateCountdown();
+                    break;
+                case 'BATTLE':
+                    this._physicsTick();
+                    break;
+                case 'PRE_BATTLE_CUTSCENE':
+                case 'POST_BATTLE_CUTSCENE':
+                    if (WB.Cutscene) WB.Cutscene.update();
+                    break;
+            }
+        }
+
+        // Interpolation factor: how far between prev and current physics state
+        // 0.0 = at previous tick, 1.0 = at current tick
+        this._lerpAlpha = this._physicsAccum / dt;
+
+        // ── Render (every frame, interpolated) ──
         WB.GL.beginFrame();
 
         switch (this.state) {
@@ -316,10 +348,12 @@ WB.Game = {
                 WB.UI.drawMenu();
                 break;
             case 'COUNTDOWN':
-                this.updateCountdown();
+                // Countdown draws inside updateCountdown; just draw arena
+                WB.Renderer.drawFrame(this);
+                WB.Renderer.drawCountdown(this._countdownText || '', this._countdownProgress || 0);
                 break;
             case 'BATTLE':
-                this.updateBattle();
+                this._renderBattle();
                 break;
             case 'SIM_RESULTS':
                 WB.SimUI.drawResults();
@@ -335,7 +369,7 @@ WB.Game = {
                 break;
             case 'PRE_BATTLE_CUTSCENE':
             case 'POST_BATTLE_CUTSCENE':
-                if (WB.Cutscene) WB.Cutscene.update();
+                // Cutscene renders itself
                 break;
         }
 
@@ -357,6 +391,10 @@ WB.Game = {
             this.startBattle();
             return;
         }
+
+        // Save for render pass
+        this._countdownText = text;
+        this._countdownProgress = progress;
 
         // Play escalating countdown clack at phase transition
         if (this.countdownTimer % 60 === 1 && phase < 4) {
@@ -390,19 +428,15 @@ WB.Game = {
         // Update effects so FIGHT! flash/pulse/particles decay properly
         WB.GLEffects.update();
         this.particles.update();
-
-        // Draw the arena with frozen balls
-        WB.Renderer.drawFrame(this);
-        WB.Renderer.drawCountdown(text, progress);
     },
 
-    updateBattle() {
+    // ── Physics tick (fixed 60Hz) — all game logic, no rendering ──
+    _physicsTick() {
         // 0. Update effects (always, even during hit stop)
         WB.GLEffects.update();
 
-        // Hit stop — skip physics but still render
+        // Hit stop — skip physics this tick
         if (WB.GLEffects.isHitStopped()) {
-            WB.Renderer.drawFrame(this);
             return;
         }
 
@@ -642,9 +676,51 @@ WB.Game = {
 
         // 8. Check win condition
         this._checkWinCondition();
+    },
 
-        // 9. Render
+    // ── Render battle (every display frame, with interpolation) ──
+    _renderBattle() {
+        // Apply interpolation: temporarily shift entities to lerped positions
+        const alpha = this._lerpAlpha;
+        const oneMinusA = 1 - alpha;
+
+        // Lerp ball positions
+        for (const ball of this.balls) {
+            ball._realX = ball.x;
+            ball._realY = ball.y;
+            ball.x = ball._prevX * oneMinusA + ball.x * alpha;
+            ball.y = ball._prevY * oneMinusA + ball.y * alpha;
+            // Lerp weapon angle (handle wrapping)
+            const w = ball.weapon;
+            w._realAngle = w.angle;
+            let aDiff = w.angle - w._prevAngle;
+            // Normalize angle difference to [-PI, PI]
+            while (aDiff > Math.PI) aDiff -= Math.PI * 2;
+            while (aDiff < -Math.PI) aDiff += Math.PI * 2;
+            w.angle = w._prevAngle + aDiff * alpha;
+        }
+
+        // Lerp projectile positions
+        for (const proj of this.projectiles) {
+            proj._realX = proj.x;
+            proj._realY = proj.y;
+            proj.x = proj._prevX * oneMinusA + proj.x * alpha;
+            proj.y = proj._prevY * oneMinusA + proj.y * alpha;
+        }
+
+        // Draw
         WB.Renderer.drawFrame(this);
+
+        // Restore real physics positions (so next physics tick starts from correct state)
+        for (const ball of this.balls) {
+            ball.x = ball._realX;
+            ball.y = ball._realY;
+            ball.weapon.angle = ball.weapon._realAngle;
+        }
+        for (const proj of this.projectiles) {
+            proj.x = proj._realX;
+            proj.y = proj._realY;
+        }
     },
 
     _checkWinCondition() {

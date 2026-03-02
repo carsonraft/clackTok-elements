@@ -37,6 +37,7 @@ class AresWeapon extends WB.Weapon {
             }
 
             // Rage visual pulsing
+            this._prevAngle = this.angle;
             this.angle += 0.02; // slow spin for visual
         } else {
             // Normal weapon mode
@@ -46,7 +47,8 @@ class AresWeapon extends WB.Weapon {
             const rageSpeedBonus = Math.min(0.05, this.rage * 0.006); // better rage scaling
             this.rotationSpeed = 0.035 + rageSpeedBonus + this.hitCount * 0.003; // faster spin
 
-            this.angle += this.rotationSpeed * this.getDir();
+            this._prevAngle = this.angle;
+            this.angle += this.rotationSpeed * this.getDir() * this._easeMult();
             if (this.cooldown > 0) this.cooldown--;
 
             this.scalingStat.value = this.rage;

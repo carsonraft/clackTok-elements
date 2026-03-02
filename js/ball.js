@@ -23,6 +23,10 @@ WB.Ball = class {
         this.frameCount = 0;
         this.damageFlash = 0;
 
+        // Interpolation: previous frame positions for smooth rendering
+        this._prevX = x;
+        this._prevY = y;
+
         // Per-ball overrides (used by god weapons)
         this.maxSpeed = WB.Config.BALL_MAX_SPEED;
         this.gravityMultiplier = 1.0;
@@ -43,6 +47,10 @@ WB.Ball = class {
 
     update() {
         this.frameCount++;
+
+        // Save pre-update position for render interpolation
+        this._prevX = this.x;
+        this._prevY = this.y;
 
         this.x += this.vx;
         this.y += this.vy;

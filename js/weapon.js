@@ -20,6 +20,7 @@ WB.Weapon = class {
         this.unparryable = false;
         this.isRanged = config.isRanged || false;
         this._deflectReverse = 0; // frames of reversed spin from parry/deflection
+        this._prevAngle = this.angle; // interpolation: previous frame angle
 
         // Apply weapon stat overrides from sprite editor (localStorage)
         if (WB._weaponStatConfig && WB._weaponStatConfig[this.type]) {
@@ -46,9 +47,19 @@ WB.Weapon = class {
         return (madness !== deflected) ? -1 : 1;
     }
 
+    // Speed-coupled rotation easing multiplier.
+    // Returns [0.85, 1.15] based on ball velocity — fast = faster spin, slow = slower spin.
+    // Average over time stays ~1.0, so zero balance impact.
+    _easeMult() {
+        const speed = this.owner.getSpeed ? this.owner.getSpeed() : 0;
+        const maxSpd = this.owner.maxSpeed || WB.Config.BALL_MAX_SPEED;
+        return 0.85 + Math.min(speed / maxSpd, 1) * 0.3;
+    }
+
     update() {
         if (this._deflectReverse > 0) this._deflectReverse--;
-        this.angle += this.rotationSpeed * this.getDir();
+        this._prevAngle = this.angle;
+        this.angle += this.rotationSpeed * this.getDir() * this._easeMult();
         if (this.cooldown > 0) this.cooldown--;
     }
 

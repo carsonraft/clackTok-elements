@@ -23,7 +23,8 @@ class SekhmetWeapon extends WB.Weapon {
 
     update() {
         if (this._deflectReverse > 0) this._deflectReverse--;
-        this.angle += this.rotationSpeed * this.getDir();
+        this._prevAngle = this.angle;
+        this.angle += this.rotationSpeed * this.getDir() * this._easeMult();
         this.claw2Angle = this.angle + Math.PI;
         if (this.cooldown > 0) this.cooldown--;
         this.visualTimer++;
