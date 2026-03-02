@@ -20,6 +20,14 @@ WB.Weapon = class {
         this.unparryable = false;
         this.isRanged = config.isRanged || false;
         this._deflectReverse = 0; // frames of reversed spin from parry/deflection
+
+        // Apply weapon stat overrides from sprite editor (localStorage)
+        if (WB._weaponStatConfig && WB._weaponStatConfig[this.type]) {
+            var ov = WB._weaponStatConfig[this.type];
+            if (ov.baseDamage != null) { this.baseDamage = ov.baseDamage; this.currentDamage = ov.baseDamage; }
+            if (ov.reach != null) { this.reach = ov.reach; this.baseReach = ov.reach; }
+            if (ov.rotationSpeed != null) this.rotationSpeed = ov.rotationSpeed;
+        }
     }
 
     // Weapon tip position

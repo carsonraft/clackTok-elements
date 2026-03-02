@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sprite Alignment Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; padding: 16px; }
+        h1 { color: #D4A853; text-align: center; font-size: 22px; margin-bottom: 12px; }
+
+        /* ── Sprite Grid ─────────────────────── */
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            max-width: 720px;
+            margin: 0 auto 16px;
+        }
+        .sprite-btn {
+            background: #16213e;
+            border: 2px solid #333;
+            border-radius: 4px;
+            padding: 4px 2px;
+            cursor: pointer;
+            text-align: center;
+            transition: border-color 0.15s, background 0.15s;
+            min-height: 52px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .sprite-btn:hover { background: #1a2e4a; }
+        .sprite-btn.selected { border-color: #FFD700; background: #1a2e4a; }
+        .sprite-btn.edited { position: relative; }
+        .sprite-btn.edited::after {
+            content: '';
+            position: absolute; top: 2px; right: 2px;
+            width: 6px; height: 6px;
+            background: #4ade80; border-radius: 50%;
+        }
+        .sprite-btn .label { font-size: 8px; color: #aaa; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 80px; }
+        .sprite-btn .cat { font-size: 7px; border-radius: 2px; padding: 0 3px; margin-top: 2px; }
+        .cat-proj { color: #f87171; }
+        .cat-melee { color: #60a5fa; }
+        .cat-custom { color: #c084fc; }
+        .cat-static { color: #fbbf24; }
+        .cat-static { color: #888; }
+
+        /* ── Editor Panel ───────────────────── */
+        #editor {
+            max-width: 720px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #previewWrap { position: relative; flex-shrink: 0; }
+        #previewCanvas { border: 2px solid #333; border-radius: 8px; background: #F5F0E8; }
+        #spriteName {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #FFD700;
+            min-height: 20px;
+        }
+
+        /* ── Controls ───────────────────────── */
+        #controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 260px;
+            flex: 1;
+        }
+        .control-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .control-row label {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+        .control-row label span { color: #FFD700; }
+        .control-row input[type="range"] { width: 100%; accent-color: #D4A853; }
+        .snap-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .snap-btn {
+            padding: 3px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            background: #1a2a2a;
+            color: #67e8f9;
+            border: 1px solid #444;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .snap-btn:hover { background: #203a3a; }
+        .btn-row { display: flex; gap: 8px; margin-top: 4px; }
+        .btn {
+            flex: 1;
+            padding: 8px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            border: 2px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.15s;
+        }
+        .btn-reset { background: #2a1a1a; color: #f87171; }
+        .btn-reset:hover { background: #3a2020; }
+        .btn-resetall { background: #1a1a2a; color: #818cf8; }
+        .btn-resetall:hover { background: #20203a; }
+        .btn-export { background: #1a2a1a; color: #4ade80; }
+        .btn-export:hover { background: #203a20; }
+
+        /* ── Stat Sections ────────── */
+        .stat-section {
+            border-top: 1px solid #333;
+            padding-top: 10px;
+            margin-top: 6px;
+        }
+        .stat-section h3 {
+            font-size: 11px;
+            color: #D4A853;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-section .control-row label { color: #a88; }
+        .stat-section .control-row label span { color: #f87171; }
+
+        /* ── Info ─────────────────── */
+        #info {
+            font-size: 10px; color: #666; text-align: center;
+            margin-top: 4px;
+        }
+        #hint {
+            text-align: center; font-size: 11px; color: #555;
+            margin-top: 12px; max-width: 720px; margin-left: auto; margin-right: auto;
+        }
+
+        /* ── Category filter ────── */
+        #filterRow {
+            display: flex; gap: 6px; justify-content: center;
+            max-width: 720px; margin: 0 auto 8px;
+        }
+        .filter-btn {
+            padding: 4px 10px; font-family: 'Courier New', monospace; font-size: 10px;
+            background: #16213e; color: #888; border: 1px solid #333;
+            border-radius: 3px; cursor: pointer;
+        }
+        .filter-btn.active { border-color: #D4A853; color: #D4A853; }
+        .filter-btn:hover { background: #1a2e4a; }
+    </style>
+</head>
+<body>
+    <h1>SPRITE ALIGNMENT EDITOR</h1>
+
+    <div id="filterRow"></div>
+    <div id="grid"></div>
+
+    <div id="editor">
+        <div id="previewWrap">
+            <div id="spriteName">Select a sprite</div>
+            <canvas id="previewCanvas" width="300" height="300"></canvas>
+            <div id="info">Click the circle to set travel direction</div>
+        </div>
+        <div id="controls">
+            <div class="control-row">
+                <label>Angle Offset <span id="angleVal">0.0&deg;</span></label>
+                <input type="range" id="angleSlider" min="-180" max="180" step="1" value="0">
+                <div class="snap-row">
+                    <div class="snap-btn" data-angle="0">0</div>
+                    <div class="snap-btn" data-angle="45">45</div>
+                    <div class="snap-btn" data-angle="90">90</div>
+                    <div class="snap-btn" data-angle="135">135</div>
+                    <div class="snap-btn" data-angle="180">180</div>
+                    <div class="snap-btn" data-angle="-45">-45</div>
+                    <div class="snap-btn" data-angle="-90">-90</div>
+                    <div class="snap-btn" data-angle="-135">-135</div>
+                </div>
+            </div>
+            <div class="control-row">
+                <label>Anchor (forward shift) <span id="anchorVal">0.00</span></label>
+                <input type="range" id="anchorSlider" min="-1.0" max="1.0" step="0.05" value="0">
+            </div>
+            <!-- Size Scale removed: sprite size must equal hitbox size (v80 rule) -->
+            <!-- Projectile Stats (shown for proj category) -->
+            <div class="stat-section" id="projStats" style="display:none">
+                <h3>Projectile Stats</h3>
+                <div class="control-row">
+                    <label>Speed <span id="projSpeedVal">-</span></label>
+                    <input type="range" id="projSpeedSlider" min="0" max="20" step="0.5" value="7">
+                </div>
+                <div class="control-row">
+                    <label>Size (px) <span id="projRadiusVal">-</span> <span style="color:#666;font-size:9px">= hitbox</span></label>
+                    <input type="range" id="projRadiusSlider" min="2" max="60" step="1" value="8">
+                </div>
+                <div class="control-row">
+                    <label>Damage <span id="projDmgVal">-</span></label>
+                    <input type="range" id="projDmgSlider" min="0" max="30" step="1" value="5">
+                </div>
+                <div class="control-row">
+                    <label>Lifespan (frames) <span id="projLifeVal">-</span> <span style="color:#666;font-size:9px" id="projLifeSec"></span></label>
+                    <input type="range" id="projLifeSlider" min="10" max="600" step="5" value="120">
+                </div>
+                <div class="control-row">
+                    <label>Bounces <span id="projBounceVal">-</span></label>
+                    <input type="range" id="projBounceSlider" min="0" max="10" step="1" value="0">
+                </div>
+            </div>
+
+            <!-- Melee/Weapon Stats (shown for melee category) -->
+            <div class="stat-section" id="meleeStats" style="display:none">
+                <h3>Weapon Stats</h3>
+                <div class="control-row">
+                    <label>Base Damage <span id="melDmgVal">-</span></label>
+                    <input type="range" id="melDmgSlider" min="0" max="30" step="1" value="5">
+                </div>
+                <div class="control-row">
+                    <label>Reach (px) <span id="melReachVal">-</span></label>
+                    <input type="range" id="melReachSlider" min="10" max="200" step="2" value="70">
+                </div>
+                <div class="control-row">
+                    <label>Rotation Speed <span id="melRotVal">-</span></label>
+                    <input type="range" id="melRotSlider" min="0" max="0.25" step="0.005" value="0.05">
+                </div>
+            </div>
+
+            <!-- Static hazard stats (shown for static category) -->
+            <div class="stat-section" id="staticStats" style="display:none">
+                <h3>Hazard Stats</h3>
+                <div class="control-row">
+                    <label>Radius (px) <span id="staticRadiusVal">-</span></label>
+                    <input type="range" id="staticRadiusSlider" min="6" max="40" step="1" value="12" style="accent-color:#fbbf24">
+                </div>
+                <div class="control-row">
+                    <label>Damage <span id="staticDmgVal">-</span></label>
+                    <input type="range" id="staticDmgSlider" min="0" max="10" step="1" value="1" style="accent-color:#fbbf24">
+                </div>
+            </div>
+
+            <!-- Custom weapon params (dynamically populated per weapon type) -->
+            <div class="stat-section" id="customStats" style="display:none">
+                <h3 id="customStatsTitle">Custom Params</h3>
+                <div id="customSliders"></div>
+            </div>
+
+            <div class="btn-row">
+                <div class="btn btn-reset" id="btnReset">RESET</div>
+                <div class="btn btn-resetall" id="btnResetAll">RESET ALL</div>
+            </div>
+            <div class="btn-row">
+                <div class="btn btn-export" id="btnExport">COPY JSON</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="hint">Adjust angle offset until the sprite's "business end" points in the travel direction. Changes auto-save to localStorage.</div>
+
+<script>
+// ─── Sprite Metadata ─────────────────────────────────────────
+// Each entry: { key, label, category, defaultAngle, defaultAnchor, defaultSize, weaponType }
+// category: 'proj'=projectile, 'melee'=melee spinners, 'custom'=custom draw(), 'static'=static on ball
+// wtype = weapon type string used for wb_weapon_config key
+// defSpeed/defRadius/defLife/defBounces/defProjDmg = projectile defaults
+// defBaseDmg/defReach/defRotSpd = melee weapon defaults
+var SPRITES = [
+    // ── Projectile sprites ──
+    { key: 'alabama-rocket',    label: 'AL Rocket',      cat: 'proj', wtype: 'alabama',     defAngle: -135, defAnchor: 0.5, defSpeed: 7,   defRadius: 8,  defLife: 120, defBounces: 0, defProjDmg: 7 },
+    { key: 'az-phoenix',        label: 'AZ Phoenix',     cat: 'proj', wtype: 'arizona',     defAngle: 135,  defAnchor: 0.5, defSpeed: 7,   defRadius: 8,  defLife: 120, defBounces: 0, defProjDmg: 5 },
+    { key: 'arkansas-shard',    label: 'AR Diamond',     cat: 'static', wtype: 'arkansas',  defAngle: 0,    defAnchor: 0,   defSpeed: 0,   defRadius: 8,  defLife: 999, defBounces: 0, defProjDmg: 4 },
+    { key: 'florida-jaw',       label: 'FL Gator',       cat: 'proj', wtype: 'florida',     defAngle: 0,    defAnchor: 0.5, defSpeed: 6,   defRadius: 10, defLife: 120, defBounces: 0, defProjDmg: 6 },
+    { key: 'hawaii-lava',       label: 'HI Lava',        cat: 'proj', wtype: 'hawaii',      defAngle: 0,    defAnchor: 0,   defSpeed: 5,   defRadius: 8,  defLife: 90,  defBounces: 0, defProjDmg: 4 },
+    { key: 'idaho-kernel',      label: 'ID Kernel',      cat: 'proj', wtype: 'idaho',       defAngle: 0,    defAnchor: 0,   defSpeed: 6,   defRadius: 7,  defLife: 55,  defBounces: 0, defProjDmg: 2 },
+    { key: 'idaho-popcorn',     label: 'ID Popcorn',     cat: 'proj', wtype: 'idaho',       defAngle: 0,    defAnchor: 0,   defSpeed: 5,   defRadius: 7,  defLife: 70,  defBounces: 1, defProjDmg: 3 },
+    { key: 'maine-claw',        label: 'ME Claw',        cat: 'proj', wtype: 'maine',       defAngle: -90,  defAnchor: 0.3, defSpeed: 6,   defRadius: 10, defLife: 120, defBounces: 0, defProjDmg: 4 },
+    { key: 'massachusetts-hex', label: 'MA Hex',         cat: 'proj', wtype: 'massachusetts',defAngle: 0,   defAnchor: 0,   defSpeed: 7,   defRadius: 8,  defLife: 100, defBounces: 0, defProjDmg: 2 },
+    { key: 'minnesota-puck',    label: 'MN Puck',        cat: 'proj', wtype: 'minnesota',   defAngle: 0,    defAnchor: 0,   defSpeed: 8,   defRadius: 8,  defLife: 90,  defBounces: 2, defProjDmg: 5 },
+    { key: 'nh-boulder',        label: 'NH Boulder',     cat: 'proj', wtype: 'new-hampshire',defAngle: 0,   defAnchor: 0,   defSpeed: 5,   defRadius: 10, defLife: 150, defBounces: 0, defProjDmg: 4 },
+    { key: 'newjersey-pill',    label: 'NJ Pill',        cat: 'proj', wtype: 'new-jersey',  defAngle: -45,  defAnchor: 0,   defSpeed: 6.5, defRadius: 8,  defLife: 90,  defBounces: 0, defProjDmg: 3 },
+    { key: 'newmexico-chile',   label: 'NM Chile',       cat: 'proj', wtype: 'new-mexico',  defAngle: 45,   defAnchor: 0.3, defSpeed: 7,   defRadius: 8,  defLife: 90,  defBounces: 0, defProjDmg: 4 },
+    { key: 'newyork-dart',      label: 'NY Dart',        cat: 'proj', wtype: 'new-york',    defAngle: -45,  defAnchor: 0.5, defSpeed: 8,   defRadius: 10, defLife: 200, defBounces: 2, defProjDmg: 5 },
+    { key: 'newyork-terrain',   label: 'NY Skyscraper',  cat: 'static', wtype: 'new-york',  defAngle: 0,    defAnchor: 0,   defSpeed: 0,   defRadius: 12, defLife: 999, defBounces: 0, defProjDmg: 3 },
+    { key: 'northdakota-oil',   label: 'ND Oil',         cat: 'proj', wtype: 'north-dakota', defAngle: 0,   defAnchor: 0,   defSpeed: 7,   defRadius: 8,  defLife: 90,  defBounces: 0, defProjDmg: 4 },
+    { key: 'oklahoma-turbine',  label: 'OK Turbine',     cat: 'proj', wtype: 'oklahoma',    defAngle: -90,  defAnchor: 0.2, defSpeed: 6,   defRadius: 8,  defLife: 90,  defBounces: 0, defProjDmg: 4 },
+    { key: 'vt-broken-bottle',  label: 'VT Bottle',      cat: 'proj', wtype: 'vermont',     defAngle: 0,    defAnchor: 0.3, defSpeed: 5,   defRadius: 8,  defLife: 90,  defBounces: 0, defProjDmg: 3 },
+    { key: 'washington-bean',   label: 'WA Bean',        cat: 'proj', wtype: 'washington',   defAngle: 0,    defAnchor: 0,   defSpeed: 8,   defRadius: 7,  defLife: 60,  defBounces: 0, defProjDmg: 2 },
+    { key: 'wisconsin-cheese',  label: 'WI Cheese',      cat: 'proj', wtype: 'wisconsin',   defAngle: 0,    defAnchor: 0,   defSpeed: 7,   defRadius: 10, defLife: 120, defBounces: 2, defProjDmg: 5 },
+    { key: 'la-bead-purple',    label: 'LA Bead P',      cat: 'proj', wtype: 'louisiana',   defAngle: 0,    defAnchor: 0,   defSpeed: 5,   defRadius: 6,  defLife: 80,  defBounces: 0, defProjDmg: 2 },
+    { key: 'la-bead-gold',      label: 'LA Bead G',      cat: 'proj', wtype: 'louisiana',   defAngle: 0,    defAnchor: 0,   defSpeed: 5,   defRadius: 6,  defLife: 80,  defBounces: 0, defProjDmg: 2 },
+    { key: 'la-bead-green',     label: 'LA Bead Gr',     cat: 'proj', wtype: 'louisiana',   defAngle: 0,    defAnchor: 0,   defSpeed: 5,   defRadius: 6,  defLife: 80,  defBounces: 0, defProjDmg: 2 },
+    { key: 'southdakota-washington', label: 'SD Wash',    cat: 'static', wtype: 'south-dakota', defAngle: 0, defAnchor: 0, defSpeed: 0, defRadius: 12, defLife: 999, defBounces: 0, defProjDmg: 1 },
+    { key: 'southdakota-jefferson',  label: 'SD Jeff',    cat: 'static', wtype: 'south-dakota', defAngle: 0, defAnchor: 0, defSpeed: 0, defRadius: 12, defLife: 999, defBounces: 0, defProjDmg: 2 },
+    { key: 'southdakota-roosevelt',  label: 'SD Roos',    cat: 'static', wtype: 'south-dakota', defAngle: 0, defAnchor: 0, defSpeed: 0, defRadius: 12, defLife: 999, defBounces: 0, defProjDmg: 3 },
+    { key: 'southdakota-lincoln',    label: 'SD Linc',    cat: 'static', wtype: 'south-dakota', defAngle: 0, defAnchor: 0, defSpeed: 0, defRadius: 12, defLife: 999, defBounces: 0, defProjDmg: 4 },
+
+    // ── Melee sprites ──
+    { key: 'connecticut-briefcase', label: 'CT Briefcase', cat: 'melee', wtype: 'connecticut',    defAngle: 90,   defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+    { key: 'georgia-fizz',          label: 'GA Fizz',      cat: 'melee', wtype: 'georgia',         defAngle: -45,  defAnchor: 0, defBaseDmg: 3, defReach: 65, defRotSpd: 0.045 },
+    { key: 'illinois-cutter',       label: 'IL Cutter',    cat: 'melee', wtype: 'illinois',        defAngle: 135,  defAnchor: 0, defBaseDmg: 4, defReach: 75, defRotSpd: 0.05 },
+    { key: 'iowa-stalk',            label: 'IA Stalk',     cat: 'melee', wtype: 'iowa',            defAngle: 90,   defAnchor: 0, defBaseDmg: 5, defReach: 70, defRotSpd: 0.04 },
+    { key: 'kansas-funnel',         label: 'KS Funnel',    cat: 'melee', wtype: 'kansas',          defAngle: 90,   defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.05 },
+    { key: 'kentucky-barrel',       label: 'KY Barrel',    cat: 'melee', wtype: 'kentucky',        defAngle: 90,   defAnchor: 0, defBaseDmg: 5, defReach: 65, defRotSpd: 0.04 },
+    { key: 'maryland-claw',         label: 'MD Claw',      cat: 'melee', wtype: 'maryland',        defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.05 },
+    { key: 'minnesota-stick',       label: 'MN Stick',     cat: 'melee', wtype: 'minnesota',       defAngle: 135,  defAnchor: 0, defBaseDmg: 4, defReach: 75, defRotSpd: 0.04 },
+    { key: 'missouri-arch',         label: 'MO Arch',      cat: 'melee', wtype: 'missouri',        defAngle: 90,   defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+    { key: 'nevada-slot',           label: 'NV Slot',      cat: 'melee', wtype: 'nevada',          defAngle: 45,   defAnchor: 0, defBaseDmg: 5, defReach: 70, defRotSpd: 0.04 },
+    { key: 'oregon-log',            label: 'OR Log',       cat: 'melee', wtype: 'oregon',          defAngle: 0,    defAnchor: 0, defBaseDmg: 5, defReach: 75, defRotSpd: 0.04 },
+    { key: 'pennsylvania-bell',     label: 'PA Bell',      cat: 'melee', wtype: 'pennsylvania',    defAngle: 90,   defAnchor: 0, defBaseDmg: 5, defReach: 70, defRotSpd: 0.04 },
+    { key: 'rhodeisland-anchor',    label: 'RI Anchor',    cat: 'melee', wtype: 'rhode-island',    defAngle: 90,   defAnchor: 0, defBaseDmg: 4, defReach: 65, defRotSpd: 0.045 },
+    { key: 'southcarolina-frond',   label: 'SC Frond',     cat: 'melee', wtype: 'south-carolina',  defAngle: 90,   defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.05 },
+    { key: 'texas-spur-2',          label: 'TX Spur',      cat: 'melee', wtype: 'texas',           defAngle: 180,  defAnchor: 0, defBaseDmg: 5, defReach: 70, defRotSpd: 0.035 },
+    { key: 'utah-crystal',          label: 'UT Crystal',   cat: 'melee', wtype: 'utah',            defAngle: -135, defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+    { key: 'virginia-saber',        label: 'VA Saber',     cat: 'melee', wtype: 'virginia',        defAngle: -45,  defAnchor: 0, defBaseDmg: 5, defReach: 80, defRotSpd: 0.04 },
+    { key: 'westvirginia-pickaxe',  label: 'WV Pickaxe',   cat: 'melee', wtype: 'west-virginia',   defAngle: -135, defAnchor: 0, defBaseDmg: 5, defReach: 75, defRotSpd: 0.04 },
+
+    // ── Custom draw sprites ──
+    { key: 'alaska-harpoon',        label: 'AK Harpoon',    cat: 'custom', wtype: 'alaska',         defAngle: -135, defAnchor: 0, defBaseDmg: 2, defReach: 0,  defRotSpd: 0 },
+    { key: 'california-sword',      label: 'CA Sword',      cat: 'custom', wtype: 'california',     defAngle: 0,    defAnchor: 0, defBaseDmg: 5, defReach: 80, defRotSpd: 0.04 },
+    { key: 'colorado-boulder',      label: 'CO Boulder',    cat: 'custom', wtype: 'colorado',       defAngle: 0,    defAnchor: 0, defBaseDmg: 3, defReach: 0,  defRotSpd: 0 },
+    { key: 'delaware-shell',        label: 'DE Shell',      cat: 'custom', wtype: 'delaware',       defAngle: 0,    defAnchor: 0, defBaseDmg: 2, defReach: 0,  defRotSpd: 0 },
+    { key: 'indiana-tire',          label: 'IN Tire',       cat: 'custom', wtype: 'indiana',        defAngle: 0,    defAnchor: 0, defBaseDmg: 3, defReach: 0,  defRotSpd: 0 },
+    { key: 'michigan-gear',         label: 'MI Gear',       cat: 'custom', wtype: 'michigan',       defAngle: 0,    defAnchor: 0, defBaseDmg: 3, defReach: 0,  defRotSpd: 0 },
+    { key: 'mississippi-paddle',    label: 'MS Paddle',     cat: 'custom', wtype: 'mississippi',    defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 80, defRotSpd: 0.04 },
+    { key: 'montana-antler',        label: 'MT Antler',     cat: 'custom', wtype: 'montana',        defAngle: 0,    defAnchor: 0, defBaseDmg: 5, defReach: 85, defRotSpd: 0.04 },
+    { key: 'nebraska-horns',        label: 'NE Horns',      cat: 'custom', wtype: 'nebraska',       defAngle: 0,    defAnchor: 0, defBaseDmg: 3, defReach: 0,  defRotSpd: 0 },
+    { key: 'northcarolina-prop',    label: 'NC Prop',       cat: 'custom', wtype: 'north-carolina', defAngle: 0,    defAnchor: 0, defBaseDmg: 3, defReach: 0,  defRotSpd: 0 },
+    { key: 'ohio-football',         label: 'OH Football',   cat: 'custom', wtype: 'ohio',           defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+    { key: 'southcarolina-saber',   label: 'SC Saber',      cat: 'custom', wtype: 'south-carolina', defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.05 },
+    { key: 'tennessee-banjo',       label: 'TN Banjo',      cat: 'custom', wtype: 'tennessee',      defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 50, defRotSpd: 0.04, desc: 'Banjo cosmetic overlay on ball. Weapon fires note projectiles.' },
+    { key: 'tennessee-note',        label: 'TN Note',       cat: 'proj',   wtype: 'tennessee',      defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 0,  defRotSpd: 0, desc: 'Music note projectile. Starts 1, scales to 5 per volley.', defSpeed: 6, defRadius: 8, defLifespan: 100, defBounces: 1 },
+    { key: 'texas-spur',            label: 'TX Spur 1',     cat: 'custom', wtype: 'texas',          defAngle: 0,    defAnchor: 0, defBaseDmg: 5, defReach: 70, defRotSpd: 0.035 },
+    { key: 'vermont-syrup',         label: 'VT Syrup',      cat: 'custom', wtype: 'vermont',        defAngle: 0,    defAnchor: 0, defBaseDmg: 3, defReach: 60, defRotSpd: 0.04 },
+    { key: 'wyoming-geyser',        label: 'WY Geyser',     cat: 'custom', wtype: 'wyoming',        defAngle: 0,    defAnchor: 0, defBaseDmg: 3, defReach: 0,  defRotSpd: 0 },
+    { key: 'la-mask1',              label: 'LA Mask1',       cat: 'custom', wtype: 'louisiana',      defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+    { key: 'la-mask2',              label: 'LA Mask2',       cat: 'custom', wtype: 'louisiana',      defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+    { key: 'la-mask3',              label: 'LA Mask3',       cat: 'custom', wtype: 'louisiana',      defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+    { key: 'la-mask4',              label: 'LA Mask4',       cat: 'custom', wtype: 'louisiana',      defAngle: 0,    defAnchor: 0, defBaseDmg: 4, defReach: 70, defRotSpd: 0.04 },
+];
+
+// ─── Per-weapon custom parameters ────────────────────────────
+// Each key = weapon type. Each param: { label, prop, def, min, max, step }
+// 'prop' = exact property name on the weapon class instance
+var CUSTOM_PARAMS = {
+    'alaska': [
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 75, min: 20, max: 150, step: 5 },
+    ],
+    'california': [
+        // Melee spinner — quake mechanics are in applyScaling/onHit, baseDamage/reach/rotSpeed covered by melee sliders
+    ],
+    'colorado': [
+        { label: 'Gravity Mult',     prop: 'gravityMultiplier',   def: 1.1,  min: 1.0, max: 2.0,  step: 0.05 },
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 70,   min: 20,  max: 150,  step: 5 },
+    ],
+    'delaware': [
+        { label: 'Max Shells',       prop: 'maxShells',           def: 2,    min: 1,   max: 5,    step: 1 },
+        { label: 'Shell HP',         prop: 'shellHP',             def: 4,    min: 1,   max: 15,   step: 1 },
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 70,   min: 20,  max: 150,  step: 5 },
+    ],
+    'indiana': [
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 75,   min: 20,  max: 150,  step: 5 },
+    ],
+    'michigan': [
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 60,   min: 20,  max: 150,  step: 5 },
+    ],
+    'mississippi': [
+        // Melee spinner — current strength builds from 0, baseDamage/reach/rotSpeed covered by melee sliders
+    ],
+    'montana': [
+        { label: 'Antler Points',    prop: 'antlerPoints',        def: 2,    min: 1,   max: 6,    step: 1 },
+    ],
+    'nebraska': [
+        { label: 'Charge Speed',     prop: 'chargeSpeed',         def: 6,    min: 2,   max: 12,   step: 0.5 },
+        { label: 'Charge Duration',  prop: 'chargeDuration',      def: 90,   min: 30,  max: 180,  step: 5 },
+        { label: 'Pause Duration',   prop: 'pauseDuration',       def: 50,   min: 15,  max: 100,  step: 5 },
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 50,   min: 20,  max: 150,  step: 5 },
+    ],
+    'north-carolina': [
+        { label: 'Glide Duration',   prop: 'glideDuration',       def: 20,   min: 5,   max: 60,   step: 1 },
+        { label: 'Glide Speed',      prop: 'glideSpeed',          def: 2,    min: 0.5, max: 5,    step: 0.25 },
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 70,   min: 20,  max: 150,  step: 5 },
+    ],
+    'ohio': [
+        { label: 'Charge Speed',     prop: 'chargeSpeed',         def: 6,    min: 2,   max: 12,   step: 0.5 },
+        { label: 'Charge Duration',  prop: 'chargeDuration',      def: 80,   min: 30,  max: 180,  step: 5 },
+        { label: 'Pause Duration',   prop: 'pauseDuration',       def: 55,   min: 15,  max: 100,  step: 5 },
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 45,   min: 20,  max: 150,  step: 5 },
+    ],
+    'south-carolina': [
+        { label: 'Sweep Arc (deg)',   prop: 'sweepArc',           def: 45,   min: 10,  max: 180,  step: 5 },
+    ],
+    'tennessee': [
+        { label: 'Pulse Rate',       prop: 'basePulseRate',       def: 38,   min: 10,  max: 80,   step: 2 },
+        { label: 'Knockback',        prop: 'knockback',           def: 4,    min: 1,   max: 12,   step: 0.5 },
+    ],
+    'texas': [
+        // Melee spinner with size growth — baseDamage/reach/rotSpeed covered by melee sliders
+    ],
+    'vermont': [
+        { label: 'Fire Rate',        prop: 'fireRate',            def: 100,  min: 30,  max: 200,  step: 5 },
+        { label: 'Hazard Lifespan',  prop: 'hazardLifespan',      def: 240,  min: 60,  max: 600,  step: 10 },
+    ],
+    'wyoming': [
+        { label: 'Geyser Force',     prop: 'geyserForce',         def: 3,    min: 1,   max: 10,   step: 0.5 },
+        { label: 'Contact Cooldown', prop: 'contactCooldownTime', def: 88,   min: 20,  max: 150,  step: 5 },
+    ],
+    'louisiana': [
+        { label: 'Clone Rate',       prop: '_cloneRate',          def: 130,  min: 40,  max: 250,  step: 5 },
+        { label: 'Max Clones',       prop: '_maxClones',          def: 3,    min: 1,   max: 8,    step: 1 },
+        { label: 'Bead Count',       prop: '_beadCount',          def: 3,    min: 1,   max: 10,   step: 1 },
+    ],
+};
+
+var SPRITE_STORAGE_KEY = 'wb_sprite_config';
+var WEAPON_STORAGE_KEY = 'wb_weapon_config';
+var config = {};       // sprite-keyed: visual + projectile overrides
+var weaponConfig = {}; // weapon-type-keyed: baseDamage, reach, rotationSpeed, + custom params
+var selected = null;
+var travelAngle = 0; // radians, 0 = right
+var atlasCanvas = null;
+var atlasGrid = {};
+var atlasGridSize = 8;
+var atlasCellSize = 128;
+var atlasLoaded = false;
+var filterCat = 'all';
+
+// ─── Load/Save localStorage ────────────────────────
+function loadConfig() {
+    try { config = JSON.parse(localStorage.getItem(SPRITE_STORAGE_KEY)) || {}; } catch(e) { config = {}; }
+    try { weaponConfig = JSON.parse(localStorage.getItem(WEAPON_STORAGE_KEY)) || {}; } catch(e) { weaponConfig = {}; }
+}
+function saveConfig() {
+    localStorage.setItem(SPRITE_STORAGE_KEY, JSON.stringify(config));
+    localStorage.setItem(WEAPON_STORAGE_KEY, JSON.stringify(weaponConfig));
+}
+
+// ─── Get effective values for a sprite ─────────────
+function getValues(spriteData) {
+    var override = config[spriteData.key] || {};
+    return {
+        angleOffset: override.angleOffset != null ? override.angleOffset : (spriteData.defAngle * Math.PI / 180),
+        anchor: override.anchor != null ? override.anchor : spriteData.defAnchor,
+        // size removed: sprite must match hitbox (v80 rule)
+    };
+}
+
+// Get projectile stat overrides (from wb_sprite_config, keyed by sprite key)
+function getProjStats(spriteData) {
+    var ov = config[spriteData.key] || {};
+    return {
+        speed:    ov.projectileSpeed    != null ? ov.projectileSpeed    : spriteData.defSpeed,
+        radius:   ov.projectileRadius   != null ? ov.projectileRadius   : spriteData.defRadius,
+        damage:   ov.projectileDamage   != null ? ov.projectileDamage   : spriteData.defProjDmg,
+        lifespan: ov.projectileLifespan != null ? ov.projectileLifespan : spriteData.defLife,
+        bounces:  ov.projectileBounces  != null ? ov.projectileBounces  : spriteData.defBounces,
+    };
+}
+
+// Get weapon stat overrides (from wb_weapon_config, keyed by weapon type)
+function getWeaponStats(spriteData) {
+    var ov = (spriteData.wtype && weaponConfig[spriteData.wtype]) || {};
+    return {
+        baseDamage:    ov.baseDamage    != null ? ov.baseDamage    : spriteData.defBaseDmg,
+        reach:         ov.reach         != null ? ov.reach         : spriteData.defReach,
+        rotationSpeed: ov.rotationSpeed != null ? ov.rotationSpeed : spriteData.defRotSpd,
+    };
+}
+
+// ─── Atlas Loading ─────────────────────────────────
+// We load the same PNGs that weapon-icons-states.js uses
+// and pack them into a 2D canvas atlas for the editor preview.
+function loadAtlas() {
+    // Import the PNG map from weapon-icons-states.js if available
+    var PNGS = {
+        'alabama-rocket':       'alabamaRocket',
+        'arkansas-shard':       'arkansasDiamond',
+        'california-sword':     'californiaBlade',
+        'colorado-boulder':     'coloradoBoulder',
+        'connecticut-briefcase':'connecticutBriefcase',
+        'delaware-shell':       'delawareShell',
+        'georgia-fizz':         'georgiaBottle',
+        'hawaii-lava':          'hawaiiLavaRock',
+        'idaho-kernel':         'idahoKernel',
+        'idaho-popcorn':        'idahoPopcorn',
+        'illinois-cutter':      'illinoisPizzaCutter',
+        'indiana-tire':         'indianaTire',
+        'iowa-stalk':           'iowaCorn',
+        'kansas-funnel':        'kansasTornado',
+        'kentucky-barrel':      'kentuckyBarrel',
+        'maine-claw':           'maineLobster',
+        'maryland-claw':        'marylandClaw',
+        'massachusetts-hex':    'massachusettsHex',
+        'michigan-gear':        'michiganGear',
+        'minnesota-stick':      'minnesotaStick',
+        'mississippi-paddle':   'mississippiPaddle',
+        'missouri-arch':        'missouriArch',
+        'montana-antler':       'montanaAntlers',
+        'nebraska-horns':       'nebraskaHorns',
+        'nevada-slot':          'nevadaSlotLever',
+        'newjersey-pill':       'newJerseyPill',
+        'newmexico-chile':      'newMexicoChile',
+        'newyork-dart':         'newYorkDart',
+        'newyork-terrain':      'newYorkSkyscraper',
+        'northcarolina-prop':   'northCarolinaPropeller',
+        'northdakota-oil':      'northDakotaOilGlob',
+        'ohio-football':        'ohioFootball',
+        'oklahoma-turbine':     'oklahomaTurbine',
+        'oregon-log':           'oregonLog',
+        'alaska-harpoon':       'oregonSpear',
+        'pennsylvania-bell':    'pennsylvaniaBell',
+        'rhodeisland-anchor':   'rhodeIslandAnchor',
+        'southcarolina-frond':  'southCarolinaFrond',
+        'southcarolina-saber':  'southCarolinaSaber',
+        'tennessee-banjo':      'tennesseeBanjo',
+        'tennessee-note':       'tennesseeNote',
+        'texas-spur':           'texasSpur1',
+        'texas-spur-2':         'texasSpur2',
+        'vermont-syrup':        'vermontSyrup',
+        'virginia-saber':       'virginiaSaber',
+        'washington-bean':      'washingtonBean',
+        'westvirginia-pickaxe': 'westVirginiaPickaxe',
+        'wisconsin-cheese':     'wisconsinCheese',
+        'wyoming-geyser':       'wyomingGeyser',
+        'southdakota-washington':'southDakotaWashington',
+        'southdakota-jefferson': 'southDakotaJefferson',
+        'southdakota-roosevelt': 'southDakotaRoosevelt',
+        'southdakota-lincoln':   'southDakotaLincoln',
+        'nh-boulder':            'newHampshireBoulder',
+        'vt-broken-bottle':      'vermontBrokenBottle',
+        'la-mask1':              'louisianaMask1',
+        'la-mask2':              'louisianaMask2',
+        'la-mask3':              'louisianaMask3',
+        'la-mask4':              'louisianaMask4',
+        'az-phoenix':            'arizonaPhoenix',
+        'la-bead-purple':        'louisianaBeadPurple',
+        'la-bead-gold':          'louisianaBeadGold',
+        'la-bead-green':         'louisianaBeadGreen',
+        'minnesota-puck':        'minnesotaStick',
+        'utah-crystal':          'southCarolinaSaber',
+    };
+
+    // Florida gator is 4 quadrants
+    var STITCHED = {
+        'florida-jaw': { layout: [2,2], pieces: ['floridaGator1','floridaGator2','floridaGator3','floridaGator4'] }
+    };
+
+    // Build grid map
+    var allKeys = Object.keys(PNGS).concat(Object.keys(STITCHED));
+    for (var i = 0; i < allKeys.length; i++) {
+        atlasGrid[allKeys[i]] = [i % atlasGridSize, Math.floor(i / atlasGridSize)];
+    }
+
+    atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = 1024;
+    atlasCanvas.height = 1024;
+    var ctx = atlasCanvas.getContext('2d');
+
+    var normalKeys = Object.keys(PNGS);
+    var stitchedKeys = Object.keys(STITCHED);
+    var total = normalKeys.length + stitchedKeys.length;
+    var done = 0;
+
+    function checkDone() {
+        done++;
+        if (done >= total) {
+            atlasLoaded = true;
+            requestAnimationFrame(drawPreview);
+        }
+    }
+
+    normalKeys.forEach(function(key) {
+        var pos = atlasGrid[key];
+        var img = new Image();
+        img.onload = function() {
+            var cx = pos[0] * atlasCellSize;
+            var cy = pos[1] * atlasCellSize;
+            var scale = Math.min(atlasCellSize / img.naturalWidth, atlasCellSize / img.naturalHeight);
+            var dw = Math.round(img.naturalWidth * scale);
+            var dh = Math.round(img.naturalHeight * scale);
+            var ox = Math.round((atlasCellSize - dw) / 2);
+            var oy = Math.round((atlasCellSize - dh) / 2);
+            ctx.drawImage(img, cx + ox, cy + oy, dw, dh);
+            checkDone();
+        };
+        img.onerror = checkDone;
+        img.src = 'assets/pixel-icons/' + PNGS[key] + '.png';
+    });
+
+    stitchedKeys.forEach(function(key) {
+        var spec = STITCHED[key];
+        var pos = atlasGrid[key];
+        var cols = spec.layout[0], rows = spec.layout[1];
+        var pieces = spec.pieces;
+        var loaded = 0;
+        var imgs = new Array(pieces.length);
+        pieces.forEach(function(name, idx) {
+            var img = new Image();
+            img.onload = function() {
+                imgs[idx] = img;
+                loaded++;
+                if (loaded === pieces.length) {
+                    var pw = imgs[0].naturalWidth, ph = imgs[0].naturalHeight;
+                    var tmp = document.createElement('canvas');
+                    tmp.width = cols * pw; tmp.height = rows * ph;
+                    var tc = tmp.getContext('2d');
+                    for (var p = 0; p < pieces.length; p++) {
+                        if (imgs[p]) tc.drawImage(imgs[p], (p % cols) * pw, Math.floor(p / cols) * ph);
+                    }
+                    var cx = pos[0] * atlasCellSize, cy = pos[1] * atlasCellSize;
+                    var scale = Math.min(atlasCellSize / tmp.width, atlasCellSize / tmp.height);
+                    var dw = Math.round(tmp.width * scale), dh = Math.round(tmp.height * scale);
+                    ctx.drawImage(tmp, cx + Math.round((atlasCellSize - dw)/2), cy + Math.round((atlasCellSize - dh)/2), dw, dh);
+                    checkDone();
+                }
+            };
+            img.onerror = function() { loaded++; if (loaded === pieces.length) checkDone(); };
+            img.src = 'assets/pixel-icons/' + name + '.png';
+        });
+    });
+}
+
+// ─── Build Grid ────────────────────────────────────
+function buildGrid() {
+    var grid = document.getElementById('grid');
+    // Clear children without innerHTML
+    while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+    var catLabels = { proj: 'PROJ', melee: 'MELEE', custom: 'CUSTOM', static: 'STATIC' };
+    var catClasses = { proj: 'cat-proj', melee: 'cat-melee', custom: 'cat-custom', static: 'cat-static' };
+
+    SPRITES.forEach(function(sp) {
+        if (filterCat !== 'all' && sp.cat !== filterCat) return;
+
+        var btn = document.createElement('div');
+        btn.className = 'sprite-btn';
+        if (config[sp.key]) btn.className += ' edited';
+        if (selected && selected.key === sp.key) btn.className += ' selected';
+
+        var label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = sp.label;
+
+        var cat = document.createElement('div');
+        cat.className = 'cat ' + (catClasses[sp.cat] || '');
+        cat.textContent = catLabels[sp.cat] || sp.cat;
+
+        btn.appendChild(label);
+        btn.appendChild(cat);
+
+        btn.addEventListener('click', function() {
+            selected = sp;
+            syncSliders();
+            buildGrid(); // rebuild to update selected highlight
+            drawPreview();
+        });
+
+        grid.appendChild(btn);
+    });
+}
+
+// ─── Build Filter Row ──────────────────────────────
+function buildFilters() {
+    var row = document.getElementById('filterRow');
+    var cats = ['all', 'proj', 'melee', 'custom', 'static'];
+    var labels = { all: 'ALL', proj: 'PROJECTILE', melee: 'MELEE', custom: 'CUSTOM', static: 'STATIC' };
+    cats.forEach(function(c) {
+        var btn = document.createElement('div');
+        btn.className = 'filter-btn' + (filterCat === c ? ' active' : '');
+        btn.textContent = labels[c];
+        btn.addEventListener('click', function() {
+            filterCat = c;
+            buildFilters();
+            buildGrid();
+        });
+        row.appendChild(btn);
+    });
+}
+
+// ─── Sync sliders to selected sprite ───────────────
+function syncSliders() {
+    if (!selected) return;
+    var v = getValues(selected);
+    document.getElementById('angleSlider').value = Math.round(v.angleOffset * 180 / Math.PI);
+    document.getElementById('anchorSlider').value = v.anchor;
+
+    // Show/hide stat sections based on category
+    var projSection = document.getElementById('projStats');
+    var meleeSection = document.getElementById('meleeStats');
+    var staticSection = document.getElementById('staticStats');
+    var customSection = document.getElementById('customStats');
+    projSection.style.display = 'none';
+    meleeSection.style.display = 'none';
+    staticSection.style.display = 'none';
+    customSection.style.display = 'none';
+
+    if (selected.cat === 'proj') {
+        projSection.style.display = 'block';
+        var ps = getProjStats(selected);
+        document.getElementById('projSpeedSlider').value = ps.speed;
+        document.getElementById('projRadiusSlider').value = ps.radius;
+        document.getElementById('projDmgSlider').value = ps.damage;
+        document.getElementById('projLifeSlider').value = ps.lifespan;
+        document.getElementById('projBounceSlider').value = ps.bounces;
+    } else if (selected.cat === 'static') {
+        staticSection.style.display = 'block';
+        var ov = config[selected.key] || {};
+        document.getElementById('staticRadiusSlider').value = ov.projectileRadius != null ? ov.projectileRadius : selected.defRadius;
+        document.getElementById('staticDmgSlider').value = ov.projectileDamage != null ? ov.projectileDamage : selected.defProjDmg;
+    } else if (selected.cat === 'melee' || selected.cat === 'custom') {
+        // Show melee stats for both melee and custom — they all have weapon types
+        if (selected.defReach > 0 || selected.defBaseDmg > 0) {
+            meleeSection.style.display = 'block';
+            var ws = getWeaponStats(selected);
+            document.getElementById('melDmgSlider').value = ws.baseDamage;
+            document.getElementById('melReachSlider').value = ws.reach;
+            document.getElementById('melRotSlider').value = ws.rotationSpeed;
+        }
+    }
+
+    // Build custom param sliders for this weapon type
+    buildCustomSliders();
+
+    updateLabels();
+}
+
+// ─── Build dynamic custom parameter sliders ───────
+function buildCustomSliders() {
+    var section = document.getElementById('customStats');
+    var container = document.getElementById('customSliders');
+    // Clear old sliders
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    if (!selected || !selected.wtype) { section.style.display = 'none'; return; }
+    var params = CUSTOM_PARAMS[selected.wtype];
+    if (!params || params.length === 0) { section.style.display = 'none'; return; }
+
+    section.style.display = 'block';
+    document.getElementById('customStatsTitle').textContent = selected.wtype.toUpperCase() + ' PARAMS';
+
+    var wov = (weaponConfig[selected.wtype]) || {};
+
+    params.forEach(function(p) {
+        var val = wov[p.prop] != null ? wov[p.prop] : p.def;
+        var row = document.createElement('div');
+        row.className = 'control-row';
+
+        var label = document.createElement('label');
+        label.textContent = p.label + ' ';
+        var span = document.createElement('span');
+        span.id = 'cust_' + p.prop + '_val';
+        span.textContent = formatCustomVal(val, p.step);
+        label.appendChild(span);
+
+        var slider = document.createElement('input');
+        slider.type = 'range';
+        slider.id = 'cust_' + p.prop;
+        slider.min = p.min;
+        slider.max = p.max;
+        slider.step = p.step;
+        slider.value = val;
+        slider.style.width = '100%';
+        slider.style.accentColor = '#c084fc'; // purple for custom
+
+        slider.addEventListener('input', function() {
+            span.textContent = formatCustomVal(parseFloat(slider.value), p.step);
+            saveCurrentValues();
+        });
+
+        row.appendChild(label);
+        row.appendChild(slider);
+        container.appendChild(row);
+    });
+}
+
+function formatCustomVal(val, step) {
+    if (step >= 1) return String(Math.round(val));
+    if (step >= 0.1) return val.toFixed(1);
+    return val.toFixed(2);
+}
+
+function updateLabels() {
+    var a = parseFloat(document.getElementById('angleSlider').value);
+    var anch = parseFloat(document.getElementById('anchorSlider').value);
+    document.getElementById('angleVal').textContent = a.toFixed(0) + '\u00B0';
+    document.getElementById('anchorVal').textContent = anch.toFixed(2);
+
+    // Projectile stat labels
+    if (selected && selected.cat === 'proj') {
+        document.getElementById('projSpeedVal').textContent = parseFloat(document.getElementById('projSpeedSlider').value).toFixed(1);
+        document.getElementById('projRadiusVal').textContent = document.getElementById('projRadiusSlider').value;
+        document.getElementById('projDmgVal').textContent = document.getElementById('projDmgSlider').value;
+        var life = parseInt(document.getElementById('projLifeSlider').value);
+        document.getElementById('projLifeVal').textContent = life;
+        document.getElementById('projLifeSec').textContent = '(' + (life / 60).toFixed(1) + 's)';
+        document.getElementById('projBounceVal').textContent = document.getElementById('projBounceSlider').value;
+    }
+
+    // Static hazard stat labels
+    if (selected && selected.cat === 'static') {
+        document.getElementById('staticRadiusVal').textContent = document.getElementById('staticRadiusSlider').value + 'px';
+        document.getElementById('staticDmgVal').textContent = document.getElementById('staticDmgSlider').value;
+    }
+
+    // Weapon stat labels
+    if (selected && (selected.cat === 'melee' || selected.cat === 'custom') && document.getElementById('meleeStats').style.display !== 'none') {
+        document.getElementById('melDmgVal').textContent = document.getElementById('melDmgSlider').value;
+        document.getElementById('melReachVal').textContent = document.getElementById('melReachSlider').value;
+        document.getElementById('melRotVal').textContent = parseFloat(document.getElementById('melRotSlider').value).toFixed(3);
+    }
+}
+
+// ─── Save current slider values ────────────────────
+function saveCurrentValues() {
+    if (!selected) return;
+    var a = parseFloat(document.getElementById('angleSlider').value) * Math.PI / 180;
+    var anch = parseFloat(document.getElementById('anchorSlider').value);
+
+    // --- Visual overrides (sprite-keyed) ---
+    var defA = selected.defAngle * Math.PI / 180;
+    var defAnch = selected.defAnchor;
+
+    var entry = config[selected.key] || {};
+    var hasVisualDiff = Math.abs(a - defA) > 0.001 || Math.abs(anch - defAnch) > 0.001;
+
+    if (hasVisualDiff) {
+        entry.angleOffset = a;
+        entry.anchor = anch;
+    } else {
+        delete entry.angleOffset;
+        delete entry.anchor;
+    }
+    delete entry.size; // clean up any legacy size overrides
+
+    // --- Projectile stat overrides (sprite-keyed, same config object) ---
+    if (selected.cat === 'proj') {
+        var ps = {
+            speed:    parseFloat(document.getElementById('projSpeedSlider').value),
+            radius:   parseInt(document.getElementById('projRadiusSlider').value),
+            damage:   parseInt(document.getElementById('projDmgSlider').value),
+            lifespan: parseInt(document.getElementById('projLifeSlider').value),
+            bounces:  parseInt(document.getElementById('projBounceSlider').value),
+        };
+        // Only store if different from defaults
+        if (Math.abs(ps.speed - selected.defSpeed) > 0.01) entry.projectileSpeed = ps.speed; else delete entry.projectileSpeed;
+        if (ps.radius !== selected.defRadius) entry.projectileRadius = ps.radius; else delete entry.projectileRadius;
+        if (ps.damage !== selected.defProjDmg) entry.projectileDamage = ps.damage; else delete entry.projectileDamage;
+        if (ps.lifespan !== selected.defLife) entry.projectileLifespan = ps.lifespan; else delete entry.projectileLifespan;
+        if (ps.bounces !== selected.defBounces) entry.projectileBounces = ps.bounces; else delete entry.projectileBounces;
+    }
+
+    // --- Static hazard stat overrides (sprite-keyed, same config object) ---
+    if (selected.cat === 'static') {
+        var sr = parseInt(document.getElementById('staticRadiusSlider').value);
+        var sd = parseInt(document.getElementById('staticDmgSlider').value);
+        if (sr !== selected.defRadius) entry.projectileRadius = sr; else delete entry.projectileRadius;
+        if (sd !== selected.defProjDmg) entry.projectileDamage = sd; else delete entry.projectileDamage;
+    }
+
+    // If entry has any keys, keep it; otherwise delete
+    if (Object.keys(entry).length > 0) {
+        config[selected.key] = entry;
+    } else {
+        delete config[selected.key];
+    }
+
+    // --- Weapon stat overrides (weapon-type-keyed) ---
+    if (selected.wtype && (selected.cat === 'melee' || selected.cat === 'custom')) {
+        var wEntry = weaponConfig[selected.wtype] || {};
+
+        // Melee base stats (if melee sliders are visible)
+        if (selected.defReach > 0 || selected.defBaseDmg > 0) {
+            var ws = {
+                baseDamage:    parseInt(document.getElementById('melDmgSlider').value),
+                reach:         parseInt(document.getElementById('melReachSlider').value),
+                rotationSpeed: parseFloat(document.getElementById('melRotSlider').value),
+            };
+            if (ws.baseDamage !== selected.defBaseDmg) wEntry.baseDamage = ws.baseDamage; else delete wEntry.baseDamage;
+            if (ws.reach !== selected.defReach) wEntry.reach = ws.reach; else delete wEntry.reach;
+            if (Math.abs(ws.rotationSpeed - selected.defRotSpd) > 0.0001) wEntry.rotationSpeed = ws.rotationSpeed; else delete wEntry.rotationSpeed;
+        }
+
+        // Custom per-weapon params
+        var params = CUSTOM_PARAMS[selected.wtype];
+        if (params) {
+            params.forEach(function(p) {
+                var el = document.getElementById('cust_' + p.prop);
+                if (!el) return;
+                var val = parseFloat(el.value);
+                if (Math.abs(val - p.def) > (p.step * 0.1)) {
+                    wEntry[p.prop] = val;
+                } else {
+                    delete wEntry[p.prop];
+                }
+            });
+        }
+
+        if (Object.keys(wEntry).length > 0) {
+            weaponConfig[selected.wtype] = wEntry;
+        } else {
+            delete weaponConfig[selected.wtype];
+        }
+    }
+
+    saveConfig();
+    buildGrid();
+}
+
+// ─── Draw sprite from atlas onto a 2D canvas ──────
+function drawSpriteOnCtx(ctx, key, x, y, angle, halfW, halfH, alpha) {
+    if (!atlasLoaded || !atlasGrid[key]) return;
+    var pos = atlasGrid[key];
+    var sx = pos[0] * atlasCellSize;
+    var sy = pos[1] * atlasCellSize;
+
+    ctx.save();
+    ctx.globalAlpha = alpha || 1.0;
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(atlasCanvas, sx, sy, atlasCellSize, atlasCellSize, -halfW, -halfH, halfW * 2, halfH * 2);
+    ctx.restore();
+}
+
+// ─── Preview Animation ────────────────────────────
+var animFrame = 0;
+var meleeAngle = 0; // persistent melee spin angle (accumulated per frame)
+var _prevFrameTime = 0;
+var _frameInterval = 1000 / 60; // lock to 60fps to match game tick rate
+function drawPreview(timestamp) {
+    // 60fps frame limiter — prevents 2x speed on 120Hz displays
+    if (timestamp && timestamp - _prevFrameTime < _frameInterval * 0.9) {
+        requestAnimationFrame(drawPreview);
+        return;
+    }
+    _prevFrameTime = timestamp || 0;
+
+    var canvas = document.getElementById('previewCanvas');
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    var cx = W / 2, cy = H / 2;
+
+    // Cream background
+    ctx.fillStyle = '#F5F0E8';
+    ctx.fillRect(0, 0, W, H);
+
+    // Update label
+    document.getElementById('spriteName').textContent = selected ? selected.label + ' [' + selected.cat + ']' : 'Select a sprite';
+
+    if (!selected || !atlasLoaded) {
+        requestAnimationFrame(drawPreview);
+        return;
+    }
+
+    var vals = getValues(selected);
+    animFrame++;
+
+    // ── Draw travel direction indicator (outer ring) ──
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Arrow showing travel direction
+    var arrowX = cx + Math.cos(travelAngle) * 120;
+    var arrowY = cy + Math.sin(travelAngle) * 120;
+    ctx.fillStyle = '#D4A853';
+    ctx.beginPath();
+    ctx.arc(arrowX, arrowY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#333';
+    ctx.font = '10px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('TRAVEL', cx + Math.cos(travelAngle) * 138, cy + Math.sin(travelAngle) * 138 + 4);
+
+    // ── Category-specific preview ──
+    if (selected.cat === 'proj') {
+        // Projectile mini-sim: bounces off preview walls, fades at end of life
+        var ps = getProjStats(selected);
+
+        // Mini arena box (inset from canvas edges)
+        var pad = 30;
+        var arenaL = pad, arenaR = W - pad, arenaT = pad, arenaB = H - pad;
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(arenaL, arenaT, arenaR - arenaL, arenaB - arenaT);
+
+        // Simulate projectile path with bounces — use animFrame as time
+        // Total bounces = stat bounces + 999 (always bounce in preview so you can see trajectory)
+        var totalCycle = Math.max(ps.lifespan, 60) + 30; // loop with gap
+        var t = animFrame % totalCycle;
+        var alive = t < ps.lifespan;
+
+        // Starting position: center of arena, moving in travel direction
+        var px = cx, py = cy;
+        var speed = ps.speed * 0.7; // match game feel in small preview
+        var pvx = Math.cos(travelAngle) * speed;
+        var pvy = Math.sin(travelAngle) * speed;
+        var bouncesUsed = 0;
+
+        // Step forward t frames, always bouncing off walls (preview shows trajectory)
+        for (var step = 0; step < t; step++) {
+            px += pvx;
+            py += pvy;
+            // Wall bounces — always bounce, track count
+            if (px - ps.radius < arenaL) { px = arenaL + ps.radius; pvx = Math.abs(pvx); bouncesUsed++; }
+            if (px + ps.radius > arenaR) { px = arenaR - ps.radius; pvx = -Math.abs(pvx); bouncesUsed++; }
+            if (py - ps.radius < arenaT) { py = arenaT + ps.radius; pvy = Math.abs(pvy); bouncesUsed++; }
+            if (py + ps.radius > arenaB) { py = arenaB - ps.radius; pvy = -Math.abs(pvy); bouncesUsed++; }
+        }
+
+        if (alive) {
+            // Fade near end of lifespan
+            var lifeRatio = 1.0 - (t / ps.lifespan);
+            var alpha = lifeRatio < 0.2 ? lifeRatio / 0.2 : 1.0;
+            // Tint red if past allowed bounces (would be dead in-game)
+            var pastBounces = bouncesUsed > ps.bounces;
+
+            var heading = Math.atan2(pvy, pvx);
+            var spriteAngle = heading + vals.angleOffset;
+            var spriteSize = Math.max(ps.radius, 20); // min 20px so sprite is visible in editor
+
+            // Anchor shift
+            var drawX = px, drawY = py;
+            if (vals.anchor > 0) {
+                drawX += Math.cos(heading) * vals.anchor * ps.radius;
+                drawY += Math.sin(heading) * vals.anchor * ps.radius;
+            }
+
+            // Hitbox circle — red = alive, gray dashed = past bounce limit
+            if (pastBounces) {
+                ctx.strokeStyle = 'rgba(150,150,150,' + (0.3 * alpha).toFixed(2) + ')';
+                ctx.setLineDash([3, 3]);
+            } else {
+                ctx.strokeStyle = 'rgba(255,60,60,' + (0.5 * alpha).toFixed(2) + ')';
+                ctx.setLineDash([]);
+            }
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(px, py, ps.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Sprite (matches hitbox)
+            drawSpriteOnCtx(ctx, selected.key, drawX, drawY, spriteAngle, spriteSize, spriteSize, pastBounces ? alpha * 0.35 : alpha);
+
+            // Damage label
+            if (!pastBounces) {
+                ctx.fillStyle = 'rgba(220,220,220,' + (0.85 * alpha).toFixed(2) + ')';
+                ctx.font = 'bold 11px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(ps.damage + ' dmg', px, py + ps.radius + 14);
+            }
+
+            // Bounce counter
+            if (bouncesUsed > 0) {
+                ctx.fillStyle = pastBounces ? '#f87171' : '#4ade80';
+                ctx.font = '9px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.min(bouncesUsed, ps.bounces) + '/' + ps.bounces + ' bnc', px, py - ps.radius - 6);
+            }
+        }
+
+        // Stat summary at bottom of arena
+        ctx.fillStyle = '#888';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'left';
+        ctx.fillText('SPD ' + ps.speed.toFixed(1), arenaL + 4, arenaB + 14);
+        ctx.textAlign = 'center';
+        ctx.fillText('SIZE ' + ps.radius + 'px', cx, arenaB + 14);
+        ctx.textAlign = 'right';
+        ctx.fillText('BNC ' + ps.bounces + '  LIFE ' + ps.lifespan + 'f', arenaR - 4, arenaB + 14);
+
+    } else if (selected.cat === 'melee') {
+        // Melee mode: ball at center, weapon spinning around it
+        var ws = getWeaponStats(selected);
+        var rotSpd = ws.rotationSpeed > 0 ? ws.rotationSpeed : 0.04;
+        meleeAngle += rotSpd * 0.3; // 0.3x game speed — slow enough to inspect alignment
+        var weaponAngle = meleeAngle;
+
+        // Ball (scaled to preview)
+        var ballR = 24;
+        ctx.fillStyle = '#607090';
+        ctx.beginPath();
+        ctx.arc(cx, cy, ballR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Weapon hitbox line — shows the actual melee collision segment
+        var reach = ws.reach > 0 ? ws.reach : 60;
+        var tipX = cx + Math.cos(weaponAngle) * reach;
+        var tipY = cy + Math.sin(weaponAngle) * reach;
+
+        // Reach line (hitbox indicator)
+        ctx.strokeStyle = 'rgba(255,80,80,0.35)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+
+        // Reach endpoint dot
+        ctx.fillStyle = 'rgba(255,80,80,0.5)';
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sprite positioned along the reach line — anchor slides it closer/farther
+        var baseCenter = reach * 0.7;
+        var anchorShift = vals.anchor * reach * 0.3; // match game: +-30% of reach
+        var spriteCenter = baseCenter + anchorShift;
+        var halfW = reach * 0.3; // 1:1 with hitbox (v80 rule)
+        var wx = cx + Math.cos(weaponAngle) * spriteCenter;
+        var wy = cy + Math.sin(weaponAngle) * spriteCenter;
+
+        drawSpriteOnCtx(ctx, selected.key, wx, wy, weaponAngle + vals.angleOffset, halfW, halfW, 1.0);
+
+        // Stats overlay
+        ctx.fillStyle = '#888';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'left';
+        ctx.fillText('DMG ' + ws.baseDamage, 8, H - 18);
+        ctx.textAlign = 'center';
+        ctx.fillText('REACH ' + reach + 'px', cx, H - 18);
+        ctx.textAlign = 'right';
+        ctx.fillText('ROT ' + rotSpd.toFixed(3) + ' rad/f', W - 8, H - 18);
+
+    } else if (selected.cat === 'static') {
+        // Static: hazards/terrain — show sprite at center, no rotation
+        var sz = 40; // fixed preview size
+        var spriteAngle = vals.angleOffset;
+
+        // Reference crosshair
+        ctx.strokeStyle = 'rgba(150,150,150,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx - 60, cy); ctx.lineTo(cx + 60, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy - 60); ctx.lineTo(cx, cy + 60); ctx.stroke();
+
+        // Hitbox circle — reads from slider if available
+        var hrEl = document.getElementById('staticRadiusSlider');
+        var hr = hrEl ? parseInt(hrEl.value) : (selected.defRadius || 12);
+        ctx.strokeStyle = 'rgba(255,80,80,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, hr, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Scale sprite to match hitbox radius
+        var spriteHalf = Math.max(hr, 20);
+        drawSpriteOnCtx(ctx, selected.key, cx, cy, spriteAngle, spriteHalf, spriteHalf, 1.0);
+
+        // Label
+        ctx.fillStyle = '#888';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('STATIC HAZARD \u2014 r=' + hr + 'px', cx, H - 18);
+
+    } else {
+        // Custom: show ball at center with sprite orbiting (like melee but slower)
+        var ws = getWeaponStats(selected);
+        var rotSpd = ws.rotationSpeed > 0 ? ws.rotationSpeed : 0.02;
+        meleeAngle += rotSpd * 0.3; // slow for inspection
+        var weaponAngle = meleeAngle;
+
+        // Ball at center
+        var ballR = 24;
+        ctx.fillStyle = '#607090';
+        ctx.beginPath();
+        ctx.arc(cx, cy, ballR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // If weapon has reach, show it orbiting like melee
+        var reach = ws.reach > 0 ? ws.reach : 50;
+        var baseCenter = reach * 0.7;
+        var anchorShift = vals.anchor * reach * 0.3;
+        var spriteCenter = baseCenter + anchorShift;
+        var halfW = reach * 0.3;
+        var wx = cx + Math.cos(weaponAngle) * spriteCenter;
+        var wy = cy + Math.sin(weaponAngle) * spriteCenter;
+
+        // Faint reach line
+        ctx.strokeStyle = 'rgba(150,150,150,0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(weaponAngle) * reach, cy + Math.sin(weaponAngle) * reach);
+        ctx.stroke();
+
+        drawSpriteOnCtx(ctx, selected.key, wx, wy, weaponAngle + vals.angleOffset, halfW, halfW, 1.0);
+
+        // Stats at bottom
+        ctx.fillStyle = '#888';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('CUSTOM \u2014 ' + (selected.wtype || '?'), cx, H - 18);
+    }
+
+    // ── Degree ring labels ──
+    ctx.fillStyle = '#bbb';
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'center';
+    var degs = [0, 90, 180, -90];
+    var degLabels = ['0\u00B0', '90\u00B0', '180\u00B0', '-90\u00B0'];
+    for (var d = 0; d < degs.length; d++) {
+        var rad = degs[d] * Math.PI / 180;
+        ctx.fillText(degLabels[d], cx + Math.cos(rad) * 105, cy + Math.sin(rad) * 105 + 3);
+    }
+
+    requestAnimationFrame(drawPreview);
+}
+
+// ─── Travel direction click ───────────────────────
+document.getElementById('previewCanvas').addEventListener('click', function(e) {
+    var rect = this.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) * (this.width / rect.width);
+    var my = (e.clientY - rect.top) * (this.height / rect.height);
+    var cx = this.width / 2, cy = this.height / 2;
+    var dx = mx - cx, dy = my - cy;
+    if (Math.sqrt(dx*dx + dy*dy) > 20) {
+        travelAngle = Math.atan2(dy, dx);
+    }
+});
+
+// ─── Slider Events ────────────────────────────────
+function onSliderInput() { updateLabels(); saveCurrentValues(); }
+document.getElementById('angleSlider').addEventListener('input', onSliderInput);
+document.getElementById('anchorSlider').addEventListener('input', onSliderInput);
+// Projectile stat sliders
+document.getElementById('projSpeedSlider').addEventListener('input', onSliderInput);
+document.getElementById('projRadiusSlider').addEventListener('input', onSliderInput);
+document.getElementById('projDmgSlider').addEventListener('input', onSliderInput);
+document.getElementById('projLifeSlider').addEventListener('input', onSliderInput);
+document.getElementById('projBounceSlider').addEventListener('input', onSliderInput);
+
+// Weapon stat sliders
+document.getElementById('melDmgSlider').addEventListener('input', onSliderInput);
+document.getElementById('melReachSlider').addEventListener('input', onSliderInput);
+document.getElementById('melRotSlider').addEventListener('input', onSliderInput);
+
+// Static hazard stat sliders
+document.getElementById('staticRadiusSlider').addEventListener('input', onSliderInput);
+document.getElementById('staticDmgSlider').addEventListener('input', onSliderInput);
+
+// Snap buttons
+document.querySelectorAll('.snap-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var deg = parseInt(this.getAttribute('data-angle'));
+        document.getElementById('angleSlider').value = deg;
+        updateLabels();
+        saveCurrentValues();
+    });
+});
+
+// Reset current sprite
+document.getElementById('btnReset').addEventListener('click', function() {
+    if (!selected) return;
+    delete config[selected.key];
+    if (selected.wtype) delete weaponConfig[selected.wtype];
+    saveConfig();
+    syncSliders();
+    buildGrid();
+});
+
+// Reset all
+document.getElementById('btnResetAll').addEventListener('click', function() {
+    if (!confirm('Reset ALL overrides (visual + stats)?')) return;
+    config = {};
+    weaponConfig = {};
+    saveConfig();
+    syncSliders();
+    buildGrid();
+});
+
+// Export JSON
+document.getElementById('btnExport').addEventListener('click', function() {
+    var exportData = { spriteConfig: config, weaponConfig: weaponConfig };
+    var json = JSON.stringify(exportData, null, 2);
+    var spriteCount = Object.keys(config).length;
+    var weaponCount = Object.keys(weaponConfig).length;
+    navigator.clipboard.writeText(json).then(function() {
+        alert('Copied to clipboard! (' + spriteCount + ' sprite overrides, ' + weaponCount + ' weapon overrides)');
+    });
+});
+
+// ─── Init ─────────────────────────────────────────
+loadConfig();
+buildFilters();
+buildGrid();
+loadAtlas();
+drawPreview();
+</script>
+</body>
+</html>

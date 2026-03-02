@@ -79,7 +79,7 @@ WB.Ball = class {
         const wallHit = WB.Physics.bounceOffWalls(this, WB.Config.ARENA);
         if (wallHit) {
             const s = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-            WB.Audio.wallClack(s);
+            WB.Audio.wallClack(s, this.weapon ? this.weapon.type : null);
             // Wall impact visual effects
             if (WB.GLEffects) {
                 // Determine wall contact point

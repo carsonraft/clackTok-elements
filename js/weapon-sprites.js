@@ -101,12 +101,14 @@ WB.WeaponSprites = {
 
     _createQuad(gl) {
         // Unit quad: positions (-1 to 1) + UVs (0 to 1)
+        // V is flipped (0↔1) to compensate for Y-down projection matrix,
+        // so canvas-top (V=0 in texture) renders at screen-top.
         const quadData = new Float32Array([
             // pos       uv
-            -1, -1,      0, 1,
-             1, -1,      1, 1,
-            -1,  1,      0, 0,
-             1,  1,      1, 0,
+            -1, -1,      0, 0,
+             1, -1,      1, 0,
+            -1,  1,      0, 1,
+             1,  1,      1, 1,
         ]);
 
         this._vao = gl.createVertexArray();

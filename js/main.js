@@ -28,6 +28,7 @@ WB.Game = {
         this.particles = new WB.ParticleSystem();
 
         WB.Audio.init();
+        WB.Audio.loadAllSounds(); // Fire-and-forget: loads state weapon MP3s (~2.4MB)
         if (WB.Cutscene) WB.Cutscene.init();
         if (WB.BallImages) {
             WB.BallImages.init();
@@ -35,6 +36,9 @@ WB.Game = {
         }
         if (WB.WeaponSprites) WB.WeaponSprites.init();
         if (WB.StatesIcons) WB.StatesIcons.init();
+        // Load sprite editor overrides from localStorage
+        try { WB._spriteConfig = JSON.parse(localStorage.getItem('wb_sprite_config')) || null; } catch(e) { WB._spriteConfig = null; }
+        try { WB._weaponStatConfig = JSON.parse(localStorage.getItem('wb_weapon_config')) || null; } catch(e) { WB._weaponStatConfig = null; }
         WB.UI.init();
 
         // Scroll handler for menu + simulation results
@@ -272,6 +276,26 @@ WB.Game = {
         // Prerender drives its own frame loop — skip rAF rendering
         if (this._prerenderActive) return;
 
+        // Debug pause: freeze game loop, allow single-stepping
+        if (this._debugPaused && !this._debugStepQueued) return;
+        if (this._debugStepQueued) {
+            this._debugStepQueued = false;
+            // Signal after this frame renders (at end of loop body)
+            var stepResolve = this._debugStepResolve;
+            this._debugStepResolve = null;
+            if (stepResolve) {
+                // Resolve after endFrame() via microtask so canvas is flushed
+                var _resolve = stepResolve;
+                var origEndFrame = WB.GL.endFrame;
+                var self = this;
+                WB.GL.endFrame = function() {
+                    origEndFrame.call(WB.GL);
+                    WB.GL.endFrame = origEndFrame;
+                    _resolve();
+                };
+            }
+        }
+
         // ── 60fps frame limiter ──────────────────────────────────
         // On 120Hz+ displays, requestAnimationFrame fires too fast.
         // Skip frames that arrive before the 16.67ms budget elapses
@@ -394,7 +418,7 @@ WB.Game = {
                 const wallHit = WB.Physics.weaponWallBounce(ball, WB.Config.ARENA);
                 if (wallHit) {
                     const s = ball.getSpeed();
-                    WB.Audio.wallClack(s * 0.5);
+                    WB.Audio.wallClack(s * 0.5, ball.weapon ? ball.weapon.type : null);
                     if (WB.GLEffects) {
                         const tipX = ball.weapon.getTipX();
                         const tipY = ball.weapon.getTipY();
@@ -653,6 +677,7 @@ WB.Game = {
             const loserSide = this.winner.side === 'left' ? 'right' : 'left';
             WB.Audio.death();
             WB.Audio.victoryFanfare();
+            WB.Audio.victoryFireworks();
             WB.Renderer.triggerShake(12);
             if (WB.GLEffects) {
                 WB.GLEffects.triggerSuperFlash(this.winner.color);
@@ -708,6 +733,10 @@ WB.Game = {
         if (this.winner) {
             WB.Renderer.drawResult(this.winner, this);
         }
+
+        // Layer additional fireworks bursts during result display
+        if (this._resultTimer === 200) WB.Audio.victoryFireworks();
+        if (this._resultTimer === 100) WB.Audio.victoryFireworks();
 
         // Auto-return to menu after timer
         if (this._resultTimer > 0) {
@@ -819,6 +848,259 @@ window.testSim = function(left, right, n) {
     result += ' (' + n + ' battles)';
     console.log(result);
     return result;
+};
+
+/**
+ * Advance exactly one game-loop tick. Returns a Promise that resolves
+ * after the loop processes the step (not just the next rAF, but the
+ * actual game-loop iteration).
+ */
+window.debugStep = function() {
+    return new Promise(function(resolve) {
+        WB.Game._debugStepResolve = resolve;
+        WB.Game._debugStepQueued = true;
+    });
+};
+
+/**
+ * Capture N sequential frames from a live battle into window._capturedFrames.
+ * Uses pause+step to guarantee exactly one physics tick per capture.
+ *
+ * Frames are stored as base64 data URLs in window._capturedFrames[].
+ * Use downloadFrame(i) to save individual frames, or the companion
+ * Python script to composite them:
+ *   python3 tools/ghost-composite.py ~/Downloads/frame_*.png
+ *
+ * @param {number} [count=5]  — number of frames to capture
+ * @param {number} [skip=4]   — frames to advance between captures (4 ≈ 67ms gaps)
+ * @returns {Promise<string>} summary when done
+ *
+ * Usage:
+ *   testFight('zeus','ares',42)
+ *   // wait ~3s for action, then:
+ *   (async()=>{ await sleep(3000); await captureFrames(); })()
+ *   // download one at a time:
+ *   downloadFrame(0); downloadFrame(1); ...etc
+ */
+window.captureFrames = async function(count, skip) {
+    count = count || 5;
+    skip = skip || 4;
+
+    if (WB.Game.state !== 'BATTLE') return 'Not in BATTLE state — use testFight() first';
+
+    var G = WB.Game;
+    window._capturedFrames = [];
+    window._captureSkip = skip;
+
+    // Pause the game loop
+    G._debugPaused = true;
+    // Wait two rAF ticks to ensure the loop has stopped
+    await new Promise(function(r) { requestAnimationFrame(function() { requestAnimationFrame(r); }); });
+
+    for (var i = 0; i < count; i++) {
+        // Advance `skip` frames between captures (0 for first frame = capture current state)
+        var stepsNeeded = (i === 0) ? 0 : skip;
+        for (var s = 0; s < stepsNeeded; s++) {
+            await debugStep();
+        }
+
+        // Capture the current canvas
+        var dataUrl = G.canvas.toDataURL('image/png');
+        window._capturedFrames.push(dataUrl);
+        console.log('Captured frame ' + i + '/' + (count - 1) +
+            ' (' + Math.round(dataUrl.length / 1024) + 'KB)');
+    }
+
+    // Resume
+    G._debugPaused = false;
+    return 'Captured ' + count + ' frames (' + skip + '-frame gaps). ' +
+        'Use downloadFrame(0)..downloadFrame(' + (count - 1) + ') to save, ' +
+        'or downloadAllFrames() with delays.';
+};
+
+/**
+ * Composite captured frames into a single ghost-overlay image and download it.
+ * Earlier frames are more opaque; later frames fade out — showing motion trails.
+ *
+ * Modes:
+ *   'ghost'  — alpha-blended overlay (default) — best for motion/trajectory
+ *   'strip'  — horizontal side-by-side strip — best for comparing positions
+ *   'diff'   — only changed pixels highlighted — best for seeing what moved
+ *
+ * @param {string} [mode='ghost'] — composite mode
+ * @param {string} [filename]     — download filename (auto-generated if omitted)
+ * @returns {Promise<string>}
+ *
+ * Full pipeline:
+ *   testFight('florida','new-york',42)
+ *   (async()=>{ await sleep(3000); await captureFrames(); await ghostComposite(); })()
+ */
+window.ghostComposite = async function(mode, filename) {
+    mode = mode || 'ghost';
+    if (!window._capturedFrames || window._capturedFrames.length < 2) {
+        return 'Need >= 2 captured frames. Run captureFrames() first.';
+    }
+
+    var frames = window._capturedFrames;
+    var n = frames.length;
+
+    // Load all data URLs as Image objects
+    var images = await Promise.all(frames.map(function(dataUrl) {
+        return new Promise(function(resolve) {
+            var img = new Image();
+            img.onload = function() { resolve(img); };
+            img.src = dataUrl;
+        });
+    }));
+
+    var w = images[0].width;
+    var h = images[0].height;
+
+    var canvas, ctx;
+
+    if (mode === 'strip') {
+        // Side-by-side horizontal strip
+        canvas = document.createElement('canvas');
+        canvas.width = w * n;
+        canvas.height = h;
+        ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#1e1e1e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (var i = 0; i < n; i++) {
+            ctx.drawImage(images[i], i * w, 0);
+            // Frame label
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(i * w, 0, 50, 30);
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 18px monospace';
+            ctx.fillText('F' + i, i * w + 8, 22);
+        }
+    } else if (mode === 'diff') {
+        // Difference highlighting
+        canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        ctx = canvas.getContext('2d');
+        // Draw first frame as dim background
+        ctx.globalAlpha = 0.3;
+        ctx.drawImage(images[0], 0, 0);
+        ctx.globalAlpha = 1.0;
+
+        var tints = ['#FF5050', '#50FF50', '#5078FF', '#FFFF50', '#50FFFF'];
+        for (var i = 1; i < n; i++) {
+            // Get pixel data for previous and current
+            var tmpA = document.createElement('canvas');
+            tmpA.width = w; tmpA.height = h;
+            var ctxA = tmpA.getContext('2d');
+            ctxA.drawImage(images[i - 1], 0, 0);
+            var dataA = ctxA.getImageData(0, 0, w, h);
+
+            var tmpB = document.createElement('canvas');
+            tmpB.width = w; tmpB.height = h;
+            var ctxB = tmpB.getContext('2d');
+            ctxB.drawImage(images[i], 0, 0);
+            var dataB = ctxB.getImageData(0, 0, w, h);
+
+            // Build diff mask
+            var diffData = ctx.createImageData(w, h);
+            var tint = tints[i % tints.length];
+            var tr = parseInt(tint.slice(1, 3), 16);
+            var tg = parseInt(tint.slice(3, 5), 16);
+            var tb = parseInt(tint.slice(5, 7), 16);
+
+            for (var p = 0; p < dataA.data.length; p += 4) {
+                var dr = Math.abs(dataA.data[p] - dataB.data[p]);
+                var dg = Math.abs(dataA.data[p + 1] - dataB.data[p + 1]);
+                var db = Math.abs(dataA.data[p + 2] - dataB.data[p + 2]);
+                var maxDiff = Math.max(dr, dg, db);
+                if (maxDiff > 20) {
+                    var alpha = Math.min(255, maxDiff * 3);
+                    diffData.data[p] = tr;
+                    diffData.data[p + 1] = tg;
+                    diffData.data[p + 2] = tb;
+                    diffData.data[p + 3] = alpha;
+                }
+            }
+            ctx.putImageData(diffData, 0, 0);
+        }
+    } else {
+        // Ghost mode (default): alpha-blended overlay
+        canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        ctx = canvas.getContext('2d');
+        // White background (matches game cream)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, w, h);
+
+        for (var i = 0; i < n; i++) {
+            // First frame fully opaque, last at 20%
+            ctx.globalAlpha = 1.0 - (i * 0.8 / Math.max(n - 1, 1));
+            ctx.drawImage(images[i], 0, 0);
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
+    // Show the composite: overlay it on the page as a full-screen <img>
+    // Click to dismiss. Also store as window._compositeDataUrl for download.
+    var dataUrl = canvas.toDataURL('image/png');
+    window._compositeDataUrl = dataUrl;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'ghost-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+        'background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;' +
+        'justify-content:center;cursor:pointer;flex-direction:column;';
+    var img = document.createElement('img');
+    img.src = dataUrl;
+    img.style.cssText = 'max-width:95%;max-height:90%;object-fit:contain;border:2px solid #FFD700;';
+    var label = document.createElement('div');
+    label.style.cssText = 'color:#FFD700;font:bold 14px monospace;margin-top:8px;';
+    label.textContent = mode.toUpperCase() + ' — ' + n + ' frames, ' +
+        (window._captureSkip || '?') + '-frame gaps — click to dismiss';
+    overlay.appendChild(img);
+    overlay.appendChild(label);
+    overlay.addEventListener('click', function() { overlay.remove(); });
+    document.body.appendChild(overlay);
+
+    return mode + ' composite (' + w + 'x' + h + ', ' + n + ' frames). Click overlay to dismiss.';
+};
+
+/**
+ * One-shot: start a fight, wait for action, capture frames, show ghost composite.
+ * Returns a Promise. Use from console or preview_eval.
+ *
+ * @param {string} left   — weapon type for P1
+ * @param {string} right  — weapon type for P2
+ * @param {object} [opts] — { seed, wait, count, skip, mode }
+ *   seed:  RNG seed (default: random)
+ *   wait:  ms to let the battle run before capturing (default: 3000)
+ *   count: number of frames (default: 5)
+ *   skip:  frames between captures (default: 6)
+ *   mode:  'ghost'|'strip'|'diff' (default: 'ghost')
+ *
+ * Example:
+ *   ghostFight('california','texas',{seed:42,skip:8})
+ */
+window.ghostFight = async function(left, right, opts) {
+    opts = opts || {};
+    var seed = opts.seed;
+    var wait = opts.wait || 3000;
+    var count = opts.count || 5;
+    var skip = opts.skip || 6;
+    var mode = opts.mode || 'ghost';
+
+    testFight(left, right, seed);
+    await sleep(wait);
+    await captureFrames(count, skip);
+    return await ghostComposite(mode);
+};
+
+/**
+ * Convenience: sleep for ms milliseconds. Use with await.
+ */
+window.sleep = function(ms) {
+    return new Promise(function(r) { setTimeout(r, ms); });
 };
 
 // Start on load

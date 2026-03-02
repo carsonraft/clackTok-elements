@@ -14,6 +14,172 @@ WB.Audio = {
         } catch (e) {
             console.warn('Web Audio API not available');
         }
+        this._loadSoundConfig();
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FILE-BASED SOUND SYSTEM — MP3 weapon sounds for states pack
+    // ═══════════════════════════════════════════════════════════════
+    _fileBuffers: {},    // weaponType → { hit: [AudioBuffer,...], fire: [AudioBuffer,...], ... }
+    _soundConfig: null,  // from localStorage 'wb_sound_config'
+
+    // Static mapping: weapon type → { hit: [filenames], fire: [filenames], spawn: [...], hazard: {...} }
+    // Categories: hit=on-impact, fire=on-launch, wall=on-wall-bounce, spawn=on-entity-creation
+    //   hazard = spriteKey→filename map for per-hazard-type damage sounds
+    _fileSoundMap: {
+        // ── Projectile weapons: fire = on-launch, hit = on-impact ──
+        'alabama':        { fire: ['alabamaRocket.mp3'] },
+        'arizona':        { fire: ['arizonaPhoenix.mp3'] },
+        'arkansas':       { hit: ['arkansasDiamondClink.mp3'] },
+        'florida':        { hit: ['floridaGatorBest.mp3'] },
+        'idaho':          { hit: ['idahoPopcornPopUnlayered.mp3'] },
+        'maine':          { fire: ['maineThrownLobsterPerhaps.mp3'] },
+        'massachusetts':  { hit: ['massachussetsMagic1.mp3', 'massachussetsMagic2.mp3', 'massachussetsMagic3.mp3'] },
+        'new-hampshire':  { hit: ['newHampshireStoneHit.mp3'], fire: ['newHampshireStoneThrow.mp3'] },
+        'new-jersey':     { hit: ['newJerseyPillPop.mp3'] },
+        'new-mexico':     { hit: ['newMexicoFlamenco1.mp3', 'newMexicoFlamenco2.mp3', 'newMexicoFlamenco3.mp3'] },
+        'new-york':       { fire: ['newYorkDartThrow.mp3'], hit: ['newYorkBuildingComplete.mp3'] },
+        'north-dakota':   { fire: ['northDakotaOilSpill.mp3'] },
+        'oklahoma':       { fire: ['oklahomaWindTurbineWhoosh.mp3'] },
+        'washington':     { fire: ['washingtonCoffeePour.mp3'] },
+        'wisconsin':      { hit: ['wisconsinCheeseWhap1.mp3'], fire: ['wisconsinCowMoo1.mp3', 'wisconsinCowMoo2.mp3', 'wisconsinCowMoo3.mp3', 'wisconsinCowMoo4.mp3'] },
+        // ── Melee weapons: hit = on-contact ──
+        'alaska':         { hit: ['alaskaHarpoon.mp3'] },
+        'california':     { hit: ['californiaChopCarDoorMaybe.mp3', 'californiaSlicePerhaps.mp3'] },
+        'connecticut':    { hit: ['connecticutPaperSmack.mp3'] },
+        'georgia':        { hit: ['georgiaBottleClunk.mp3'] },
+        'hawaii':         { hit: ['hawaiiLavaThick.mp3'] },
+        'illinois':       { hit: ['illinoisePizzaWheelCut.mp3'] },
+        'iowa':           { hit: ['iowaShucks1.mp3'] },
+        'kansas':         { hit: ['kansasWind1.mp3', 'kansasWind2.mp3'] },
+        'kentucky':       { hit: ['kentuckyBarrelLaunch.mp3'] },
+        'maryland':       { hit: ['marylandClawSnip.mp3'] },
+        'minnesota':      { hit: ['minnesotaStick.mp3'] },
+        'mississippi':    { hit: ['mississippiWheelTurn.mp3'] },
+        'missouri':       { hit: ['missouriSlice.mp3'] },
+        'montana':        { hit: ['montanaMoose.mp3'] },
+        'nevada':         { hit: ['nevadaSlotMachinePlusLoss.mp3', 'nevadaSlotMachineWinNoBefore.mp3'] },
+        'ohio':           { hit: ['ohioSlamCrowd.mp3', 'ohioWhistle.mp3'] },
+        'oregon':         { hit: ['oregonWoodSmack1.mp3', 'oregonWoodSmack2.mp3'] },
+        'pennsylvania':   { hit: ['pennsylvaniaBong.mp3'] },
+        'rhode-island':   { hit: ['rhodeIslandAnchorSplash.mp3'] },
+        'south-carolina': { hit: ['southCarolinaPalmettoSmack.mp3'] },
+        'south-dakota':   {
+            spawn: ['southDakotaBustPlaced.mp3'],
+            hazard: {
+                'southdakota-washington': 'southDakotaWashington.mp3',
+                'southdakota-jefferson':  'southDakotaThomasJefferson.mp3',
+                'southdakota-lincoln':    'southDakotaLincoln.mp3',
+                'southdakota-roosevelt':  'southDakotaRoosevelt.mp3'
+            }
+        },
+        'texas':          { hit: ['texasWhipCrack.mp3'] },
+        'utah':           { hit: ['utahSaltSlice.mp3'] },
+        'virginia':       { hit: ['virginiaGuillotine.mp3'] },
+        'west-virginia':  { hit: ['westVirginiaCoalHit1.mp3', 'westVirginiaCoalHit2.mp3'] },
+        'wyoming':        { hit: ['wyomingGeyserBubble1.mp3', 'wyomingGeyserBubble2.mp3'] },
+        // ── Body slam weapons: hit = on-contact ──
+        'colorado':       { hit: ['coloradoBoulderHit.mp3'] },
+        'delaware':       { hit: ['delewareMoneyHit.mp3'] },
+        'indiana':        { hit: ['indianaRaceCar.mp3'] },
+        'michigan':       { hit: ['michiganChunk.mp3'] },
+        'nebraska':       { hit: ['nebraskaBull.mp3'] },
+        'north-carolina': { hit: ['northCarolinaPlane.mp3'] },
+        // ── Tennessee: single notes on fire, chords on hit (once scaled) ──
+        'tennessee':      { fire: ['tennesseeBanjoNote1.mp3', 'tennesseeBanjoNote2.mp3'], hit: ['tennesseeBanjoChord1.mp3', 'tennesseeBanjoChord2.mp3'] },
+    },
+
+    _loadSoundConfig() {
+        try {
+            this._soundConfig = JSON.parse(localStorage.getItem('wb_sound_config')) || {};
+        } catch (e) {
+            this._soundConfig = {};
+        }
+    },
+
+    // Load all MP3 sounds — returns Promise, call at game init (fire-and-forget)
+    loadAllSounds() {
+        if (!this.ctx) return Promise.resolve();
+        var self = this;
+        var types = Object.keys(this._fileSoundMap);
+        var allPromises = [];
+
+        types.forEach(function(weaponType) {
+            var map = self._fileSoundMap[weaponType];
+            var result = {};
+
+            // Array categories: hit, fire, wall, spawn
+            ['hit', 'fire', 'wall', 'spawn'].forEach(function(cat) {
+                if (!map[cat]) return;
+                result[cat] = new Array(map[cat].length);
+                map[cat].forEach(function(filename, idx) {
+                    var p = fetch('assets/sounds/states/' + filename)
+                        .then(function(r) { return r.arrayBuffer(); })
+                        .then(function(buf) { return self.ctx.decodeAudioData(buf); })
+                        .then(function(decoded) { result[cat][idx] = decoded; })
+                        .catch(function(e) { /* silent — file might not exist */ });
+                    allPromises.push(p);
+                });
+            });
+
+            // Hazard map: spriteKey → AudioBuffer (keyed dispatch, not random)
+            if (map.hazard) {
+                result.hazard = {};
+                var keys = Object.keys(map.hazard);
+                keys.forEach(function(spriteKey) {
+                    var filename = map.hazard[spriteKey];
+                    var p = fetch('assets/sounds/states/' + filename)
+                        .then(function(r) { return r.arrayBuffer(); })
+                        .then(function(buf) { return self.ctx.decodeAudioData(buf); })
+                        .then(function(decoded) { result.hazard[spriteKey] = decoded; })
+                        .catch(function(e) { /* silent */ });
+                    allPromises.push(p);
+                });
+            }
+
+            self._fileBuffers[weaponType] = result;
+        });
+
+        return Promise.all(allPromises).then(function() {
+            console.log('[Audio] Loaded', types.length, 'weapon sound sets');
+        });
+    },
+
+    // Play a file-based sound with clip/pitch/volume overrides from sound editor
+    _playFileSound(buffer, weaponType, filename) {
+        if (!buffer || !this.ctx) return;
+        // Look up config: per-variant key first, then per-weapon fallback
+        var cfg = {};
+        if (this._soundConfig) {
+            var variantKey = weaponType + ':' + filename;
+            var wepCfg = this._soundConfig[weaponType] || {};
+            var varCfg = this._soundConfig[variantKey] || {};
+            // Merge: variant overrides weapon-level
+            cfg.clipStart = varCfg.clipStart != null ? varCfg.clipStart : (wepCfg.clipStart || 0);
+            cfg.clipEnd = varCfg.clipEnd != null ? varCfg.clipEnd : (wepCfg.clipEnd || buffer.duration);
+            cfg.pitch = varCfg.pitch != null ? varCfg.pitch : (wepCfg.pitch || 1.0);
+            cfg.volume = varCfg.volume != null ? varCfg.volume : (wepCfg.volume != null ? wepCfg.volume : 0.6);
+        } else {
+            cfg.clipStart = 0;
+            cfg.clipEnd = buffer.duration;
+            cfg.pitch = 1.0;
+            cfg.volume = 0.6;
+        }
+
+        var source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.value = cfg.pitch;
+
+        var gain = this.ctx.createGain();
+        gain.gain.value = cfg.volume;
+
+        source.connect(gain);
+        gain.connect(this.masterGain);
+
+        var clipStart = Math.max(0, cfg.clipStart);
+        var clipEnd = Math.min(buffer.duration, cfg.clipEnd);
+        var duration = Math.max(0.01, clipEnd - clipStart);
+        source.start(this.ctx.currentTime, clipStart, duration);
     },
 
     resume() {
@@ -50,51 +216,40 @@ WB.Audio = {
     // Random pitch variation factor
     _pitchVar() { return 1 + (Math.random() - 0.5) * 0.3; },
 
-    // Wall clack - SUPER CLACKY sharp crack with layered resonance
-    wallClack(speed) {
-        if (!this.ctx || this.muted) return;
-        const t = this.ctx.currentTime;
-        const vol = Math.min(0.5, 0.2 + speed * 0.06);
-        const variant = Math.random();
-        const pv = this._pitchVar();
+    // Wall clack - disabled for now (too noisy)
+    wallClack(speed, weaponType) {
+        // Intentionally silent — wall bounce sounds removed
+    },
 
-        if (variant < 0.5) {
-            // Bandpass noise burst — louder, wider
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.05);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = (2500 + speed * 500) * pv;
-            filter.Q.value = 4 + Math.random() * 8;
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(vol, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.05);
-        } else {
-            // Short sine pop — sharper
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            const freq = (3000 + speed * 400) * pv;
-            osc.frequency.setValueAtTime(freq, t);
-            osc.frequency.exponentialRampToValueAtTime(freq * 0.3, t + 0.025);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(vol * 0.8, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.04);
+    // Hazard damage sound — dispatches per-spriteKey sounds (e.g. South Dakota president busts)
+    hazardHit(weaponType, spriteKey) {
+        if (!this.ctx || this.muted || !weaponType) return;
+        var fileSounds = this._fileBuffers[weaponType];
+        if (fileSounds && fileSounds.hazard && spriteKey) {
+            var buffer = fileSounds.hazard[spriteKey];
+            if (buffer) {
+                var map = this._fileSoundMap[weaponType];
+                var filename = map && map.hazard ? (map.hazard[spriteKey] || '') : '';
+                this._playFileSound(buffer, weaponType, filename);
+                return;
+            }
         }
-        // EXTRA CLACK LAYER — high-freq resonant ping on every wall hit
-        const clackOsc = this.ctx.createOscillator();
-        clackOsc.type = 'triangle';
-        const clackFreq = (4000 + speed * 600) * pv;
-        clackOsc.frequency.setValueAtTime(clackFreq, t);
-        clackOsc.frequency.exponentialRampToValueAtTime(clackFreq * 0.2, t + 0.02);
-        const clackGain = this.ctx.createGain();
-        clackGain.gain.setValueAtTime(vol * 0.5, t);
-        clackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
-        clackOsc.connect(clackGain); clackGain.connect(this.masterGain);
-        clackOsc.start(t); clackOsc.stop(t + 0.03);
+        // No file sound — fall through to generic quiet tick (no procedural fallback needed)
+    },
+
+    // Spawn sound — plays when an entity is created (clones, busts, etc.)
+    spawnSound(weaponType) {
+        if (!this.ctx || this.muted || !weaponType) return;
+        var fileSounds = this._fileBuffers[weaponType];
+        if (fileSounds && fileSounds.spawn) {
+            var variants = fileSounds.spawn.filter(Boolean);
+            if (variants.length > 0) {
+                var idx = Math.floor(Math.random() * variants.length);
+                var map = this._fileSoundMap[weaponType];
+                var filename = map && map.spawn ? map.spawn[idx] : '';
+                this._playFileSound(variants[idx], weaponType, filename);
+            }
+        }
     },
 
     // Ball-ball collision - ULTRA MEGA CLACKY thud with crack on top
@@ -173,13 +328,26 @@ WB.Audio = {
         const t = this.ctx.currentTime;
         const pv = this._pitchVar();
 
-        // Per-weapon sound — each type has a distinct voice
-        const handler = this._weaponSounds[weaponType];
-        if (handler) {
-            handler.call(this, t, combo, pv);
+        // Check for file-based sound (states pack MP3s)
+        var fileSounds = this._fileBuffers[weaponType];
+        if (fileSounds && fileSounds.hit) {
+            var variants = fileSounds.hit.filter(Boolean);
+            if (variants.length > 0) {
+                var idx = Math.floor(Math.random() * variants.length);
+                var map = this._fileSoundMap[weaponType];
+                var filename = map && map.hit ? map.hit[idx] : '';
+                this._playFileSound(variants[idx], weaponType, filename);
+                // Skip procedural synth — file sound replaces it
+                // But STILL play the universal clack overlay below
+            }
         } else {
-            // Fallback: generic blade sound
-            this._weaponSounds.sword.call(this, t, combo, pv);
+            // Procedural synth path (classic/elemental/pantheon/egyptian)
+            const handler = this._weaponSounds[weaponType];
+            if (handler) {
+                handler.call(this, t, combo, pv);
+            } else {
+                this._weaponSounds.sword.call(this, t, combo, pv);
+            }
         }
 
         // UNIVERSAL CLACK OVERLAY — sharp percussive snap on EVERY weapon hit
@@ -862,8 +1030,24 @@ WB.Audio = {
     },
 
     // Projectile fire - clacky snap + whoosh
-    projectileFire() {
+    projectileFire(weaponType) {
         if (!this.ctx || this.muted) return;
+
+        // Check for file-based fire sound (states pack)
+        if (weaponType) {
+            var fileSounds = this._fileBuffers[weaponType];
+            if (fileSounds && fileSounds.fire) {
+                var variants = fileSounds.fire.filter(Boolean);
+                if (variants.length > 0) {
+                    var idx = Math.floor(Math.random() * variants.length);
+                    var map = this._fileSoundMap[weaponType];
+                    var filename = map && map.fire ? map.fire[idx] : '';
+                    this._playFileSound(variants[idx], weaponType, filename);
+                    return; // file sound replaces generic swoosh
+                }
+            }
+        }
+
         const t = this.ctx.currentTime;
 
         const noise = this.ctx.createBufferSource();
@@ -1060,6 +1244,61 @@ WB.Audio = {
         finalGain.gain.exponentialRampToValueAtTime(0.001, t + finalDelay + 0.04);
         finalNoise.connect(finalFilter); finalFilter.connect(finalGain); finalGain.connect(this.masterGain);
         finalNoise.start(t + finalDelay); finalNoise.stop(t + finalDelay + 0.06);
+    },
+
+    // Victory fireworks — layered pops, crackles, and whistles over ~2 seconds
+    // Called repeatedly during RESULT state to create a fireworks display
+    victoryFireworks() {
+        if (!this.ctx || this.muted) return;
+        var t = this.ctx.currentTime;
+
+        // 5-8 staggered firework bursts
+        var burstCount = 5 + Math.floor(Math.random() * 4);
+        for (var i = 0; i < burstCount; i++) {
+            var delay = Math.random() * 1.8;
+            var pitch = 600 + Math.random() * 2000;
+
+            // Rising whistle (before burst)
+            var whistle = this.ctx.createOscillator();
+            whistle.type = 'sine';
+            whistle.frequency.setValueAtTime(pitch * 0.3, t + delay);
+            whistle.frequency.exponentialRampToValueAtTime(pitch, t + delay + 0.15);
+            var wGain = this.ctx.createGain();
+            wGain.gain.setValueAtTime(0.06, t + delay);
+            wGain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.15);
+            whistle.connect(wGain); wGain.connect(this.masterGain);
+            whistle.start(t + delay); whistle.stop(t + delay + 0.16);
+
+            // Burst pop (noise + tone)
+            var burstTime = delay + 0.15;
+            var pop = this.ctx.createBufferSource();
+            pop.buffer = this._noiseBuffer(0.06);
+            var bpf = this.ctx.createBiquadFilter();
+            bpf.type = 'bandpass';
+            bpf.frequency.value = pitch;
+            bpf.Q.value = 2 + Math.random() * 3;
+            var pGain = this.ctx.createGain();
+            pGain.gain.setValueAtTime(0.18, t + burstTime);
+            pGain.gain.exponentialRampToValueAtTime(0.001, t + burstTime + 0.08);
+            pop.connect(bpf); bpf.connect(pGain); pGain.connect(this.masterGain);
+            pop.start(t + burstTime); pop.stop(t + burstTime + 0.09);
+
+            // Sparkle crackle (3-6 tiny pops after burst)
+            var crackles = 3 + Math.floor(Math.random() * 4);
+            for (var c = 0; c < crackles; c++) {
+                var cDelay = burstTime + 0.02 + Math.random() * 0.2;
+                var cNoise = this.ctx.createBufferSource();
+                cNoise.buffer = this._noiseBuffer(0.02);
+                var cFilter = this.ctx.createBiquadFilter();
+                cFilter.type = 'highpass';
+                cFilter.frequency.value = 4000 + Math.random() * 4000;
+                var cGain = this.ctx.createGain();
+                cGain.gain.setValueAtTime(0.08 + Math.random() * 0.06, t + cDelay);
+                cGain.gain.exponentialRampToValueAtTime(0.001, t + cDelay + 0.03);
+                cNoise.connect(cFilter); cFilter.connect(cGain); cGain.connect(this.masterGain);
+                cNoise.start(t + cDelay); cNoise.stop(t + cDelay + 0.04);
+            }
+        }
     },
 
     // Countdown clack — escalating layers: phase 0 = 1 layer, phase 2 = 3 layers, "FIGHT!" = explosion

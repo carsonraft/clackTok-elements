@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sound Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; padding: 16px; }
+        h1 { color: #D4A853; text-align: center; font-size: 22px; margin-bottom: 12px; }
+
+        /* ── Weapon Grid ─────────────────────── */
+        #filter-bar {
+            text-align: center; margin-bottom: 8px;
+        }
+        .filter-btn {
+            background: #16213e; color: #aaa; border: 1px solid #444;
+            border-radius: 4px; padding: 4px 12px; cursor: pointer;
+            font-family: inherit; font-size: 11px; margin: 0 2px;
+        }
+        .filter-btn.active { background: #1a2e4a; color: #FFD700; border-color: #FFD700; }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            max-width: 720px;
+            margin: 0 auto 16px;
+        }
+        .weapon-btn {
+            background: #16213e;
+            border: 2px solid #333;
+            border-radius: 4px;
+            padding: 4px 2px;
+            cursor: pointer;
+            text-align: center;
+            transition: border-color 0.15s, background 0.15s;
+            min-height: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .weapon-btn:hover { background: #1a2e4a; }
+        .weapon-btn.selected { border-color: #FFD700; background: #1a2e4a; }
+        .weapon-btn.edited { position: relative; }
+        .weapon-btn.edited::after {
+            content: '';
+            position: absolute; top: 2px; right: 2px;
+            width: 6px; height: 6px;
+            background: #4ade80; border-radius: 50%;
+        }
+        .weapon-btn .label {
+            font-size: 8px; color: #aaa;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+            max-width: 80px;
+        }
+        .weapon-btn .count {
+            font-size: 7px; color: #60a5fa; margin-top: 1px;
+        }
+
+        /* ── Variant Tabs ──────────────────────── */
+        #variant-bar {
+            text-align: center; margin-bottom: 8px;
+            min-height: 28px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+        }
+        .variant-btn {
+            background: #16213e; color: #aaa; border: 1px solid #444;
+            border-radius: 4px; padding: 4px 10px; cursor: pointer;
+            font-family: inherit; font-size: 10px;
+            display: flex; flex-direction: column; align-items: center; gap: 1px;
+            min-width: 64px;
+        }
+        .variant-btn.active { background: #1a2e4a; color: #FFD700; border-color: #FFD700; }
+        .variant-btn .role {
+            font-size: 11px; font-weight: bold; letter-spacing: 0.5px;
+        }
+        .variant-btn .role.role-hit { color: #f87171; }
+        .variant-btn .role.role-launch { color: #fb923c; }
+        .variant-btn .role.role-wall { color: #60a5fa; }
+        .variant-btn .role.role-spawn { color: #a78bfa; }
+        .variant-btn .role.role-hazard { color: #fbbf24; }
+        .variant-btn.active .role { color: #FFD700; }
+        .variant-btn .fname {
+            font-size: 7px; color: #666; max-width: 90px;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        .variant-btn.active .fname { color: #aa9a60; }
+
+        /* ── Waveform Canvas ────────────────────── */
+        #waveform-wrap {
+            max-width: 720px; margin: 0 auto 12px;
+            position: relative;
+        }
+        #waveform {
+            width: 100%; height: 140px;
+            background: #0f0f1a; border: 2px solid #333; border-radius: 6px;
+            cursor: crosshair;
+        }
+        #wave-label {
+            text-align: center; font-size: 10px; color: #888;
+            margin-top: 4px;
+        }
+
+        /* ── Controls ──────────────────────────── */
+        #controls {
+            max-width: 720px; margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 20px;
+        }
+        .ctrl-row {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .ctrl-row label {
+            font-size: 11px; color: #aaa; width: 80px; text-align: right; flex-shrink: 0;
+        }
+        .ctrl-row input[type="range"] {
+            flex: 1; accent-color: #D4A853;
+        }
+        .ctrl-row .val {
+            font-size: 11px; color: #FFD700; width: 48px; text-align: left;
+        }
+
+        /* ── Buttons ───────────────────────────── */
+        #btn-bar {
+            max-width: 720px; margin: 12px auto 0;
+            text-align: center;
+        }
+        .action-btn {
+            background: #16213e; color: #eee; border: 2px solid #444;
+            border-radius: 6px; padding: 8px 18px; cursor: pointer;
+            font-family: inherit; font-size: 13px; margin: 0 4px;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .action-btn:hover { background: #1a2e4a; border-color: #666; }
+        .action-btn.play { border-color: #4ade80; color: #4ade80; }
+        .action-btn.play:hover { background: #0a3a1a; }
+        .action-btn.stop { border-color: #f87171; color: #f87171; }
+        .action-btn.stop:hover { background: #3a0a0a; }
+        .action-btn.gold { border-color: #D4A853; color: #D4A853; }
+        .action-btn.gold:hover { background: #2a2210; }
+
+        /* ── Status ────────────────────────────── */
+        #status {
+            text-align: center; font-size: 10px; color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>&#x1F50A; Sound Editor</h1>
+
+    <div id="filter-bar"></div>
+    <div id="grid"></div>
+    <div id="variant-bar"></div>
+    <div id="waveform-wrap">
+        <canvas id="waveform"></canvas>
+        <div id="wave-label">Select a weapon to view waveform</div>
+    </div>
+    <div id="controls">
+        <div class="ctrl-row">
+            <label>Clip Start</label>
+            <input type="range" id="clipStart" min="0" max="1" step="0.01" value="0">
+            <span class="val" id="clipStartVal">0.00s</span>
+        </div>
+        <div class="ctrl-row">
+            <label>Clip End</label>
+            <input type="range" id="clipEnd" min="0" max="1" step="0.01" value="1">
+            <span class="val" id="clipEndVal">1.00s</span>
+        </div>
+        <div class="ctrl-row">
+            <label>Pitch</label>
+            <input type="range" id="pitch" min="0.5" max="2.0" step="0.05" value="1.0">
+            <span class="val" id="pitchVal">1.00x</span>
+        </div>
+        <div class="ctrl-row">
+            <label>Volume</label>
+            <input type="range" id="volume" min="0" max="1" step="0.05" value="0.4">
+            <span class="val" id="volumeVal">0.40</span>
+        </div>
+    </div>
+    <div id="btn-bar">
+        <button class="action-btn play" id="btnPlay">&#9654; PLAY</button>
+        <button class="action-btn stop" id="btnStop">&#9632; STOP</button>
+        <button class="action-btn" id="btnReset">RESET</button>
+        <button class="action-btn" id="btnResetAll">RESET ALL</button>
+        <button class="action-btn gold" id="btnCopy">COPY JSON</button>
+    </div>
+    <div id="status">Loading sounds...</div>
+
+<script>
+// ─── Sound Map (mirrors WB.Audio._fileSoundMap) ───────────────
+var SOUND_MAP = {
+    // ── Projectile weapons: fire = on-launch, hit = on-impact ──
+    'alabama':        { label: 'Alabama',        fire: ['alabamaRocket.mp3'] },
+    'arizona':        { label: 'Arizona',        fire: ['arizonaPhoenix.mp3'] },
+    'arkansas':       { label: 'Arkansas',       hit: ['arkansasDiamondClink.mp3'] },
+    'florida':        { label: 'Florida',        hit: ['floridaGatorBest.mp3'] },
+    'idaho':          { label: 'Idaho',          hit: ['idahoPopcornPopUnlayered.mp3'] },
+    'maine':          { label: 'Maine',          fire: ['maineThrownLobsterPerhaps.mp3'] },
+    'massachusetts':  { label: 'Massachusetts',  hit: ['massachussetsMagic1.mp3', 'massachussetsMagic2.mp3', 'massachussetsMagic3.mp3'] },
+    'new-hampshire':  { label: 'New Hampshire',  hit: ['newHampshireStoneHit.mp3'], fire: ['newHampshireStoneThrow.mp3'] },
+    'new-jersey':     { label: 'New Jersey',     hit: ['newJerseyPillPop.mp3'] },
+    'new-mexico':     { label: 'New Mexico',     hit: ['newMexicoFlamenco1.mp3', 'newMexicoFlamenco2.mp3', 'newMexicoFlamenco3.mp3'] },
+    'new-york':       { label: 'New York',       fire: ['newYorkDartThrow.mp3'], hit: ['newYorkBuildingComplete.mp3'] },
+    'north-dakota':   { label: 'North Dakota',   fire: ['northDakotaOilSpill.mp3'] },
+    'oklahoma':       { label: 'Oklahoma',       fire: ['oklahomaWindTurbineWhoosh.mp3'] },
+    'washington':     { label: 'Washington',     fire: ['washingtonCoffeePour.mp3'] },
+    'wisconsin':      { label: 'Wisconsin',      hit: ['wisconsinCheeseWhap1.mp3'], fire: ['wisconsinCowMoo1.mp3', 'wisconsinCowMoo2.mp3', 'wisconsinCowMoo3.mp3', 'wisconsinCowMoo4.mp3'] },
+    // ── Melee weapons: hit = on-contact ──
+    'alaska':         { label: 'Alaska',         hit: ['alaskaHarpoon.mp3'] },
+    'california':     { label: 'California',     hit: ['californiaChopCarDoorMaybe.mp3', 'californiaSlicePerhaps.mp3'] },
+    'connecticut':    { label: 'Connecticut',    hit: ['connecticutPaperSmack.mp3'] },
+    'georgia':        { label: 'Georgia',        hit: ['georgiaBottleClunk.mp3'] },
+    'hawaii':         { label: 'Hawaii',         hit: ['hawaiiLavaThick.mp3'] },
+    'illinois':       { label: 'Illinois',       hit: ['illinoisePizzaWheelCut.mp3'] },
+    'iowa':           { label: 'Iowa',           hit: ['iowaShucks1.mp3'] },
+    'kansas':         { label: 'Kansas',         hit: ['kansasWind1.mp3', 'kansasWind2.mp3'] },
+    'kentucky':       { label: 'Kentucky',       hit: ['kentuckyBarrelLaunch.mp3'] },
+    'maryland':       { label: 'Maryland',       hit: ['marylandClawSnip.mp3'] },
+    'minnesota':      { label: 'Minnesota',      hit: ['minnesotaStick.mp3'] },
+    'mississippi':    { label: 'Mississippi',     hit: ['mississippiWheelTurn.mp3'] },
+    'missouri':       { label: 'Missouri',       hit: ['missouriSlice.mp3'] },
+    'montana':        { label: 'Montana',        hit: ['montanaMoose.mp3'] },
+    'nevada':         { label: 'Nevada',         hit: ['nevadaSlotMachinePlusLoss.mp3', 'nevadaSlotMachineWinNoBefore.mp3'] },
+    'ohio':           { label: 'Ohio',           hit: ['ohioSlamCrowd.mp3', 'ohioWhistle.mp3'] },
+    'oregon':         { label: 'Oregon',         hit: ['oregonWoodSmack1.mp3', 'oregonWoodSmack2.mp3'] },
+    'pennsylvania':   { label: 'Pennsylvania',   hit: ['pennsylvaniaBong.mp3'] },
+    'rhode-island':   { label: 'Rhode Island',   hit: ['rhodeIslandAnchorSplash.mp3'] },
+    'south-carolina': { label: 'South Carolina', hit: ['southCarolinaPalmettoSmack.mp3'] },
+    'south-dakota':   { label: 'South Dakota',
+        spawn: ['southDakotaBustPlaced.mp3'],
+        hazard: {
+            'southdakota-washington': 'southDakotaWashington.mp3',
+            'southdakota-jefferson':  'southDakotaThomasJefferson.mp3',
+            'southdakota-lincoln':    'southDakotaLincoln.mp3',
+            'southdakota-roosevelt':  'southDakotaRoosevelt.mp3'
+        }
+    },
+    'texas':          { label: 'Texas',          hit: ['texasWhipCrack.mp3'] },
+    'utah':           { label: 'Utah',           hit: ['utahSaltSlice.mp3'] },
+    'virginia':       { label: 'Virginia',       hit: ['virginiaGuillotine.mp3'] },
+    'west-virginia':  { label: 'West Virginia',  hit: ['westVirginiaCoalHit1.mp3', 'westVirginiaCoalHit2.mp3'] },
+    'wyoming':        { label: 'Wyoming',        hit: ['wyomingGeyserBubble1.mp3', 'wyomingGeyserBubble2.mp3'] },
+    // ── Body slam weapons: hit = on-contact ──
+    'colorado':       { label: 'Colorado',       hit: ['coloradoBoulderHit.mp3'] },
+    'delaware':       { label: 'Delaware',       hit: ['delewareMoneyHit.mp3'] },
+    'indiana':        { label: 'Indiana',        hit: ['indianaRaceCar.mp3'] },
+    'michigan':       { label: 'Michigan',       hit: ['michiganChunk.mp3'] },
+    'nebraska':       { label: 'Nebraska',       hit: ['nebraskaBull.mp3'] },
+    'north-carolina': { label: 'North Carolina', hit: ['northCarolinaPlane.mp3'] },
+    // ── Tennessee: single notes on fire, chords on hit ──
+    'tennessee':      { label: 'Tennessee',      fire: ['tennesseeBanjoNote1.mp3', 'tennesseeBanjoNote2.mp3'], hit: ['tennesseeBanjoChord1.mp3', 'tennesseeBanjoChord2.mp3'] }
+};
+
+// ─── State ───────────────────────────────────────────────────
+var audioCtx = null;
+var buffers = {};       // weaponType -> { hit: [AudioBuffer,...], fire: [AudioBuffer,...] }
+var config = {};        // loaded from localStorage wb_sound_config
+var currentWeapon = null;
+var currentCategory = 'hit';    // 'hit', 'fire', 'wall', 'spawn', or 'hazard'
+var currentVariantIdx = 0;
+var currentSource = null;       // playing AudioBufferSourceNode
+var filterMode = 'all';         // 'all', 'single', 'multi'
+
+// ─── Init ────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+    loadConfig();
+    buildFilterBar();
+    buildGrid();
+    bindControls();
+    loadAllSounds();
+});
+
+function loadConfig() {
+    try {
+        config = JSON.parse(localStorage.getItem('wb_sound_config')) || {};
+    } catch(e) {
+        config = {};
+    }
+}
+
+function saveConfig() {
+    localStorage.setItem('wb_sound_config', JSON.stringify(config));
+    document.getElementById('status').textContent = 'Config saved to localStorage';
+}
+
+// ─── Filter Bar ──────────────────────────────────────────────
+function buildFilterBar() {
+    var bar = document.getElementById('filter-bar');
+    var filters = [
+        { id: 'all',    label: 'ALL (' + Object.keys(SOUND_MAP).length + ')' },
+        { id: 'single', label: 'SINGLE' },
+        { id: 'multi',  label: 'MULTI' }
+    ];
+    filters.forEach(function(f) {
+        var btn = document.createElement('button');
+        btn.className = 'filter-btn' + (f.id === filterMode ? ' active' : '');
+        btn.textContent = f.label;
+        btn.setAttribute('data-filter', f.id);
+        btn.addEventListener('click', function() {
+            filterMode = f.id;
+            // Update active states
+            var all = bar.querySelectorAll('.filter-btn');
+            for (var i = 0; i < all.length; i++) {
+                all[i].className = 'filter-btn' + (all[i].getAttribute('data-filter') === filterMode ? ' active' : '');
+            }
+            buildGrid();
+        });
+        bar.appendChild(btn);
+    });
+}
+
+// ─── Weapon Grid ─────────────────────────────────────────────
+function buildGrid() {
+    var grid = document.getElementById('grid');
+    // Clear grid safely
+    while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+    var types = Object.keys(SOUND_MAP);
+    types.forEach(function(type) {
+        var map = SOUND_MAP[type];
+        var totalSounds = (map.hit ? map.hit.length : 0) + (map.fire ? map.fire.length : 0)
+            + (map.spawn ? map.spawn.length : 0) + (map.hazard ? Object.keys(map.hazard).length : 0);
+
+        // Apply filter
+        if (filterMode === 'single' && totalSounds > 1) return;
+        if (filterMode === 'multi' && totalSounds <= 1) return;
+
+        var hasEdits = hasConfig(type);
+
+        var btn = document.createElement('div');
+        btn.className = 'weapon-btn' + (currentWeapon === type ? ' selected' : '') + (hasEdits ? ' edited' : '');
+        btn.setAttribute('data-type', type);
+
+        var labelSpan = document.createElement('span');
+        labelSpan.className = 'label';
+        labelSpan.textContent = map.label;
+        btn.appendChild(labelSpan);
+
+        var countSpan = document.createElement('span');
+        countSpan.className = 'count';
+        var parts = [];
+        if (map.hit) parts.push(map.hit.length + ' hit');
+        if (map.fire) parts.push(map.fire.length + ' launch');
+        if (map.wall) parts.push(map.wall.length + ' wall');
+        if (map.spawn) parts.push(map.spawn.length + ' spawn');
+        if (map.hazard) parts.push(Object.keys(map.hazard).length + ' hazard');
+        countSpan.textContent = parts.join(' + ');
+        btn.appendChild(countSpan);
+
+        btn.addEventListener('click', function() {
+            selectWeapon(type);
+        });
+
+        grid.appendChild(btn);
+    });
+}
+
+function hasConfig(type) {
+    // Check if any config key starts with this weapon type
+    if (config[type]) return true;
+    var prefix = type + ':';
+    for (var k in config) {
+        if (k.indexOf(prefix) === 0) return true;
+    }
+    return false;
+}
+
+// ─── Select Weapon ───────────────────────────────────────────
+function selectWeapon(type) {
+    currentWeapon = type;
+    var map = SOUND_MAP[type];
+
+    // Determine default category
+    if (map.hit && map.hit.length > 0) {
+        currentCategory = 'hit';
+    } else if (map.fire && map.fire.length > 0) {
+        currentCategory = 'fire';
+    } else if (map.wall && map.wall.length > 0) {
+        currentCategory = 'wall';
+    } else if (map.spawn && map.spawn.length > 0) {
+        currentCategory = 'spawn';
+    } else if (map.hazard && Object.keys(map.hazard).length > 0) {
+        currentCategory = 'hazard';
+        currentVariantIdx = 0; // will be handled as hazard key index
+    }
+    currentVariantIdx = 0;
+
+    // Update grid selection
+    var btns = document.querySelectorAll('.weapon-btn');
+    for (var i = 0; i < btns.length; i++) {
+        var isSelected = btns[i].getAttribute('data-type') === type;
+        btns[i].classList.toggle('selected', isSelected);
+    }
+
+    buildVariantTabs();
+    syncSliders();
+    drawWaveform();
+}
+
+// ─── Variant Tabs ────────────────────────────────────────────
+function buildVariantTabs() {
+    var bar = document.getElementById('variant-bar');
+    while (bar.firstChild) bar.removeChild(bar.firstChild);
+
+    if (!currentWeapon) return;
+    var map = SOUND_MAP[currentWeapon];
+
+    // Build role-labeled tabs: HIT 1, HIT 2, LAUNCH 1, WALL 1, SPAWN, HAZARD(name), etc.
+    var categories = [];
+    if (map.hit && map.hit.length > 0) categories.push({ cat: 'hit', roleLabel: 'HIT', files: map.hit });
+    if (map.fire && map.fire.length > 0) categories.push({ cat: 'fire', roleLabel: 'LAUNCH', files: map.fire });
+    if (map.wall && map.wall.length > 0) categories.push({ cat: 'wall', roleLabel: 'WALL', files: map.wall });
+    if (map.spawn && map.spawn.length > 0) categories.push({ cat: 'spawn', roleLabel: 'SPAWN', files: map.spawn });
+
+    // Array categories (hit/fire/wall/spawn)
+    categories.forEach(function(catObj) {
+        var count = catObj.files.length;
+        catObj.files.forEach(function(filename, idx) {
+            var btn = document.createElement('button');
+            btn.className = 'variant-btn';
+            if (catObj.cat === currentCategory && idx === currentVariantIdx) {
+                btn.classList.add('active');
+            }
+
+            // Role label: "HIT 1" or just "HIT" if only one
+            var roleSpan = document.createElement('span');
+            var roleClassMap = { 'hit': 'hit', 'fire': 'launch', 'wall': 'wall', 'spawn': 'spawn' };
+            roleSpan.className = 'role role-' + (roleClassMap[catObj.cat] || 'hit');
+            roleSpan.textContent = catObj.roleLabel + (count > 1 ? ' ' + (idx + 1) : '');
+            btn.appendChild(roleSpan);
+
+            // Filename subtitle
+            var fnameSpan = document.createElement('span');
+            fnameSpan.className = 'fname';
+            fnameSpan.textContent = filename.replace('.mp3', '');
+            btn.appendChild(fnameSpan);
+
+            (function(cat, i) {
+                btn.addEventListener('click', function() {
+                    currentCategory = cat;
+                    currentVariantIdx = i;
+                    var all = bar.querySelectorAll('.variant-btn');
+                    for (var j = 0; j < all.length; j++) all[j].classList.remove('active');
+                    btn.classList.add('active');
+                    syncSliders();
+                    drawWaveform();
+                });
+            })(catObj.cat, idx);
+
+            bar.appendChild(btn);
+        });
+    });
+
+    // Hazard map category (spriteKey → filename) — each gets its own tab
+    if (map.hazard) {
+        var hazardKeys = Object.keys(map.hazard);
+        hazardKeys.forEach(function(spriteKey, idx) {
+            var filename = map.hazard[spriteKey];
+            var btn = document.createElement('button');
+            btn.className = 'variant-btn';
+            if (currentCategory === 'hazard' && currentVariantIdx === idx) {
+                btn.classList.add('active');
+            }
+
+            // Role label uses spriteKey name (cleaned up)
+            var roleSpan = document.createElement('span');
+            roleSpan.className = 'role role-hazard';
+            // e.g. "southdakota-washington" -> "WASHINGTON"
+            var nameLabel = spriteKey.split('-').pop().toUpperCase();
+            roleSpan.textContent = nameLabel;
+            btn.appendChild(roleSpan);
+
+            var fnameSpan = document.createElement('span');
+            fnameSpan.className = 'fname';
+            fnameSpan.textContent = filename.replace('.mp3', '');
+            btn.appendChild(fnameSpan);
+
+            (function(i) {
+                btn.addEventListener('click', function() {
+                    currentCategory = 'hazard';
+                    currentVariantIdx = i;
+                    var all = bar.querySelectorAll('.variant-btn');
+                    for (var j = 0; j < all.length; j++) all[j].classList.remove('active');
+                    btn.classList.add('active');
+                    syncSliders();
+                    drawWaveform();
+                });
+            })(idx);
+
+            bar.appendChild(btn);
+        });
+    }
+}
+
+function shortenFilename(f) {
+    // Remove .mp3 and camelCase-to-spaces
+    var name = f.replace('.mp3', '');
+    // Trim state prefix (lowercase letters at start)
+    name = name.replace(/^[a-z]+/, '');
+    if (!name) name = f.replace('.mp3', '');
+    // Add spaces before capitals
+    name = name.replace(/([A-Z])/g, ' $1').trim();
+    // Truncate
+    if (name.length > 20) name = name.substring(0, 18) + '..';
+    return name;
+}
+
+// ─── Get Current Buffer + Config Key ─────────────────────────
+function getCurrentBuffer() {
+    if (!currentWeapon) return null;
+    var wb = buffers[currentWeapon];
+    if (!wb) return null;
+    if (currentCategory === 'hazard') {
+        // Hazard buffers are stored by spriteKey
+        var map = SOUND_MAP[currentWeapon];
+        if (!map.hazard || !wb.hazard) return null;
+        var hazardKeys = Object.keys(map.hazard);
+        var key = hazardKeys[currentVariantIdx];
+        return key ? wb.hazard[key] : null;
+    }
+    var arr = wb[currentCategory];
+    if (!arr || !arr[currentVariantIdx]) return null;
+    return arr[currentVariantIdx];
+}
+
+function getCurrentFilename() {
+    if (!currentWeapon) return '';
+    var map = SOUND_MAP[currentWeapon];
+    if (currentCategory === 'hazard') {
+        if (!map.hazard) return '';
+        var hazardKeys = Object.keys(map.hazard);
+        var key = hazardKeys[currentVariantIdx];
+        return key ? map.hazard[key] : '';
+    }
+    var files = map[currentCategory];
+    if (!files || !files[currentVariantIdx]) return '';
+    return files[currentVariantIdx];
+}
+
+function getConfigKey() {
+    // Per-variant key = "type:filename", falls back to per-weapon key = "type"
+    return currentWeapon + ':' + getCurrentFilename();
+}
+
+function getEffectiveConfig() {
+    if (!currentWeapon) return { clipStart: 0, clipEnd: 1, pitch: 1.0, volume: 0.4 };
+    var perVariant = config[getConfigKey()] || {};
+    var perWeapon = config[currentWeapon] || {};
+    return {
+        clipStart: perVariant.clipStart != null ? perVariant.clipStart : (perWeapon.clipStart != null ? perWeapon.clipStart : 0),
+        clipEnd:   perVariant.clipEnd != null ? perVariant.clipEnd : (perWeapon.clipEnd != null ? perWeapon.clipEnd : -1),
+        pitch:     perVariant.pitch != null ? perVariant.pitch : (perWeapon.pitch != null ? perWeapon.pitch : 1.0),
+        volume:    perVariant.volume != null ? perVariant.volume : (perWeapon.volume != null ? perWeapon.volume : 0.4)
+    };
+}
+
+// ─── Sync Sliders ────────────────────────────────────────────
+function syncSliders() {
+    var buf = getCurrentBuffer();
+    var dur = buf ? buf.duration : 1;
+    var cfg = getEffectiveConfig();
+
+    var clipStartEl = document.getElementById('clipStart');
+    var clipEndEl = document.getElementById('clipEnd');
+    clipStartEl.max = dur;
+    clipStartEl.step = 0.01;
+    clipStartEl.value = cfg.clipStart;
+
+    clipEndEl.max = dur;
+    clipEndEl.step = 0.01;
+    clipEndEl.value = cfg.clipEnd < 0 ? dur : cfg.clipEnd;
+
+    document.getElementById('pitch').value = cfg.pitch;
+    document.getElementById('volume').value = cfg.volume;
+
+    updateLabels();
+}
+
+function updateLabels() {
+    document.getElementById('clipStartVal').textContent = parseFloat(document.getElementById('clipStart').value).toFixed(2) + 's';
+    document.getElementById('clipEndVal').textContent = parseFloat(document.getElementById('clipEnd').value).toFixed(2) + 's';
+    document.getElementById('pitchVal').textContent = parseFloat(document.getElementById('pitch').value).toFixed(2) + 'x';
+    document.getElementById('volumeVal').textContent = parseFloat(document.getElementById('volume').value).toFixed(2);
+}
+
+// ─── Save Current Values ─────────────────────────────────────
+function saveCurrentValues() {
+    if (!currentWeapon) return;
+    var key = getConfigKey();
+    var buf = getCurrentBuffer();
+    var dur = buf ? buf.duration : 1;
+
+    var clipStart = parseFloat(document.getElementById('clipStart').value);
+    var clipEnd = parseFloat(document.getElementById('clipEnd').value);
+    var pitch = parseFloat(document.getElementById('pitch').value);
+    var volume = parseFloat(document.getElementById('volume').value);
+
+    // Only save non-default values
+    var entry = {};
+    var hasAny = false;
+    if (clipStart > 0.005) { entry.clipStart = clipStart; hasAny = true; }
+    if (clipEnd < dur - 0.005) { entry.clipEnd = clipEnd; hasAny = true; }
+    if (Math.abs(pitch - 1.0) > 0.01) { entry.pitch = pitch; hasAny = true; }
+    if (Math.abs(volume - 0.4) > 0.01) { entry.volume = volume; hasAny = true; }
+
+    if (hasAny) {
+        config[key] = entry;
+    } else {
+        delete config[key];
+    }
+    saveConfig();
+    buildGrid(); // refresh edited dots
+}
+
+// ─── Waveform Drawing ────────────────────────────────────────
+function drawWaveform() {
+    var canvas = document.getElementById('waveform');
+    var ctx = canvas.getContext('2d');
+    var w = canvas.offsetWidth;
+    var h = canvas.offsetHeight;
+    canvas.width = w * 2;
+    canvas.height = h * 2;
+    ctx.scale(2, 2);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0f0f1a';
+    ctx.fillRect(0, 0, w, h);
+
+    var buf = getCurrentBuffer();
+    if (!buf) {
+        document.getElementById('wave-label').textContent = currentWeapon ? 'No audio buffer loaded' : 'Select a weapon to view waveform';
+        return;
+    }
+
+    var data = buf.getChannelData(0);
+    var dur = buf.duration;
+    var clipStart = parseFloat(document.getElementById('clipStart').value);
+    var clipEnd = parseFloat(document.getElementById('clipEnd').value);
+
+    // Draw waveform
+    var mid = h / 2;
+    var samplesPerPixel = Math.ceil(data.length / w);
+
+    for (var x = 0; x < w; x++) {
+        var start = Math.floor(x * data.length / w);
+        var end = Math.min(start + samplesPerPixel, data.length);
+        var min = 0, max = 0;
+        for (var j = start; j < end; j++) {
+            if (data[j] < min) min = data[j];
+            if (data[j] > max) max = data[j];
+        }
+
+        // Time at this pixel
+        var t = (x / w) * dur;
+        var inClip = t >= clipStart && t <= clipEnd;
+
+        ctx.fillStyle = inClip ? '#4ade80' : '#1a3a1a';
+        var top = mid - max * mid;
+        var bottom = mid - min * mid;
+        var barH = Math.max(1, bottom - top);
+        ctx.fillRect(x, top, 1, barH);
+    }
+
+    // Draw center line
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, mid);
+    ctx.lineTo(w, mid);
+    ctx.stroke();
+
+    // Draw clip markers
+    var clipStartX = (clipStart / dur) * w;
+    var clipEndX = (clipEnd / dur) * w;
+
+    // Dimmed regions
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, clipStartX, h);
+    ctx.fillRect(clipEndX, 0, w - clipEndX, h);
+
+    // Marker lines
+    ctx.strokeStyle = '#D4A853';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(clipStartX, 0);
+    ctx.lineTo(clipStartX, h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(clipEndX, 0);
+    ctx.lineTo(clipEndX, h);
+    ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = '#D4A853';
+    ctx.font = '10px Courier New';
+    ctx.fillText('S: ' + clipStart.toFixed(2) + 's', clipStartX + 3, 12);
+    ctx.fillText('E: ' + clipEnd.toFixed(2) + 's', clipEndX - 60, 12);
+
+    document.getElementById('wave-label').textContent =
+        getCurrentFilename() + '  |  ' + dur.toFixed(2) + 's  |  ' +
+        buf.sampleRate + 'Hz  |  ' + buf.numberOfChannels + 'ch';
+}
+
+// ─── Playback ────────────────────────────────────────────────
+function playSound() {
+    stopSound();
+    var buf = getCurrentBuffer();
+    if (!buf) return;
+
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    var clipStart = parseFloat(document.getElementById('clipStart').value);
+    var clipEnd = parseFloat(document.getElementById('clipEnd').value);
+    var pitch = parseFloat(document.getElementById('pitch').value);
+    var volume = parseFloat(document.getElementById('volume').value);
+
+    var duration = clipEnd - clipStart;
+    if (duration <= 0) return;
+
+    var source = audioCtx.createBufferSource();
+    source.buffer = buf;
+    source.playbackRate.value = pitch;
+
+    var gain = audioCtx.createGain();
+    gain.gain.value = volume;
+
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    source.start(audioCtx.currentTime, clipStart, duration);
+    currentSource = source;
+
+    source.onended = function() {
+        currentSource = null;
+        document.getElementById('status').textContent = 'Playback finished';
+    };
+
+    document.getElementById('status').textContent = 'Playing: ' + getCurrentFilename() +
+        ' [' + clipStart.toFixed(2) + 's - ' + clipEnd.toFixed(2) + 's] @ ' + pitch.toFixed(2) + 'x pitch';
+}
+
+function stopSound() {
+    if (currentSource) {
+        try { currentSource.stop(); } catch(e) {}
+        currentSource = null;
+    }
+}
+
+// ─── Control Bindings ────────────────────────────────────────
+function bindControls() {
+    var sliders = ['clipStart', 'clipEnd', 'pitch', 'volume'];
+    sliders.forEach(function(id) {
+        document.getElementById(id).addEventListener('input', function() {
+            updateLabels();
+            drawWaveform();
+            saveCurrentValues();
+        });
+    });
+
+    document.getElementById('btnPlay').addEventListener('click', playSound);
+    document.getElementById('btnStop').addEventListener('click', stopSound);
+
+    document.getElementById('btnReset').addEventListener('click', function() {
+        if (!currentWeapon) return;
+        delete config[getConfigKey()];
+        delete config[currentWeapon];
+        saveConfig();
+        syncSliders();
+        drawWaveform();
+        buildGrid();
+        document.getElementById('status').textContent = 'Reset ' + currentWeapon;
+    });
+
+    document.getElementById('btnResetAll').addEventListener('click', function() {
+        if (!confirm('Reset ALL sound configs? This cannot be undone.')) return;
+        config = {};
+        saveConfig();
+        syncSliders();
+        drawWaveform();
+        buildGrid();
+        document.getElementById('status').textContent = 'All configs cleared';
+    });
+
+    document.getElementById('btnCopy').addEventListener('click', function() {
+        var json = JSON.stringify(config, null, 2);
+        navigator.clipboard.writeText(json).then(function() {
+            document.getElementById('status').textContent = 'Config JSON copied to clipboard';
+        });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault();
+            if (currentSource) stopSound();
+            else playSound();
+        }
+    });
+
+    // Waveform click-to-seek clip start
+    document.getElementById('waveform').addEventListener('click', function(e) {
+        var buf = getCurrentBuffer();
+        if (!buf) return;
+        var rect = this.getBoundingClientRect();
+        var x = (e.clientX - rect.left) / rect.width;
+        var t = x * buf.duration;
+
+        // If click is before clip end, set clip start; otherwise set clip end
+        var clipEnd = parseFloat(document.getElementById('clipEnd').value);
+        if (t < clipEnd - 0.02) {
+            document.getElementById('clipStart').value = t;
+        } else {
+            document.getElementById('clipEnd').value = t;
+        }
+        updateLabels();
+        drawWaveform();
+        saveCurrentValues();
+    });
+
+    // Right-click waveform sets clip end
+    document.getElementById('waveform').addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        var buf = getCurrentBuffer();
+        if (!buf) return;
+        var rect = this.getBoundingClientRect();
+        var x = (e.clientX - rect.left) / rect.width;
+        var t = x * buf.duration;
+        document.getElementById('clipEnd').value = t;
+        updateLabels();
+        drawWaveform();
+        saveCurrentValues();
+    });
+}
+
+// ─── Load All Sounds ─────────────────────────────────────────
+function loadAllSounds() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var types = Object.keys(SOUND_MAP);
+    var total = 0;
+    var loaded = 0;
+
+    // Count total files
+    types.forEach(function(type) {
+        var map = SOUND_MAP[type];
+        if (map.hit) total += map.hit.length;
+        if (map.fire) total += map.fire.length;
+        if (map.wall) total += map.wall.length;
+        if (map.spawn) total += map.spawn.length;
+        if (map.hazard) total += Object.keys(map.hazard).length;
+    });
+
+    var allPromises = [];
+
+    function loadFile(dir, filename) {
+        return fetch(dir + filename)
+            .then(function(resp) {
+                if (!resp.ok) throw new Error('HTTP ' + resp.status + ': ' + filename);
+                return resp.arrayBuffer();
+            })
+            .then(function(arrayBuf) {
+                return audioCtx.decodeAudioData(arrayBuf);
+            });
+    }
+
+    function getSoundDir(filename) {
+        if (filename.indexOf('deflection') === 0 || filename.indexOf('firework') === 0 ||
+            filename.indexOf('flame') === 0 || filename.indexOf('generic') === 0 ||
+            filename.indexOf('claw') === 0) {
+            return 'assets/sounds/fx/';
+        }
+        return 'assets/sounds/states/';
+    }
+
+    types.forEach(function(type) {
+        var map = SOUND_MAP[type];
+        buffers[type] = {};
+
+        // Array categories: hit, fire, wall, spawn
+        ['hit', 'fire', 'wall', 'spawn'].forEach(function(cat) {
+            if (!map[cat]) return;
+            buffers[type][cat] = new Array(map[cat].length);
+
+            map[cat].forEach(function(filename, idx) {
+                var p = loadFile(getSoundDir(filename), filename)
+                    .then(function(audioBuf) {
+                        buffers[type][cat][idx] = audioBuf;
+                        loaded++;
+                        document.getElementById('status').textContent = 'Loaded ' + loaded + '/' + total + ' sounds...';
+                    })
+                    .catch(function(err) {
+                        console.warn('Failed to load ' + filename + ':', err);
+                        loaded++;
+                        document.getElementById('status').textContent = 'Loaded ' + loaded + '/' + total + ' (some failed)';
+                    });
+                allPromises.push(p);
+            });
+        });
+
+        // Hazard map: spriteKey → filename
+        if (map.hazard) {
+            buffers[type].hazard = {};
+            var hazardKeys = Object.keys(map.hazard);
+            hazardKeys.forEach(function(spriteKey) {
+                var filename = map.hazard[spriteKey];
+                var p = loadFile(getSoundDir(filename), filename)
+                    .then(function(audioBuf) {
+                        buffers[type].hazard[spriteKey] = audioBuf;
+                        loaded++;
+                        document.getElementById('status').textContent = 'Loaded ' + loaded + '/' + total + ' sounds...';
+                    })
+                    .catch(function(err) {
+                        console.warn('Failed to load ' + filename + ':', err);
+                        loaded++;
+                        document.getElementById('status').textContent = 'Loaded ' + loaded + '/' + total + ' (some failed)';
+                    });
+                allPromises.push(p);
+            });
+        }
+    });
+
+    Promise.all(allPromises).then(function() {
+        document.getElementById('status').textContent = 'All ' + total + ' sounds loaded. Select a weapon to edit.';
+        // Auto-select first weapon
+        var first = Object.keys(SOUND_MAP)[0];
+        if (first) selectWeapon(first);
+    });
+}
+</script>
+</body>
+</html>

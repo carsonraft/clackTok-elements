@@ -249,7 +249,7 @@ This balance was achieved through **7 rounds of iterative simulation**, totaling
 - **Debuffs applied in ball.js**: `takeDamage()` checks `forgeMarks` to amplify damage. Movement checks `slowFactor`/`slowTimer` and `madness`.
 
 ### Console Debug Utilities (in `js/main.js`)
-Three global functions available in the browser console (or via `preview_eval` from automation). Persist across page reloads — no need to inject anything.
+Global functions available in the browser console (or via `preview_eval` from automation). Persist across page reloads — no need to inject anything.
 
 ```javascript
 // Instant battle — skips menu and countdown, jumps straight to fight
@@ -264,9 +264,31 @@ listWeapons('pantheon')                    // just the 10 Greek gods
 // Headless sim — run N battles, get win rate (no rendering)
 testSim('new-hampshire', 'massachusetts', 50)  // 50 battles
 testSim('zeus', 'artemis')                     // default 20 battles
+
+// Ghost composite — overlay 5 sequential frames to debug motion/rotation/projectiles
+// One-liner that starts a fight, waits, captures frames, and shows overlay:
+ghostFight('california', 'texas', {seed: 42})              // default 5 frames, 6-skip
+ghostFight('florida', 'new-york', {seed: 77, skip: 8})     // wider gaps between frames
+ghostFight('alaska', 'hawaii', {seed: 55, mode: 'strip'})  // side-by-side strip mode
+
+// Lower-level: capture + composite separately
+captureFrames(5, 6)        // capture 5 frames with 6-tick gaps (must be in BATTLE state)
+ghostComposite('ghost')    // composite modes: 'ghost' (default), 'strip', 'diff'
+
+// Single-step the game loop (used internally by captureFrames)
+debugStep()                // advance exactly one physics tick, returns Promise
 ```
 
 **When to use which:**
 - `testFight` — visual testing (sprites, animations, hitbox alignment). Use `preview_screenshot` to capture frames.
+- `ghostFight` — motion/rotation/trajectory debugging. Shows 5 overlaid frames as a stroboscopic image. Use `preview_screenshot` after to see the composite. Click overlay to dismiss.
 - `testSim` — stability & balance testing. Fast, no rendering, catches crashes.
-- `listWeapons` — discover weapon type strings (the first argument to the other two functions).
+- `listWeapons` — discover weapon type strings (the first argument to the other functions).
+
+**Ghost composite from automation** (all async, wrap in IIFE):
+```javascript
+// preview_eval:
+(async()=>{ await ghostFight('florida','new-york',{seed:42}); })()
+// then: preview_screenshot to see the result
+// overlay auto-shows on page; click to dismiss or: document.getElementById('ghost-overlay').remove()
+```

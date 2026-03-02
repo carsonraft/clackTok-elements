@@ -345,8 +345,10 @@ WB.Simulator = {
         init() {}, resume() {}, wallClack() {}, ballClack() {},
         weaponHit() {}, parry() {}, projectileFire() {},
         death() {}, superActivate() {}, poisonTick() {},
-        comboClack() {}, victoryFanfare() {}, countdownClack() {}, menuClack() {},
-        gunClack() {}
+        comboClack() {}, victoryFanfare() {}, victoryFireworks() {}, countdownClack() {}, menuClack() {},
+        gunClack() {}, hazardHit() {}, spawnSound() {},
+        loadAllSounds() { return Promise.resolve(); },
+        _fileBuffers: {}, _fileSoundMap: {}, _soundConfig: {}
     },
     _noopRenderer: {
         shakeX: 0, shakeY: 0, shakeFrames: 0,

@@ -21,11 +21,28 @@ WB.Projectile = class {
         this.shape = config.shape || null;  // null = circle (default), 'bolt', 'arrow', 'sun-arrow', 'sprite', etc.
         this.spriteKey = config.spriteKey || null;  // For shape='sprite': key into WB.WeaponSprites atlas
         this.spriteAnchor = config.spriteAnchor || 0; // 0=centered, 0.5=nose at leading hitbox edge
+        this.spriteAngleOffset = config.spriteAngleOffset || 0; // radians to rotate PNG so "nose" points right at angle=0
         this._hasHit = false;
         this.alive = true;
         this.trail = [];
         this._hitTargets = new Set();
         this._age = 0; // frame counter for spinning/animated shapes
+
+        // Apply stat overrides from sprite editor (localStorage)
+        if (this.spriteKey && WB._spriteConfig) {
+            var ov = WB._spriteConfig[this.spriteKey];
+            if (ov) {
+                if (ov.projectileRadius != null) this.radius = ov.projectileRadius;
+                if (ov.projectileLifespan != null) this.lifespan = ov.projectileLifespan;
+                if (ov.projectileBounces != null) this.bounces = ov.projectileBounces;
+                if (ov.projectileDamage != null) this.damage = ov.projectileDamage;
+                if (ov.projectileSpeed != null) {
+                    var heading = Math.atan2(this.vy, this.vx);
+                    this.vx = Math.cos(heading) * ov.projectileSpeed;
+                    this.vy = Math.sin(heading) * ov.projectileSpeed;
+                }
+            }
+        }
     }
 
     update() {
@@ -112,7 +129,7 @@ WB.Projectile = class {
         }
         if (bounced) {
             const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-            WB.Audio.wallClack(spd);
+            WB.Audio.wallClack(spd, this.ownerWeapon ? this.ownerWeapon.type : null);
             if (WB.GLEffects) {
                 WB.GLEffects.spawnWallImpact(bounceX, bounceY, spd, this.color);
             }
@@ -510,15 +527,28 @@ WB.Projectile = class {
         const S = WB.WeaponSprites;
         if (S && S.hasSprite(this.spriteKey)) {
             B.flush();
-            var size = r;
+            // Check for sprite editor overrides
+            var angleOff = this.spriteAngleOffset;
+            var anchor = this.spriteAnchor;
+            var ov = WB._spriteConfig && WB._spriteConfig[this.spriteKey];
+            if (ov) {
+                if (ov.angleOffset != null) angleOff = ov.angleOffset;
+                if (ov.anchor != null) anchor = ov.anchor;
+            }
+            var size = r; // sprite size = hitbox radius (v80 rule)
             var drawX = this.x;
             var drawY = this.y;
-            if (this.spriteAnchor) {
-                // Shift sprite forward along heading by anchor * radius
-                drawX += Math.cos(heading) * this.spriteAnchor * r;
-                drawY += Math.sin(heading) * this.spriteAnchor * r;
+            if (anchor) {
+                drawX += Math.cos(heading) * anchor * r;
+                drawY += Math.sin(heading) * anchor * r;
             }
-            S.drawSprite(this.spriteKey, drawX, drawY, heading, size, size, 1.0, 1.0);
+            // Mirror sprite vertically when heading leftward (|heading| > π/2)
+            // so directional sprites (phoenix, rocket, etc.) don't appear upside-down
+            var h = heading % (Math.PI * 2);
+            if (h > Math.PI) h -= Math.PI * 2;
+            if (h < -Math.PI) h += Math.PI * 2;
+            var flipY = (h > Math.PI / 2 || h < -Math.PI / 2) ? -1 : 1;
+            S.drawSprite(this.spriteKey, drawX, drawY, heading + angleOff, size, size * flipY, 1.0, 1.0);
         } else {
             // Fallback: plain circle
             this._drawCircle(B, r);

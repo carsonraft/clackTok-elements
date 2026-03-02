@@ -69,7 +69,7 @@ WB.Renderer = {
         const _egyptianTypes = WB.WeaponSprites && WB.WeaponSprites._initialized
             ? new Set(WB.WeaponRegistry.getTypes('egyptian'))
             : null;
-        const _onTopTypes = new Set(['ohio', 'michigan', 'mississippi', 'georgia', 'arkansas', 'oklahoma', 'maine']);
+        const _onTopTypes = new Set(['ohio', 'michigan', 'mississippi', 'georgia', 'arkansas', 'oklahoma', 'maine', 'colorado']);
         for (const ball of game.balls) {
             if (ball.isAlive && !(_egyptianTypes && _egyptianTypes.has(ball.weaponType)) && !_onTopTypes.has(ball.weaponType)) {
                 ball.weapon.draw();
