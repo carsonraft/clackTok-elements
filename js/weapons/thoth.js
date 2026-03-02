@@ -113,7 +113,7 @@ class ThothWeapon extends WB.Weapon {
             const tipY = this.owner.y + Math.sin(this.angle) * this.reach;
             const dotCount = 1 + Math.floor(speedRatio * 3);
             const orbitSpeed = 0.02 + speedRatio * 0.08;
-            const orbitAngle = Date.now() * orbitSpeed;
+            const orbitAngle = (WB.now||Date.now()) * orbitSpeed;
             const orbitR = 8 + speedRatio * 4;
             const dotAlpha = 0.4 + speedRatio * 0.4;
             const dotSize = 2 + speedRatio * 2;
@@ -131,7 +131,7 @@ class ThothWeapon extends WB.Weapon {
 
         // Super indicator — orbiting glyphs around ball
         if (this.superActive) {
-            const t = Date.now() * 0.003;
+            const t = (WB.now||Date.now()) * 0.003;
             for (let i = 0; i < 3; i++) {
                 const a = t + i * Math.PI * 2 / 3;
                 const ox = this.owner.x + Math.cos(a) * (r + 10);

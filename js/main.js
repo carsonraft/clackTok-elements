@@ -307,6 +307,8 @@ WB.Game = {
         if (elapsed < this._frameInterval * 0.9) return; // 0.9 tolerance for timing jitter
         this._lastFrameTime = timestamp - (elapsed % this._frameInterval);
 
+        WB.now = Date.now(); // Cached timestamp — use WB.now instead of Date.now() in draw/update
+
         WB.GL.beginFrame();
 
         switch (this.state) {
@@ -594,34 +596,40 @@ WB.Game = {
 
         // 5. Update and check projectiles (cap at 40 to prevent FPS drops)
         if (this.projectiles.length > 40) {
-            this.projectiles.splice(0, this.projectiles.length - 40);
+            this.projectiles.length = 40; // truncate excess (keeps newest)
         }
-        for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            const proj = this.projectiles[i];
-            proj.update();
-
-            if (proj.alive) {
-                for (const target of this.balls) {
-                    if (proj.checkHit(target)) {
-                        WB.Renderer.triggerShake(3);
-                        if (this._excitement) this._excitement.recordHit();
-                        break;
+        {
+            let writeIdx = 0;
+            for (let i = 0; i < this.projectiles.length; i++) {
+                const proj = this.projectiles[i];
+                proj.update();
+                if (proj.alive) {
+                    for (const target of this.balls) {
+                        if (proj.checkHit(target)) {
+                            WB.Renderer.triggerShake(3);
+                            if (this._excitement) this._excitement.recordHit();
+                            break;
+                        }
                     }
                 }
+                if (proj.alive) {
+                    this.projectiles[writeIdx++] = proj;
+                }
             }
-
-            if (!proj.alive) {
-                this.projectiles.splice(i, 1);
-            }
+            this.projectiles.length = writeIdx;
         }
 
-        // 5b. Update and check hazards
-        for (let i = this.hazards.length - 1; i >= 0; i--) {
-            const h = this.hazards[i];
-            h.update(this.balls);
-            if (!h.alive) {
-                this.hazards.splice(i, 1);
+        // 5b. Update and check hazards (compact removal)
+        {
+            let writeIdx = 0;
+            for (let i = 0; i < this.hazards.length; i++) {
+                const h = this.hazards[i];
+                h.update(this.balls);
+                if (h.alive) {
+                    this.hazards[writeIdx++] = h;
+                }
             }
+            this.hazards.length = writeIdx;
         }
 
         // 6. Record excitement metrics (use first two original balls)
@@ -642,31 +650,39 @@ WB.Game = {
     _checkWinCondition() {
         if (this.state !== 'BATTLE') return;
 
-        const leftAlive = this.balls.filter(b => b.side === 'left' && b.isAlive);
-        const rightAlive = this.balls.filter(b => b.side === 'right' && b.isAlive);
+        // Single-pass win condition check (zero allocations)
+        let leftAliveN = 0, rightAliveN = 0, leftOrig = null, rightOrig = null;
+        let leftAliveAny = null, rightAliveAny = null;
+        for (let bi = 0; bi < this.balls.length; bi++) {
+            const b = this.balls[bi];
+            if (b.side === 'left') {
+                if (b.isOriginal) leftOrig = b;
+                if (b.isAlive) { leftAliveN++; leftAliveAny = b; }
+            } else {
+                if (b.isOriginal) rightOrig = b;
+                if (b.isAlive) { rightAliveN++; rightAliveAny = b; }
+            }
+        }
+        const leftKingDead = leftOrig && !leftOrig.isAlive;
+        const rightKingDead = rightOrig && !rightOrig.isAlive;
 
-        // Check if an original (king) duplicator ball was killed
-        const leftOriginal = this.balls.find(b => b.side === 'left' && b.isOriginal);
-        const rightOriginal = this.balls.find(b => b.side === 'right' && b.isOriginal);
-        const leftKingDead = leftOriginal && !leftOriginal.isAlive;
-        const rightKingDead = rightOriginal && !rightOriginal.isAlive;
-
-        const leftDead = leftAlive.length === 0 || leftKingDead;
-        const rightDead = rightAlive.length === 0 || rightKingDead;
+        const leftDead = leftAliveN === 0 || leftKingDead;
+        const rightDead = rightAliveN === 0 || rightKingDead;
 
         if (!leftDead && !rightDead) return; // no winner yet
 
         // Double KO — both sides dead in the same frame
         if (leftDead && rightDead) {
-            // Pick higher HP ball, or coin-flip
             const b1 = this.balls[0];
             const b2 = this.balls[1];
             this.winner = b1.hp >= b2.hp ? b1 : b2;
             this._isDraw = true;
         } else {
-            const winnerSide = leftDead ? 'right' : 'left';
-            this.winner = this.balls.find(b => b.side === winnerSide && b.isOriginal && b.isAlive)
-                       || this.balls.find(b => b.side === winnerSide && b.isAlive);
+            if (leftDead) {
+                this.winner = (rightOrig && rightOrig.isAlive) ? rightOrig : rightAliveAny;
+            } else {
+                this.winner = (leftOrig && leftOrig.isAlive) ? leftOrig : leftAliveAny;
+            }
             this._isDraw = false;
         }
 

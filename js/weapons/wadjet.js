@@ -207,7 +207,7 @@ WB.VenomPuddle = class {
         const B = WB.GLBatch;
         const S = WB.WeaponSprites;
         const fadeRatio = Math.min(1, this.lifespan / (this.maxLife * 0.3));
-        const pulse = 1 + Math.sin(Date.now() * 0.004) * 0.08;
+        const pulse = 1 + Math.sin((WB.now||Date.now()) * 0.004) * 0.08;
         const drawRadius = this.radius * 1.5 * pulse;
 
         // ── Puddle sprite ──
@@ -219,7 +219,7 @@ WB.VenomPuddle = class {
         // Orbiting bubbles (procedural overlay)
         B.setAlpha(fadeRatio * 0.3);
         for (let i = 0; i < 3; i++) {
-            const bubbleAngle = Date.now() * 0.003 + i * Math.PI * 2 / 3;
+            const bubbleAngle = (WB.now||Date.now()) * 0.003 + i * Math.PI * 2 / 3;
             B.fillCircle(
                 this.x + Math.cos(bubbleAngle) * this.radius * 0.4,
                 this.y + Math.sin(bubbleAngle) * this.radius * 0.4,

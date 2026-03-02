@@ -207,7 +207,7 @@ class HermesWeapon extends WB.Weapon {
 
         // Speed aura during super
         if (this.superActive) {
-            const pulse = Math.sin(Date.now() * 0.012) * 3;
+            const pulse = Math.sin((WB.now||Date.now()) * 0.012) * 3;
             B.setAlpha(0.1);
             B.strokeCircle(this.owner.x, this.owner.y, r + 10 + pulse, '#87CEEB', 2);
             B.restoreAlpha();

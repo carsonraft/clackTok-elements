@@ -129,7 +129,7 @@ WB.Hazard = class {
         }
 
         // Pulsing glow
-        const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.1;
+        const pulse = 1 + Math.sin((WB.now||Date.now()) * 0.005) * 0.1;
         const drawRadius = this.radius * pulse;
 
         // Minimal fill — just a faint tint so overlapping hazards don't white-out the screen

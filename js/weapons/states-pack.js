@@ -1462,14 +1462,14 @@ class MassachusettsWeapon extends WB.Weapon {
         if (S && S.hasSprite('massachusetts-hex')) {
             WB.GLBatch.flush();
             var size = this.owner.radius * 0.85;
-            var rot = Date.now() * 0.002;
+            var rot = (WB.now||Date.now()) * 0.002;
             var maAlpha = 0.8;
             var ov = WB._spriteConfig && WB._spriteConfig['massachusetts-hex'];
             if (ov && ov.alpha != null) maAlpha = ov.alpha;
             S.drawSprite('massachusetts-hex', this.owner.x, this.owner.y, rot, size, size, maAlpha, 1.0);
         } else {
             var B = WB.GLBatch;
-            var t = Date.now() * 0.003;
+            var t = (WB.now||Date.now()) * 0.003;
             var r = 8;
             B.setAlpha(0.5);
             for (var i = 0; i < 6; i++) {
@@ -1768,7 +1768,7 @@ class MissouriWeapon extends WB.Weapon {
         this.hitCount++;
         this.cooldown = WB.Config.WEAPON_HIT_COOLDOWN;
         // Store gateway marker
-        this.markers.push({ x: this.owner.x, y: this.owner.y, time: Date.now() });
+        this.markers.push({ x: this.owner.x, y: this.owner.y, time: (WB.now||Date.now()) });
         if (this.markers.length > this.maxMarkers) this.markers.shift();
         // Every 3rd hit: teleport to oldest marker
         if (this.hitCount % 3 === 0 && this.markers.length > 0) {
@@ -1788,7 +1788,7 @@ class MissouriWeapon extends WB.Weapon {
     update() {
         super.update();
         // Expire old markers (15 seconds)
-        var now = Date.now();
+        var now = (WB.now||Date.now());
         while (this.markers.length > 0 && now - this.markers[0].time > 15000) this.markers.shift();
     }
     draw() {

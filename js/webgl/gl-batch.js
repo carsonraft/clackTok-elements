@@ -19,7 +19,8 @@ WB.GLBatch = {
     MAX_CIRC_INSTANCES: 4000,
 
     // Transform stack
-    _transformStack: [],
+    _tStack: null,       // Float64Array(32*6) — pooled transform stack
+    _tStackPtr: 0,
     _currentTransform: null, // [a, b, c, d, tx, ty] = 2D affine
 
     // Alpha stack
@@ -86,28 +87,37 @@ WB.GLBatch = {
 
         gl.bindVertexArray(null);
 
-        // Init transform
-        this._currentTransform = [1, 0, 0, 1, 0, 0];
+        // Init transform (pooled flat stack — max 32 depth, zero allocations)
+        this._currentTransform = new Float64Array(6);
+        this._currentTransform[0] = 1; this._currentTransform[3] = 1;
+        this._tStack = new Float64Array(32 * 6); // 32-deep stack × 6 floats each
+        this._tStackPtr = 0;
     },
 
     resetFrame() {
         this._flatCount = 0;
         this._circCount = 0;
-        this._transformStack.length = 0;
-        this._currentTransform = [1, 0, 0, 1, 0, 0];
+        this._tStackPtr = 0;
+        const t = this._currentTransform;
+        t[0] = 1; t[1] = 0; t[2] = 0; t[3] = 1; t[4] = 0; t[5] = 0;
         this._alphaStack.length = 0;
         this._currentAlpha = 1.0;
     },
 
-    // ─── Transform Stack ─────────────────────────────────────
+    // ─── Transform Stack (pooled — zero allocations) ─────────
     pushTransform(tx, ty, rotation, sx, sy) {
-        this._transformStack.push(this._currentTransform.slice());
+        // Save current transform onto flat stack
+        const sp = this._tStackPtr * 6;
+        const stk = this._tStack;
+        const old = this._currentTransform;
+        stk[sp] = old[0]; stk[sp+1] = old[1]; stk[sp+2] = old[2];
+        stk[sp+3] = old[3]; stk[sp+4] = old[4]; stk[sp+5] = old[5];
+        this._tStackPtr++;
         // Build new transform and multiply
         const cos = Math.cos(rotation || 0) * (sx || 1);
         const sin = Math.sin(rotation || 0) * (sy || 1);
         const cosY = Math.cos(rotation || 0) * (sy || 1);
         const sinX = Math.sin(rotation || 0) * (sx || 1);
-        const old = this._currentTransform;
         // Multiply: old * [cos, sin, -sin, cos, tx, ty]
         const a = old[0] * cos + old[2] * sinX;
         const b = old[1] * cos + old[3] * sinX;
@@ -115,44 +125,54 @@ WB.GLBatch = {
         const d = old[1] * (-sin) + old[3] * cosY;
         const e = old[0] * (tx || 0) + old[2] * (ty || 0) + old[4];
         const f = old[1] * (tx || 0) + old[3] * (ty || 0) + old[5];
-        this._currentTransform = [a, b, c, d, e, f];
+        old[0] = a; old[1] = b; old[2] = c; old[3] = d; old[4] = e; old[5] = f;
     },
 
     popTransform() {
-        if (this._transformStack.length > 0) {
-            this._currentTransform = this._transformStack.pop();
+        if (this._tStackPtr > 0) {
+            this._tStackPtr--;
+            const sp = this._tStackPtr * 6;
+            const stk = this._tStack;
+            const t = this._currentTransform;
+            t[0] = stk[sp]; t[1] = stk[sp+1]; t[2] = stk[sp+2];
+            t[3] = stk[sp+3]; t[4] = stk[sp+4]; t[5] = stk[sp+5];
         }
     },
 
     // Convenience: push translate only
     pushTranslate(tx, ty) {
-        this._transformStack.push(this._currentTransform.slice());
+        const sp = this._tStackPtr * 6;
+        const stk = this._tStack;
         const old = this._currentTransform;
-        this._currentTransform = [
-            old[0], old[1], old[2], old[3],
-            old[0] * tx + old[2] * ty + old[4],
-            old[1] * tx + old[3] * ty + old[5],
-        ];
+        stk[sp] = old[0]; stk[sp+1] = old[1]; stk[sp+2] = old[2];
+        stk[sp+3] = old[3]; stk[sp+4] = old[4]; stk[sp+5] = old[5];
+        this._tStackPtr++;
+        old[4] = old[0] * tx + old[2] * ty + old[4];
+        old[5] = old[1] * tx + old[3] * ty + old[5];
     },
 
     // Convenience: push scale only
     pushScale(sx, sy) {
-        this._transformStack.push(this._currentTransform.slice());
+        const sp = this._tStackPtr * 6;
+        const stk = this._tStack;
         const old = this._currentTransform;
-        this._currentTransform = [
-            old[0] * sx, old[1] * sx,
-            old[2] * (sy !== undefined ? sy : sx), old[3] * (sy !== undefined ? sy : sx),
-            old[4], old[5],
-        ];
+        stk[sp] = old[0]; stk[sp+1] = old[1]; stk[sp+2] = old[2];
+        stk[sp+3] = old[3]; stk[sp+4] = old[4]; stk[sp+5] = old[5];
+        this._tStackPtr++;
+        const _sy = sy !== undefined ? sy : sx;
+        old[0] *= sx; old[1] *= sx;
+        old[2] *= _sy; old[3] *= _sy;
     },
 
-    // Apply current transform to a point
-    _tx(x, y) {
+    // Apply current transform to a point (inline at call sites for perf)
+    // Kept as reference — hot-path callers use _txX/_txY instead.
+    _txX(x, y) {
         const t = this._currentTransform;
-        return [
-            t[0] * x + t[2] * y + t[4],
-            t[1] * x + t[3] * y + t[5],
-        ];
+        return t[0] * x + t[2] * y + t[4];
+    },
+    _txY(x, y) {
+        const t = this._currentTransform;
+        return t[1] * x + t[3] * y + t[5];
     },
 
     // Get the current scale factor (for line widths, radii)
@@ -237,9 +257,9 @@ WB.GLBatch = {
     fillTriangle(x1, y1, x2, y2, x3, y3, color) {
         const rgba = WB.GL.parseColor(color);
         const alpha = this._currentAlpha * rgba[3];
-        const [tx1, ty1] = this._tx(x1, y1);
-        const [tx2, ty2] = this._tx(x2, y2);
-        const [tx3, ty3] = this._tx(x3, y3);
+        const tx1 = this._txX(x1, y1), ty1 = this._txY(x1, y1);
+        const tx2 = this._txX(x2, y2), ty2 = this._txY(x2, y2);
+        const tx3 = this._txX(x3, y3), ty3 = this._txY(x3, y3);
 
         if (this._flatCount + 3 > this.MAX_FLAT_VERTS) this._flushFlat();
 
@@ -363,10 +383,10 @@ WB.GLBatch = {
     _addQuad(x1, y1, x2, y2, x3, y3, x4, y4, color) {
         const rgba = WB.GL.parseColor(color);
         const alpha = this._currentAlpha * rgba[3];
-        const [tx1, ty1] = this._tx(x1, y1);
-        const [tx2, ty2] = this._tx(x2, y2);
-        const [tx3, ty3] = this._tx(x3, y3);
-        const [tx4, ty4] = this._tx(x4, y4);
+        const tx1 = this._txX(x1, y1), ty1 = this._txY(x1, y1);
+        const tx2 = this._txX(x2, y2), ty2 = this._txY(x2, y2);
+        const tx3 = this._txX(x3, y3), ty3 = this._txY(x3, y3);
+        const tx4 = this._txX(x4, y4), ty4 = this._txY(x4, y4);
 
         if (this._flatCount + 6 > this.MAX_FLAT_VERTS) this._flushFlat();
 
@@ -388,7 +408,7 @@ WB.GLBatch = {
     _addCircle(cx, cy, r, color, lineWidth) {
         const rgba = WB.GL.parseColor(color);
         const alpha = this._currentAlpha * rgba[3];
-        const [tcx, tcy] = this._tx(cx, cy);
+        const tcx = this._txX(cx, cy), tcy = this._txY(cx, cy);
         const scale = this._getScale();
         const sr = r * scale;
 

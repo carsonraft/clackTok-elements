@@ -47,25 +47,35 @@ WB.Simulator = {
             this._stepFrame(simGame, excitement);
             frame++;
 
-            // Check win condition: all balls on a side dead, or original (king) dead
-            const leftAlive = simGame.balls.filter(b => b.side === 'left' && b.isAlive);
-            const rightAlive = simGame.balls.filter(b => b.side === 'right' && b.isAlive);
-            const leftOrig = simGame.balls.find(b => b.side === 'left' && b.isOriginal);
-            const rightOrig = simGame.balls.find(b => b.side === 'right' && b.isOriginal);
+            // Check win condition (single-pass, zero allocations)
+            let leftAliveN = 0, rightAliveN = 0, leftOrig = null, rightOrig = null;
+            let leftAliveAny = null, rightAliveAny = null;
+            for (let bi = 0; bi < simGame.balls.length; bi++) {
+                const b = simGame.balls[bi];
+                if (b.side === 'left') {
+                    if (b.isOriginal) leftOrig = b;
+                    if (b.isAlive) { leftAliveN++; leftAliveAny = b; }
+                } else {
+                    if (b.isOriginal) rightOrig = b;
+                    if (b.isAlive) { rightAliveN++; rightAliveAny = b; }
+                }
+            }
             const leftKingDead = leftOrig && !leftOrig.isAlive;
             const rightKingDead = rightOrig && !rightOrig.isAlive;
 
-            const leftDead = leftAlive.length === 0 || leftKingDead;
-            const rightDead = rightAlive.length === 0 || rightKingDead;
+            const leftDead = leftAliveN === 0 || leftKingDead;
+            const rightDead = rightAliveN === 0 || rightKingDead;
 
             if (leftDead || rightDead) {
                 if (leftDead && rightDead) {
                     // Simultaneous death — coin flip
                     winner = WB.random() < 0.5 ? simGame.balls[0] : simGame.balls[1];
                 } else {
-                    const winnerSide = leftDead ? 'right' : 'left';
-                    winner = simGame.balls.find(b => b.side === winnerSide && b.isOriginal && b.isAlive)
-                          || simGame.balls.find(b => b.side === winnerSide && b.isAlive);
+                    if (leftDead) {
+                        winner = (rightOrig && rightOrig.isAlive) ? rightOrig : rightAliveAny;
+                    } else {
+                        winner = (leftOrig && leftOrig.isAlive) ? leftOrig : leftAliveAny;
+                    }
                 }
                 break;
             }
@@ -306,32 +316,36 @@ WB.Simulator = {
             }
         }
 
-        // 5. Projectiles
-        for (let i = game.projectiles.length - 1; i >= 0; i--) {
-            const proj = game.projectiles[i];
-            proj.update();
-
-            if (proj.alive) {
-                for (const target of game.balls) {
-                    if (proj.checkHit(target)) {
-                        excitement.recordHit();
-                        break;
+        // 5. Projectiles (compact removal — zero splice overhead)
+        {
+            let writeIdx = 0;
+            for (let i = 0; i < game.projectiles.length; i++) {
+                const proj = game.projectiles[i];
+                proj.update();
+                if (proj.alive) {
+                    for (const target of game.balls) {
+                        if (proj.checkHit(target)) {
+                            excitement.recordHit();
+                            break;
+                        }
                     }
                 }
+                if (proj.alive) {
+                    game.projectiles[writeIdx++] = proj;
+                }
             }
-
-            if (!proj.alive) {
-                game.projectiles.splice(i, 1);
-            }
+            game.projectiles.length = writeIdx;
         }
 
-        // 5b. Update hazards
+        // 5b. Update hazards (compact removal)
         if (game.hazards) {
-            for (let i = game.hazards.length - 1; i >= 0; i--) {
+            let writeIdx = 0;
+            for (let i = 0; i < game.hazards.length; i++) {
                 const h = game.hazards[i];
                 h.update(game.balls);
-                if (!h.alive) game.hazards.splice(i, 1);
+                if (h.alive) game.hazards[writeIdx++] = h;
             }
+            game.hazards.length = writeIdx;
         }
 
         // 6. Record frame metrics (use first two original balls)

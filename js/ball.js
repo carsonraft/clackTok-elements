@@ -244,7 +244,11 @@ WB.Ball = class {
 
         // HP text — 6-pass with cardinal outlines for readability over flag textures
         const fontSize = Math.max(12, Math.floor(this.radius * 0.7));
-        const font = `bold ${fontSize}px "Courier New", monospace`;
+        if (this._cachedFontSize !== fontSize) {
+            this._cachedFontSize = fontSize;
+            this._cachedFont = 'bold ' + fontSize + 'px "Courier New", monospace';
+        }
+        const font = this._cachedFont;
         const hpText = Math.ceil(this.hp).toString();
         T.drawTextWithStroke(hpText, this.x, this.y, font, '#FFF', '#222', 3, 'center', 'middle');
     }

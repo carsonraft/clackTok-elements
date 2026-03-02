@@ -114,7 +114,7 @@ class RaWeapon extends WB.Weapon {
 
         // Frozen at peak indicator
         if (this.frozenAtPeak) {
-            const pulse = Math.sin(Date.now() * 0.005) * 0.04;
+            const pulse = Math.sin((WB.now||Date.now()) * 0.005) * 0.04;
             B.setAlpha(0.12 + pulse);
             B.strokeCircle(this.owner.x, this.owner.y, r + 14, '#FFD700', 2);
             B.restoreAlpha();

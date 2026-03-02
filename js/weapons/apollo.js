@@ -178,7 +178,7 @@ class ApolloWeapon extends WB.Weapon {
 
         // Solar aura during super
         if (this.superActive) {
-            const pulse = Math.sin(Date.now() * 0.01) * 3;
+            const pulse = Math.sin((WB.now||Date.now()) * 0.01) * 3;
             B.setAlpha(0.08);
             B.fillCircle(this.owner.x, this.owner.y, r + 15 + pulse, '#FFA500');
             B.restoreAlpha();

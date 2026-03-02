@@ -236,7 +236,7 @@ class GunclackerWeapon extends WB.Weapon {
         B.strokeCircle(r + 4, 0, 5, '#555', 1);
         // Cylinder chambers (tiny circles)
         for (let i = 0; i < 6; i++) {
-            const ca = (i * Math.PI * 2) / 6 + Date.now() * 0.003;
+            const ca = (i * Math.PI * 2) / 6 + (WB.now||Date.now()) * 0.003;
             B.fillCircle(r + 4 + Math.cos(ca) * 3, Math.sin(ca) * 3, 1, '#444');
         }
 
@@ -289,7 +289,7 @@ class GunclackerWeapon extends WB.Weapon {
 
         // Super aura
         if (this.superActive) {
-            const flicker = 1 + Math.sin(Date.now() * 0.01) * 0.15;
+            const flicker = 1 + Math.sin((WB.now||Date.now()) * 0.01) * 0.15;
             B.setAlpha(0.35);
             B.strokeCircle(this.owner.x, this.owner.y, r + 6 * flicker, '#FFD700', 2.5);
             B.restoreAlpha();

@@ -26,7 +26,10 @@ WB.Projectile = class {
         this.spriteScaleY = config.spriteScaleY || 1; // Y multiplier for non-square sprites
         this._hasHit = false;
         this.alive = true;
-        this.trail = [];
+        // Trail ring buffer (2 slots, zero allocations per frame)
+        this._trailBuf = [{x: config.x, y: config.y}, {x: config.x, y: config.y}];
+        this._trailIdx = 0;
+        this.trail = this._trailBuf; // alias for draw() compatibility
         this._hitTargets = new Set();
         this._age = 0; // frame counter for spinning/animated shapes
 
@@ -48,8 +51,10 @@ WB.Projectile = class {
     }
 
     update() {
-        this.trail.push({ x: this.x, y: this.y });
-        if (this.trail.length > 2) this.trail.shift();
+        // Ring buffer trail update (zero allocations)
+        const tb = this._trailBuf[this._trailIdx];
+        tb.x = this.x; tb.y = this.y;
+        this._trailIdx = (this._trailIdx + 1) & 1;
 
         this.x += this.vx;
         this.y += this.vy;

@@ -182,7 +182,7 @@ class ZeusWeapon extends WB.Weapon {
 
         // Electric aura during super
         if (this.superActive) {
-            const flicker = Math.sin(Date.now() * 0.015) * 0.1;
+            const flicker = Math.sin((WB.now||Date.now()) * 0.015) * 0.1;
             B.setAlpha(0.12 + flicker);
             B.strokeCircle(this.owner.x, this.owner.y, r + 8, '#FFD700', 2);
             B.restoreAlpha();

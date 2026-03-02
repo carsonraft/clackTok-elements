@@ -25,6 +25,7 @@ WB.GL = {
         barrelDistort: 0,        // 0-1 intensity
         time: 0,
     },
+    _shockData: new Float32Array(16), // Pre-allocated shockwave uniform buffer (4 shockwaves × 4 floats)
 
     init(canvas) {
         this.canvas = canvas;
@@ -222,9 +223,10 @@ WB.GL = {
             gl.uniform1f(prog._unis['u_chromatic'], d.chromaticAberration);
             gl.uniform1f(prog._unis['u_barrel'], d.barrelDistort);
 
-            // Shockwave data (max 4 active)
+            // Shockwave data (max 4 active, pre-allocated buffer)
             const maxShocks = 4;
-            const shockData = new Float32Array(maxShocks * 4);
+            const shockData = this._shockData;
+            shockData.fill(0); // zero out previous frame's data
             const count = Math.min(d.shockwaves.length, maxShocks);
             for (let i = 0; i < count; i++) {
                 const sw = d.shockwaves[i];

@@ -161,15 +161,15 @@ class DionysusWeapon extends WB.Weapon {
 
         // Madness aura during super
         if (this.superActive) {
-            const pulse = Math.sin(Date.now() * 0.008) * 0.05;
+            const pulse = Math.sin((WB.now||Date.now()) * 0.008) * 0.05;
             B.setAlpha(0.1 + pulse);
             B.strokeCircle(this.owner.x, this.owner.y, r + 10, '#8B00FF', 2);
             B.restoreAlpha();
 
             // Swirling purple specks
             for (let i = 0; i < 2; i++) {
-                const speckAngle = Date.now() * 0.003 + i * Math.PI;
-                const speckDist = r + 8 + Math.sin(Date.now() * 0.005 + i) * 4;
+                const speckAngle = (WB.now||Date.now()) * 0.003 + i * Math.PI;
+                const speckDist = r + 8 + Math.sin((WB.now||Date.now()) * 0.005 + i) * 4;
                 B.setAlpha(0.25);
                 B.fillCircle(
                     this.owner.x + Math.cos(speckAngle) * speckDist,
@@ -195,7 +195,7 @@ class DionysusWeapon extends WB.Weapon {
         let prevY = 0;
         for (let i = 1; i <= segments; i++) {
             const x = r + i * segLen;
-            const wave = Math.sin(i * 0.8 + Date.now() * 0.005) * (3 + i * 0.5);
+            const wave = Math.sin(i * 0.8 + (WB.now||Date.now()) * 0.005) * (3 + i * 0.5);
             const y = wave;
             B.line(prevX, prevY, x, y, '#228B22', isPrimary ? 3.5 : 2.5);
             prevX = x;
@@ -204,7 +204,7 @@ class DionysusWeapon extends WB.Weapon {
 
         // Vine tip — small grape cluster
         const tipX = this.reach;
-        const tipWave = Math.sin(segments * 0.8 + Date.now() * 0.005) * (3 + segments * 0.5);
+        const tipWave = Math.sin(segments * 0.8 + (WB.now||Date.now()) * 0.005) * (3 + segments * 0.5);
         B.fillCircle(tipX, tipWave, 5, '#6A0DAD');
         B.fillCircle(tipX - 3, tipWave - 3, 3.5, '#7722CC');
         B.fillCircle(tipX + 3, tipWave - 2, 3, '#9933EE');
@@ -212,10 +212,10 @@ class DionysusWeapon extends WB.Weapon {
 
         // Small leaves along vine
         const leafX = r + this.reach * 0.4;
-        const leafWave = Math.sin(3.2 + Date.now() * 0.005) * 5;
+        const leafWave = Math.sin(3.2 + (WB.now||Date.now()) * 0.005) * 5;
         B.fillTriangle(leafX, leafWave, leafX - 6, leafWave - 4, leafX - 4, leafWave + 4, '#2E8B2E');
         const leaf2X = r + this.reach * 0.7;
-        const leaf2Wave = Math.sin(5.6 + Date.now() * 0.005) * 6;
+        const leaf2Wave = Math.sin(5.6 + (WB.now||Date.now()) * 0.005) * 6;
         B.fillTriangle(leaf2X, leaf2Wave, leaf2X + 5, leaf2Wave - 3, leaf2X + 3, leaf2Wave + 4, '#2E8B2E');
 
         B.popTransform();

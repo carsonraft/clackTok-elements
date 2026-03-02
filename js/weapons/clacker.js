@@ -173,7 +173,7 @@ class ClackerWeapon extends WB.Weapon {
 
         // Super aura — metallic shimmer
         if (this.superActive) {
-            const flicker = 1 + Math.sin(Date.now() * 0.008) * 0.12;
+            const flicker = 1 + Math.sin((WB.now||Date.now()) * 0.008) * 0.12;
             B.setAlpha(0.35);
             B.strokeCircle(this.owner.x, this.owner.y, r + 6 * flicker, '#FFD700', 2);
             B.restoreAlpha();

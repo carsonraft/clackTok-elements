@@ -142,7 +142,7 @@ class StoneWeapon extends WB.Weapon {
 
         // Super: earthquake ring
         if (this.superActive) {
-            const pulse = 0.1 + Math.sin(Date.now() * 0.005) * 0.05;
+            const pulse = 0.1 + Math.sin((WB.now||Date.now()) * 0.005) * 0.05;
             B.setAlpha(pulse);
             B.strokeCircle(this.owner.x, this.owner.y, r + 10, '#8B7355', 3);
             B.restoreAlpha();

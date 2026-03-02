@@ -4,6 +4,8 @@ WB.Renderer = {
     shakeX: 0,
     shakeY: 0,
     shakeFrames: 0,
+    _egyptianTypes: null,  // lazily initialized Set — cached across frames
+    _onTopTypes: new Set(['michigan', 'mississippi', 'georgia', 'arkansas', 'oklahoma', 'maine', 'colorado']),
 
     triggerShake(intensity) {
         this.shakeFrames = 6;
@@ -66,10 +68,11 @@ WB.Renderer = {
         // Draw non-sprite weapons behind balls (procedural swords, bows, etc.)
         // Egyptian weapons use sprite-based rendering and must draw AFTER balls.
         // Body-slam states with ball-centered sprites also draw after balls.
-        const _egyptianTypes = WB.WeaponSprites && WB.WeaponSprites._initialized
-            ? new Set(WB.WeaponRegistry.getTypes('egyptian'))
-            : null;
-        const _onTopTypes = new Set(['michigan', 'mississippi', 'georgia', 'arkansas', 'oklahoma', 'maine', 'colorado']);
+        if (!this._egyptianTypes && WB.WeaponSprites && WB.WeaponSprites._initialized) {
+            this._egyptianTypes = new Set(WB.WeaponRegistry.getTypes('egyptian'));
+        }
+        const _egyptianTypes = this._egyptianTypes || null;
+        const _onTopTypes = this._onTopTypes;
         for (const ball of game.balls) {
             if (ball.isAlive && !(_egyptianTypes && _egyptianTypes.has(ball.weaponType)) && !_onTopTypes.has(ball.weaponType)) {
                 ball.weapon.draw();
@@ -259,7 +262,7 @@ WB.Renderer = {
 
                 // Super active — pulsing golden overlay
                 if (weapon.superActive) {
-                    const t = Date.now() * 0.005;
+                    const t = (WB.now||Date.now()) * 0.005;
                     const pulse = 0.2 + Math.sin(t) * 0.12;
                     B.setAlpha(pulse);
                     B.fillCircle(meterX + pillR, mCenterY, pillR - 2, '#FFF');

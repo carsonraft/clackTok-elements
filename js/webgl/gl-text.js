@@ -265,8 +265,10 @@ WB.GLText = {
             const v1 = (g.y + g.h) / this._atlasHeight;
 
             // Screen coords (apply transform)
-            const [x0, y0] = WB.GLBatch._tx(curX, startY);
-            const [x1, y1] = WB.GLBatch._tx(curX + gw, startY + gh);
+            const x0 = WB.GLBatch._txX(curX, startY);
+            const y0 = WB.GLBatch._txY(curX, startY);
+            const x1 = WB.GLBatch._txX(curX + gw, startY + gh);
+            const y1 = WB.GLBatch._txY(curX + gw, startY + gh);
 
             this._addGlyphQuad(x0, y0, x1, y1, u0, v0, u1, v1, rgba[0], rgba[1], rgba[2], alpha);
 

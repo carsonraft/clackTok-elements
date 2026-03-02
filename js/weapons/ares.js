@@ -137,7 +137,7 @@ class AresWeapon extends WB.Weapon {
 
         if (this.berserk) {
             // Berserker mode — rage aura, no weapon
-            const pulse = Math.sin(Date.now() * 0.01) * 0.06;
+            const pulse = Math.sin((WB.now||Date.now()) * 0.01) * 0.06;
 
             // Red rage glow
             B.setAlpha(0.15 + pulse);
@@ -150,7 +150,7 @@ class AresWeapon extends WB.Weapon {
             B.restoreAlpha();
 
             // Rage sparks
-            if (Date.now() % 100 < 30) {
+            if ((WB.now||Date.now()) % 100 < 30) {
                 const sparkAngle = Math.random() * Math.PI * 2;
                 B.setAlpha(0.4);
                 B.fillCircle(

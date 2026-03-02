@@ -135,7 +135,7 @@ class PoseidonWeapon extends WB.Weapon {
 
         // Water aura during super
         if (this.superActive) {
-            const pulse = Math.sin(Date.now() * 0.006) * 3;
+            const pulse = Math.sin((WB.now||Date.now()) * 0.006) * 3;
             B.setAlpha(0.1);
             B.strokeCircle(this.owner.x, this.owner.y, r + 10 + pulse, '#00AAAA', 2);
             B.restoreAlpha();
