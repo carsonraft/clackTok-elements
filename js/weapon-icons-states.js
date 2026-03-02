@@ -2,7 +2,7 @@ window.WB = window.WB || {};
 
 // ─── US States Weapon Icon Atlas ────────────────────────────────
 // Loads individual pixel-art PNGs from assets/pixel-icons/ and packs
-// them into an 8x8 grid atlas (1024x1024, 128x128 per cell).
+// them into a 9x9 grid atlas (1152x1152, 128x128 per cell).
 // Registers as atlas 1 on WB.WeaponSprites.
 // Non-square PNGs are scaled to fit within 128x128, centered.
 // Florida gator is stitched from 4 quadrant PNGs into one sprite.
@@ -32,6 +32,7 @@ WB.StatesIcons = {
         'massachusetts-hex':    'massachusettsHex',
         'michigan-gear':        'michiganGear',
         'minnesota-stick':      'minnesotaStick',
+        'minnesota-puck':       'minnesotaPuck',
         'mississippi-paddle':   'mississippiPaddle',
         'missouri-arch':        'missouriArch',
         'montana-antler':       'montanaAntlers',
@@ -77,7 +78,7 @@ WB.StatesIcons = {
         'la-bead-purple':        'louisianaBeadPurple',
         'la-bead-gold':          'louisianaBeadGold',
         'la-bead-green':         'louisianaBeadGreen',
-        'utah-crystal':          'southCarolinaSaber',
+        'utah-crystal':          'utahCrystal',
     },
 
     // ─── Stitched sprites (multiple PNGs → one sprite) ───────

@@ -551,7 +551,7 @@ WB.Projectile = class {
             var drawY = this.y;
             if (anchor) {
                 drawX += Math.cos(heading) * anchor * r * scX;
-                drawY += Math.sin(heading) * anchor * r * scX;
+                drawY += Math.sin(heading) * anchor * r * scY;
             }
             // Spin override — tumbling projectiles (VT bottle, etc.)
             var drawAngle = heading + angleOff;

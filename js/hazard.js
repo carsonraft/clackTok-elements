@@ -42,7 +42,7 @@ WB.Hazard = class {
         // Check damage + physics against balls
         if (WB.Game && WB.Game.balls) {
             for (const target of WB.Game.balls) {
-                if (!target.isAlive) continue;
+                if (!target.isAlive) { this._hitTimers.delete(target); continue; }
 
                 // Check collision BEFORE solid push (push moves ball out of range)
                 let touching = WB.Physics.circleCircle(this.x, this.y, this.radius, target.x, target.y, target.radius);
@@ -87,7 +87,7 @@ WB.Hazard = class {
                         this.ownerWeapon.checkSuper();
                     }
                     // Per-hazard audio (e.g. South Dakota president busts)
-                    if (this.spriteKey && this.ownerWeapon) {
+                    if (this.spriteKey && this.ownerWeapon && WB.Audio) {
                         WB.Audio.hazardHit(this.ownerWeapon.type, this.spriteKey);
                     }
                     // Visual feedback
@@ -105,7 +105,7 @@ WB.Hazard = class {
 
     draw() {
         const B = WB.GLBatch;
-        const fadeRatio = Math.min(1, this.lifespan / (this.maxLife * 0.3)); // fade in last 30%
+        const fadeRatio = Math.min(1, this.lifespan / (this.maxLife * 0.3)); // fade out over last 30% of lifespan
         const alpha = fadeRatio;
 
         // Sprite-based hazard (e.g. New York skyscrapers, Massachusetts hex)
@@ -115,13 +115,15 @@ WB.Hazard = class {
                 B.flush();
                 var sprAlpha = 0.9;
                 var sprScale = 1.0;
+                var sprAngle = this._wallAngle;
                 var ov = WB._spriteConfig && WB._spriteConfig[this.spriteKey];
                 if (ov) {
                     if (ov.alpha != null) sprAlpha = ov.alpha;
                     if (ov.scale != null) sprScale = ov.scale;
+                    if (ov.angleOffset != null) sprAngle += ov.angleOffset;
                 }
                 var sr = this.radius * sprScale;
-                S.drawSprite(this.spriteKey, this.x, this.y, this._wallAngle, sr, sr, alpha * sprAlpha, 1.0);
+                S.drawSprite(this.spriteKey, this.x, this.y, sprAngle, sr, sr, alpha * sprAlpha, 1.0);
                 return;
             }
         }

@@ -273,6 +273,7 @@ WB.UI = {
         var allPacks = Object.keys(WB.Config.PACKS || {});
         // When expanded rosters is off, hide all tabs (states is the only pack shown, no tab needed)
         const packs = WB.Config.EXPANDED_ROSTERS ? allPacks : [];
+        if (packs.length === 0) return [];
         const packNames = WB.Config.PACKS || {};
         const pad = 15;
         const tabH = 20;

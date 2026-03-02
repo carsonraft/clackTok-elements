@@ -2448,6 +2448,7 @@ class OhioWeapon extends WB.Weapon {
         applyCustomOverrides(this);
     }
     update() {
+        if (this._deflectReverse > 0) this._deflectReverse--;
         if (this.contactCooldown > 0) this.contactCooldown--;
         this.chargeTimer++;
         // Tumble spin: fast after punt, decays toward zero
@@ -3259,9 +3260,16 @@ class VermontWeapon extends WB.Weapon {
         if (WB.Game.particles) WB.Game.particles.emit(x, y, 6, '#8B6914');
     }
     onProjectileHit(proj, target) {
-        // Direct hit: slow debuff + shatter at impact point
+        // Direct hit: deal damage + slow debuff + shatter at impact point
+        target.takeDamage(proj.damage);
         target.debuffs.slowFactor = 0.35;
         target.debuffs.slowTimer = Math.max(target.debuffs.slowTimer || 0, 75);
+        this.hitCount++;
+        this.totalDamageDealt += proj.damage;
+        this.cooldown = WB.Config.WEAPON_HIT_COOLDOWN;
+        this.applyScaling();
+        this._onHitEffects(target, proj.damage, this.owner.color);
+        WB.Audio.weaponHit(this.hitCount, this.type);
         this._shatter(proj.x, proj.y);
     }
     applyScaling() {

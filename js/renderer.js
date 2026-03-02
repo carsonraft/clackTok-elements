@@ -69,7 +69,7 @@ WB.Renderer = {
         const _egyptianTypes = WB.WeaponSprites && WB.WeaponSprites._initialized
             ? new Set(WB.WeaponRegistry.getTypes('egyptian'))
             : null;
-        const _onTopTypes = new Set(['ohio', 'michigan', 'mississippi', 'georgia', 'arkansas', 'oklahoma', 'maine', 'colorado']);
+        const _onTopTypes = new Set(['michigan', 'mississippi', 'georgia', 'arkansas', 'oklahoma', 'maine', 'colorado']);
         for (const ball of game.balls) {
             if (ball.isAlive && !(_egyptianTypes && _egyptianTypes.has(ball.weaponType)) && !_onTopTypes.has(ball.weaponType)) {
                 ball.weapon.draw();
@@ -767,7 +767,7 @@ WB.Renderer = {
         const scale = 1 + (1 - progress) * 0.5;
         const cy = c.ARENA.y + c.ARENA.height / 2;
         B.pushTransform(c.CANVAS_WIDTH / 2, cy, 0, scale, scale);
-        T.drawTextWithStroke(text, 0, 0, 'bold 64px "Courier New", monospace', '#FFF', '#333', 4, 'center', 'middle');
+        T.drawTextWithStroke(text, 0, 0, 'bold 48px "Courier New", monospace', '#FFF', '#333', 4, 'center', 'middle');
         B.popTransform();
     },
 

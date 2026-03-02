@@ -5,6 +5,7 @@ WB.Game = {
     state: 'MENU', // MENU | COUNTDOWN | BATTLE | RESULT | SIM_RESULTS | BEST_OF | STUDIO | PRE_BATTLE_CUTSCENE | POST_BATTLE_CUTSCENE
     balls: [],
     projectiles: [],
+    hazards: [],
     particles: null,
     countdownTimer: 0,
     countdownText: '',
@@ -254,6 +255,7 @@ WB.Game = {
     },
 
     startBattle() {
+        if (this.state === 'BATTLE') return; // guard: prevent double-call from testFight + countdown timer
         this.state = 'BATTLE';
         if (WB.GL) WB.GL.clearMotionBlurHistory();
         // Give balls initial random velocity - EXPLOSIVE START
@@ -754,7 +756,7 @@ WB.Game = {
 
     _returnFromResult() {
         if (WB.GL) WB.GL.clearMotionBlurHistory();
-        if (WB.FlagWaver) WB.FlagWaver.stop();
+        if (WB.FlagWaver && WB.FlagWaver.isActive && WB.FlagWaver.isActive()) WB.FlagWaver.stop();
         // Unseed RNG after live battles (replays unseed via SimUI.onReplayEnd)
         if (!WB.SimUI.isReplaying && WB.RNG._seeded) {
             WB.RNG.unseed();
@@ -807,6 +809,9 @@ window.testFight = function(left, right, seed) {
         WB.RNG._seeded = true;
     }
     WB.Game.startCountdown();
+    // Let game loop render one COUNTDOWN frame before jumping to BATTLE.
+    // The guard in startBattle() prevents double-call if countdown timer
+    // also triggers startBattle() (race between setTimeout and phase 4).
     setTimeout(function() { WB.Game.startBattle(); }, 100);
     return left + ' vs ' + right + (seed !== undefined ? ' (seed: ' + seed + ')' : '');
 };
