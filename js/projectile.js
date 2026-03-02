@@ -178,9 +178,19 @@ WB.Projectile = class {
             }
             WB.Audio.weaponHit(this.ownerWeapon ? this.ownerWeapon.hitCount : 0, this.ownerWeapon ? this.ownerWeapon.type : 'blade');
 
+            // Projectile knockback: push target in projectile's travel direction.
+            // Uses velocity heading (not owner position) so arrows push where they fly.
+            {
+                const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy) || 1;
+                const force = this.damage * 0.15;
+                target.vx += (this.vx / spd) * force;
+                target.vy += (this.vy / spd) * force;
+            }
+
             // Track combo for projectile owner + full clacky effects
+            // Pass skipKnockback=true since projectile knockback was already applied above
             if (this.ownerWeapon && this.ownerWeapon._onHitEffects) {
-                this.ownerWeapon._onHitEffects(target, this.damage, this.color);
+                this.ownerWeapon._onHitEffects(target, this.damage, this.color, undefined, true);
             } else {
                 if (WB.Game && WB.Game.particles) {
                     WB.Game.particles.emit(this.x, this.y, 8, this.color);

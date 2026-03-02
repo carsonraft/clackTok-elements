@@ -76,13 +76,27 @@ WB.Weapon = class {
         this.checkSuper();
         WB.Audio.weaponHit(this.hitCount, this.type);
 
-        // All fancy effects via reusable helper
+        // All fancy effects via reusable helper (includes default knockback)
         this._onHitEffects(target, this.currentDamage, this.owner.color);
     }
 
-    // Reusable hit effects — minimal for normal hits, escalates on high combos
-    _onHitEffects(target, dmg, color, comboOverride) {
+    // Reusable hit effects — minimal for normal hits, escalates on high combos.
+    // Also applies default knockback (push target away from owner, scaled by damage).
+    // Called by both melee weapons and projectile checkHit() — the shared hit pipeline.
+    _onHitEffects(target, dmg, color, comboOverride, skipKnockback) {
         if (!WB.GLEffects) return;
+
+        // Default knockback: push target away from owner, proportional to damage.
+        // ~0.15 velocity per damage point (5dmg = 0.75 nudge, 10dmg = 1.5 nudge).
+        // Projectile hits pass skipKnockback=true (they apply their own directional push).
+        if (!skipKnockback) {
+            const dx = target.x - this.owner.x;
+            const dy = target.y - this.owner.y;
+            const d = Math.sqrt(dx * dx + dy * dy) || 1;
+            const force = dmg * 0.15;
+            target.vx += (dx / d) * force;
+            target.vy += (dy / d) * force;
+        }
 
         // Track combo
         WB.GLEffects.incrementCombo(this.owner.side);

@@ -252,74 +252,8 @@ WB.Audio = {
         }
     },
 
-    // Ball-ball collision - ULTRA MEGA CLACKY thud with crack on top
+    // Ball-ball collision — silenced (was generic procedural clack)
     ballClack(speed) {
-        if (!this.ctx || this.muted) return;
-        const t = this.ctx.currentTime;
-        const vol = Math.min(0.6, 0.3 + speed * 0.07);
-        const variant = Math.floor(Math.random() * 3);
-        const pv = this._pitchVar();
-
-        if (variant === 0) {
-            // Low thud — deeper, louder
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime((180 + speed * 35) * pv, t);
-            osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(vol * 1.1, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.14);
-        } else if (variant === 1) {
-            // Mid-range pop — punchier
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this._noiseBuffer(0.05);
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = (2200 + speed * 300) * pv;
-            filter.Q.value = 5 + Math.random() * 5;
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(vol, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
-            noise.start(t); noise.stop(t + 0.06);
-        } else {
-            // High click — snappier
-            const osc = this.ctx.createOscillator();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime((3200 + speed * 300) * pv, t);
-            osc.frequency.exponentialRampToValueAtTime(1000, t + 0.03);
-            const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(vol * 0.8, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-            osc.connect(gain); gain.connect(this.masterGain);
-            osc.start(t); osc.stop(t + 0.05);
-        }
-
-        // Shared noise layer — louder
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = this._noiseBuffer(0.06);
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = 1500 * pv;
-        const nGain = this.ctx.createGain();
-        nGain.gain.setValueAtTime(vol * 0.45, t);
-        nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-        noise.connect(filter); filter.connect(nGain); nGain.connect(this.masterGain);
-        noise.start(t); noise.stop(t + 0.08);
-
-        // EXTRA CLACK — sharp high-freq crack on top of every ball collision
-        const clackOsc = this.ctx.createOscillator();
-        clackOsc.type = 'square';
-        const clackFreq = (3500 + speed * 500) * pv;
-        clackOsc.frequency.setValueAtTime(clackFreq, t);
-        clackOsc.frequency.exponentialRampToValueAtTime(clackFreq * 0.15, t + 0.02);
-        const clackGain = this.ctx.createGain();
-        clackGain.gain.setValueAtTime(vol * 0.4, t);
-        clackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
-        clackOsc.connect(clackGain); clackGain.connect(this.masterGain);
-        clackOsc.start(t); clackOsc.stop(t + 0.03);
     },
 
     // Weapon hits target — each weapon type has a unique sound + UNIVERSAL CLACK OVERLAY
