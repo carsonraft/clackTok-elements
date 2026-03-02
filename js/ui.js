@@ -271,8 +271,8 @@ WB.UI = {
         const c = WB.Config;
         // Use config PACKS keys so all tabs show even before weapons are registered
         var allPacks = Object.keys(WB.Config.PACKS || {});
-        // When expanded rosters is off, only show 'states' tab
-        const packs = WB.Config.EXPANDED_ROSTERS ? allPacks : allPacks.filter(function(p) { return p === 'states'; });
+        // When expanded rosters is off, hide all tabs (states is the only pack shown, no tab needed)
+        const packs = WB.Config.EXPANDED_ROSTERS ? allPacks : [];
         const packNames = WB.Config.PACKS || {};
         const pad = 15;
         const tabH = 20;
